@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "NEXT_PRIVATE_SKIP_TURBO=1 npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
@@ -8,4 +8,3 @@
     "NODE_ENV": "production"
   }
 }
-
