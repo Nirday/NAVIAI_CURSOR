@@ -2,14 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Ensure proper path resolution
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@': require('path').resolve(__dirname),
-    };
-    return config;
-  },
+  // Explicitly disable Turbopack for production builds
+  // Next.js 16 enables Turbopack by default, but it's still experimental
+  // Using webpack for more stable builds
 };
 
 export default nextConfig;
