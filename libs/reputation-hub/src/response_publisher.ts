@@ -252,13 +252,13 @@ async function refreshPlatformToken(
 
       const googleData = await googleRefreshResponse.json()
       const newGoogleToken = googleData.access_token
-      const expiresIn = googleData.expires_in
+      const expiresInSeconds = googleData.expires_in
 
       return {
         decryptedToken: newGoogleToken,
         encryptedToken: encryptToken(newGoogleToken),
         encryptedRefreshToken: googleData.refresh_token ? encryptToken(googleData.refresh_token) : undefined,
-        expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : undefined
+        expiresAt: expiresInSeconds ? new Date(Date.now() + expiresInSeconds * 1000) : undefined
       }
 
     case 'facebook':
@@ -278,12 +278,12 @@ async function refreshPlatformToken(
 
       const fbData = await fbRefreshResponse.json()
       const newFbToken = fbData.access_token
-      const expiresIn = fbData.expires_in
+      const fbExpiresIn = fbData.expires_in
 
       return {
         decryptedToken: newFbToken,
         encryptedToken: encryptToken(newFbToken),
-        expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : undefined
+        expiresAt: fbExpiresIn ? new Date(Date.now() + fbExpiresIn * 1000) : undefined
       }
 
     case 'yelp':
