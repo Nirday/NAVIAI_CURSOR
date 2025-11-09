@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 /**
  * Public page for accepting admin invitations
@@ -21,7 +21,7 @@ export default function AcceptAdminInvitePage() {
   const [accepting, setAccepting] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  const supabase = createClient()
+  const supabaseClient = supabase
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -29,7 +29,7 @@ export default function AcceptAdminInvitePage() {
   }, [])
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabaseClient.auth.getSession()
     if (session) {
       setIsAuthenticated(true)
       // If authenticated and token exists, auto-accept
@@ -45,7 +45,7 @@ export default function AcceptAdminInvitePage() {
     setLoading(true)
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
         email,
         password
       })
@@ -74,7 +74,7 @@ export default function AcceptAdminInvitePage() {
     setLoading(true)
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabaseClient.auth.signUp({
         email,
         password
       })
