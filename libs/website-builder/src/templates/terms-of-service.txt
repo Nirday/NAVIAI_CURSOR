@@ -1,0 +1,81 @@
+**IMPORTANT LEGAL DISCLAIMER**
+
+This document is a template and is not legal advice. Please consult with a legal professional to ensure it meets your specific needs.
+
+---
+
+# Terms of Service
+
+**Last Updated: [DATE]**
+
+Please read these Terms of Service ("Terms") carefully before using the website operated by [Business Name] ("we," "our," or "us").
+
+## Agreement to Terms
+
+By accessing or using our website, you agree to be bound by these Terms. If you disagree with any part of these Terms, you may not access or use our website.
+
+## Use License
+
+Permission is granted to temporarily access and use our website for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:
+
+- Modify or copy the materials
+- Use the materials for any commercial purpose or for any public display
+- Attempt to decompile or reverse engineer any software contained on our website
+- Remove any copyright or other proprietary notations from the materials
+- Transfer the materials to another person or "mirror" the materials on any other server
+
+This license shall automatically terminate if you violate any of these restrictions and may be terminated by us at any time.
+
+## User Accounts
+
+If you create an account on our website, you are responsible for:
+
+- Maintaining the security of your account and password
+- All activities that occur under your account
+- Notifying us immediately of any unauthorized use of your account
+
+## Prohibited Uses
+
+You may not use our website:
+
+- In any way that violates any applicable federal, state, local, or international law or regulation
+- To transmit any advertising or promotional material without our prior written consent
+- To impersonate or attempt to impersonate us, our employees, another user, or any other person or entity
+- In any way that infringes upon the rights of others
+
+## Intellectual Property
+
+The website and its original content, features, and functionality are and will remain the exclusive property of [Business Name] and its licensors. The website is protected by copyright, trademark, and other laws.
+
+## Disclaimers
+
+The information on this website is provided on an "as is" basis. To the fullest extent permitted by law, we exclude all representations, warranties, and conditions relating to our website and the use of this website.
+
+## Limitation of Liability
+
+In no event shall [Business Name], nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your use of the website.
+
+## Indemnification
+
+You agree to defend, indemnify, and hold harmless [Business Name] and its licensees and licensors from any claims, damages, obligations, losses, liabilities, costs, or debt, and expenses (including but not limited to attorney's fees) arising from your use of the website or violation of these Terms.
+
+## Governing Law
+
+These Terms shall be interpreted and governed by the laws of [State/Country], without regard to its conflict of law provisions.
+
+## Changes to Terms
+
+We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days' notice prior to any new terms taking effect.
+
+## Contact Information
+
+If you have any questions about these Terms, please contact us:
+
+- **Email**: [Business Email]
+- **Address**: [Business Address]
+- **Phone**: [Business Phone]
+
+---
+
+*These Terms of Service were last updated on [DATE]. We reserve the right to update these Terms at any time. Your continued use of our website after any changes indicates your acceptance of the new Terms.*
+
