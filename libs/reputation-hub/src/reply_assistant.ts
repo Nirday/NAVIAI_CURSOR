@@ -574,10 +574,6 @@ export async function handleEditRequest(
     console.error('[Reply Assistant] Error handling edit request:', error)
     throw error
   }
-} catch (error: any) {
-    console.error('[Reply Assistant] Error generating AI response:', error)
-    throw new Error(`Failed to generate response suggestion: ${error.message}`)
-  }
 }
 
 /**
