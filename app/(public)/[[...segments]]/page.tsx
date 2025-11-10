@@ -21,9 +21,10 @@ function extractSubdomainDomain(host: string): string | null {
   return host
 }
 
-type Props = { params: { segments?: string[] } }
+type Props = { params: Promise<{ segments?: string[] }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { segments } = await params
   const host = getHost()
   if (!host) return {}
   const domain = extractSubdomainDomain(host)
@@ -32,7 +33,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const website = await getPublishedWebsiteByDomain(domain)
   if (!website) return {}
 
-  const slug = params.segments?.[0] || 'home'
+  const slug = segments?.[0] || 'home'
   const page = getPageBySlug(website, slug) || website.pages[0]
   if (!page) return {}
 
@@ -47,13 +48,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PublicSite({ params }: Props) {
+  const { segments } = await params
   const host = getHost()
   const domain = host ? extractSubdomainDomain(host) : null
   if (!domain) return <div>Not Found</div>
   const website = await getPublishedWebsiteByDomain(domain)
   if (!website) return <div>Not Found</div>
 
-  const slug = params.segments?.[0] || 'home'
+  const slug = segments?.[0] || 'home'
   const page = getPageBySlug(website, slug) || website.pages[0]
   if (!page) return <div>Not Found</div>
 

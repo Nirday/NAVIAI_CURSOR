@@ -9,14 +9,15 @@ function getAuthenticatedUserId(): string | null {
   return id && id.length > 0 ? id : null
 }
 
-type Props = { params: { slug: string } }
+type Props = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
   const userId = getAuthenticatedUserId()
   if (!userId) return {}
   const website = await getWebsiteByUserId(userId)
   if (!website) return {}
-  const page = getPageBySlug(website, params.slug)
+  const page = getPageBySlug(website, slug)
   if (!page) return {}
 
   const metadata: Metadata = {
@@ -27,6 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function Page({ params }: Props) {
+  const { slug } = await params
   const userId = getAuthenticatedUserId()
   if (!userId) {
     return <div className="p-6">Unauthorized</div>
@@ -36,7 +38,7 @@ export default async function Page({ params }: Props) {
   if (!website) {
     return <div className="p-6">No website draft found.</div>
   }
-  const page = getPageBySlug(website, params.slug)
+  const page = getPageBySlug(website, slug)
   if (!page) {
     return <div className="p-6">Page not found.</div>
   }

@@ -1,13 +1,14 @@
 import UserDetailView from '../../components/UserDetailView'
 
 interface PageProps {
-  params: { userId: string }
+  params: Promise<{ userId: string }>
 }
 
 /**
  * User Detail Page
  */
-export default function UserDetailPage({ params }: PageProps) {
-  return <UserDetailView userId={params.userId} />
+export default async function UserDetailPage({ params }: PageProps) {
+  const { userId } = await params
+  return <UserDetailView userId={userId} />
 }
 
