@@ -157,11 +157,11 @@ export default function PostComposer({ userId, profile, onPostSaved, onCancel, p
 
   useEffect(() => {
     if (status === 'scheduled' && !scheduledAt) {
-      const default = getDefaultDateTime()
-      setScheduledAt(default.date)
-      setScheduledTime(default.time)
+      const defaultSchedule = getDefaultDateTime()
+      setScheduledAt(defaultSchedule.date)
+      setScheduledTime(defaultSchedule.time)
     }
-  }, [status])
+  }, [status, scheduledAt])
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { getPublishedWebsiteByDomain } from '../../../../libs/website-builder/src/data'
+import { getPublishedWebsiteByDomain } from '@/libs/website-builder/src/data'
 
 function getBaseDomain(): string {
   return process.env.NEXT_PUBLIC_PUBLISH_BASE_DOMAIN || 'naviai.local'
