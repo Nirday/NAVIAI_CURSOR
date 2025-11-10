@@ -277,7 +277,11 @@ Generate the response:`
       }
     }
 
-  return suggestedResponse
+    return suggestedResponse
+  } catch (error: any) {
+    console.error('[Reply Assistant] Error generating response:', error)
+    throw error
+  }
 }
 
 /**
