@@ -36,7 +36,7 @@ function dispatchActionCommand(userId: string, commandType: string, payload: any
 /**
  * Fetches recent chat history for a user
  */
-async function fetchChatHistory(userId: string, limit: number = 50): Promise<ChatMessage[]> {
+export async function fetchChatHistory(userId: string, limit: number = 50): Promise<ChatMessage[]> {
   try {
     const { data, error } = await supabaseAdmin
       .from('chat_messages')
