@@ -122,18 +122,21 @@ class MockSupabaseClient {
         this.data.set(table, tableData)
         return { data: payload, error: null }
       },
-      update: (updates: any) => ({
-        eq: async (column: string, value: any): Promise<MockSupabaseResponse<any>> => {
-          const tableData = this.getTableData(table)
-          const index = tableData.findIndex((item: any) => item[column] === value)
-          if (index >= 0) {
-            tableData[index] = { ...tableData[index], ...updates }
-            this.data.set(table, tableData)
-            return { data: tableData[index], error: null }
+      update: (updates: any) => {
+        const client = this
+        return {
+          async eq(column: string, value: any): Promise<MockSupabaseResponse<any>> {
+            const tableData = client.getTableData(table)
+            const index = tableData.findIndex((item: any) => item[column] === value)
+            if (index >= 0) {
+              tableData[index] = { ...tableData[index], ...updates }
+              client.data.set(table, tableData)
+              return { data: tableData[index], error: null }
+            }
+            return { data: null, error: { message: 'Not found' } }
           }
-          return { data: null, error: { message: 'Not found' } }
         }
-      })
+      }
     }
   }
 
