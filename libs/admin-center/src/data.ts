@@ -13,6 +13,9 @@ import {
   PlatformSetting
 } from './types'
 
+// Re-export types for convenience
+export type { UserRole, FeatureFlag, AdminAuditLog, AdminInvite, JobRunLog, PlatformSetting }
+
 /**
  * User Profiles
  */
