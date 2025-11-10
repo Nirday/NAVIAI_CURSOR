@@ -4,8 +4,8 @@ import Renderer from '../../../libs/website-builder/src/Renderer'
 import { getPublishedWebsiteByDomain, getPageBySlug } from '../../../libs/website-builder/src/data'
 import Analytics from '../../../libs/website-builder/src/Analytics'
 
-function getHost(): string | null {
-  const hdrs = headers()
+async function getHost(): Promise<string | null> {
+  const hdrs = await headers()
   const host = hdrs.get('host')
   return host
 }
@@ -25,7 +25,7 @@ type Props = { params: Promise<{ segments?: string[] }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { segments } = await params
-  const host = getHost()
+  const host = await getHost()
   if (!host) return {}
   const domain = extractSubdomainDomain(host)
   if (!domain) return {}
@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicSite({ params }: Props) {
   const { segments } = await params
-  const host = getHost()
+  const host = await getHost()
   const domain = host ? extractSubdomainDomain(host) : null
   if (!domain) return <div>Not Found</div>
   const website = await getPublishedWebsiteByDomain(domain)
