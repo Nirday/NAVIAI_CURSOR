@@ -11,9 +11,11 @@ import { setUserRole, getUserRole, createAuditLog } from '@/libs/admin-center/sr
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -46,7 +48,7 @@ export async function POST(
 
     // Check if target user exists
     const { data: targetUserData, error: userError } = await supabaseAdmin.auth.admin.getUserById(
-      params.userId
+      userId
     )
 
     if (userError || !targetUserData?.user) {
@@ -54,7 +56,7 @@ export async function POST(
     }
 
     // Check if target user is a super_admin
-    const targetUserRole = await getUserRole(params.userId)
+    const targetUserRole = await getUserRole(userId)
 
     // Prevent removing the last super_admin
     if (targetUserRole === 'super_admin') {
@@ -77,11 +79,11 @@ export async function POST(
     }
 
     // Change role to 'user'
-    await setUserRole(params.userId, 'user')
+    await setUserRole(userId, 'user')
 
     // Create audit log
     await createAuditLog(superAdminUserId, 'admin_removed', {
-      targetUserId: params.userId,
+      targetUserId: userId,
       targetUserEmail: targetUserData.user.email || '',
       previousRole: targetUserRole
     })

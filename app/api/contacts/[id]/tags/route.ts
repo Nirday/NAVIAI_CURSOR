@@ -8,8 +8,9 @@ import { supabaseAdmin } from '@/lib/supabase'
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -32,7 +33,7 @@ export async function PATCH(
     const { data: existing, error: checkError } = await supabaseAdmin
       .from('contacts')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
 
@@ -50,7 +51,7 @@ export async function PATCH(
         tags: tags,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 

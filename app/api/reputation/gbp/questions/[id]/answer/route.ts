@@ -8,8 +8,9 @@ import { publishGBPAnswerToPlatform } from '@/libs/reputation-hub/src/gbp_qa'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -28,7 +29,7 @@ export async function POST(
       )
     }
 
-    const result = await publishGBPAnswerToPlatform(params.id, answer.trim())
+    const result = await publishGBPAnswerToPlatform(id, answer.trim())
 
     if (!result.success) {
       return NextResponse.json(

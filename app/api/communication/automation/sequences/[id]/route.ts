@@ -9,8 +9,9 @@ import { AutomationSequence, AutomationStep } from '@/libs/communication-hub/src
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -23,7 +24,7 @@ export async function GET(
     const { data: sequence, error: seqError } = await supabaseAdmin
       .from('automation_sequences')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -38,7 +39,7 @@ export async function GET(
     const { data: steps, error: stepsError } = await supabaseAdmin
       .from('automation_steps')
       .select('*')
-      .eq('sequence_id', params.id)
+      .eq('sequence_id', id)
       .order('step_order', { ascending: true })
     
     if (stepsError) {
@@ -86,8 +87,9 @@ export async function GET(
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -103,7 +105,7 @@ export async function PATCH(
     const { data: existing, error: checkError } = await supabaseAdmin
       .from('automation_sequences')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -124,7 +126,7 @@ export async function PATCH(
       const { error: updateError } = await supabaseAdmin
         .from('automation_sequences')
         .update(updateData)
-        .eq('id', params.id)
+        .eq('id', id)
 
       if (updateError) {
         throw new Error(`Failed to update sequence: ${updateError.message}`)
@@ -178,11 +180,11 @@ export async function PATCH(
       await supabaseAdmin
         .from('automation_steps')
         .delete()
-        .eq('sequence_id', params.id)
+        .eq('sequence_id', id)
 
       // Insert new steps
       const stepsToInsert = steps.map((step: any, index: number) => ({
-        sequence_id: params.id,
+        sequence_id: id,
         step_order: index,
         action: step.action,
         subject: step.subject || null,
@@ -203,13 +205,13 @@ export async function PATCH(
     const { data: sequence } = await supabaseAdmin
       .from('automation_sequences')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     const { data: updatedSteps } = await supabaseAdmin
       .from('automation_steps')
       .select('*')
-      .eq('sequence_id', params.id)
+      .eq('sequence_id', id)
       .order('step_order', { ascending: true })
 
     const formattedSteps: AutomationStep[] = (updatedSteps || []).map(step => ({
@@ -253,8 +255,9 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -267,7 +270,7 @@ export async function DELETE(
     const { data: existing, error: checkError } = await supabaseAdmin
       .from('automation_sequences')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -282,7 +285,7 @@ export async function DELETE(
     const { error: deleteError } = await supabaseAdmin
       .from('automation_sequences')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (deleteError) {
       throw new Error(`Failed to delete sequence: ${deleteError.message}`)

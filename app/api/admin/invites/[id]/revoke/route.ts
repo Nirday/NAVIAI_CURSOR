@@ -11,9 +11,12 @@ import { createAuditLog } from '@/libs/admin-center/src/data'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+  const { id } = await params
+   try {
+    const { id } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -48,7 +51,7 @@ export async function POST(
     const { data: invite, error: fetchError } = await supabaseAdmin
       .from('admin_invites')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError || !invite) {
@@ -66,7 +69,7 @@ export async function POST(
     const { error: updateError } = await supabaseAdmin
       .from('admin_invites')
       .update({ status: 'expired' })
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (updateError) {
       throw new Error(`Failed to revoke invite: ${updateError.message}`)
@@ -74,7 +77,7 @@ export async function POST(
 
     // Create audit log
     await createAuditLog(superAdminUserId, 'admin_invite_revoked', {
-      inviteId: params.id,
+      inviteId: id,
       invitedEmail: invite.email
     })
 

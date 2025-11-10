@@ -10,8 +10,9 @@ import { generateActivitySummary } from '@/libs/contact-hub/src/ai_summary'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -24,7 +25,7 @@ export async function POST(
     const { data: contactData, error: contactError } = await supabaseAdmin
       .from('contacts')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
 
@@ -51,7 +52,7 @@ export async function POST(
     const { data: activities, error: activitiesError } = await supabaseAdmin
       .from('activity_events')
       .select('*')
-      .eq('contact_id', params.id)
+      .eq('contact_id', id)
       .order('created_at', { ascending: false })
       .limit(20)
 

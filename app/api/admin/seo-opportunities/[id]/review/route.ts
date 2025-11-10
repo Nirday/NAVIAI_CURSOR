@@ -11,9 +11,12 @@ import { createAuditLog } from '@/libs/admin-center/src/data'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+  const { id } = await params
+   try {
+    const { id } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -58,7 +61,7 @@ export async function POST(
     const { data: oppData, error: oppError } = await supabaseAdmin
       .from('seo_opportunities')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('status', 'pending_review')
       .single()
 
@@ -75,7 +78,7 @@ export async function POST(
       .update({
         status: action
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (updateError) {
       throw new Error(`Failed to update opportunity: ${updateError.message}`)
@@ -83,7 +86,7 @@ export async function POST(
 
     // Create audit log
     await createAuditLog(adminUserId, 'seo_opportunity_reviewed', {
-      opportunityId: params.id,
+      opportunityId: id,
       opportunityTitle: oppData.title,
       action: action,
       previousStatus: 'pending_review'

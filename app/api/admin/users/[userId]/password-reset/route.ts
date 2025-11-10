@@ -11,9 +11,12 @@ import { createAuditLog } from '@/libs/admin-center/src/data'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
-  try {
+  const { userId } = await params
+   try {
+    const { userId } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -46,7 +49,7 @@ export async function POST(
 
     // Get user email
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(
-      params.userId
+      userId
     )
 
     if (userError || !userData?.user?.email) {
@@ -65,7 +68,7 @@ export async function POST(
 
     // Create audit log
     await createAuditLog(adminUserId, 'password_reset_sent', {
-      targetUserId: params.userId,
+      targetUserId: userId,
       targetUserEmail: userData.user.email
     })
 

@@ -10,8 +10,9 @@ import { ReviewPlatform } from '@/libs/reputation-hub/src/types'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -44,7 +45,7 @@ export async function POST(
           token_expires_at
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -120,7 +121,7 @@ export async function POST(
           response_retry_count: (review.response_retry_count || 0) + 1,
           updated_at: new Date().toISOString()
         })
-        .eq('id', params.id)
+        .eq('id', id)
 
       return NextResponse.json(
         { error: `Failed to publish reply: ${error.message}` },
@@ -132,7 +133,7 @@ export async function POST(
     const { data: response, error: responseError } = await supabaseAdmin
       .from('review_responses')
       .insert({
-        review_id: params.id,
+        review_id: id,
         content: content.trim(),
         responded_at: new Date().toISOString(),
         platform_response_id: platformResponseId
@@ -153,7 +154,7 @@ export async function POST(
         response_error_message: null,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     return NextResponse.json({
       success: true,

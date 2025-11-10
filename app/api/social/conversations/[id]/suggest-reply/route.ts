@@ -11,8 +11,9 @@ import { BusinessProfile } from '@/libs/chat-core/src/types'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -25,7 +26,7 @@ export async function POST(
     const { data: conv, error: convError } = await supabaseAdmin
       .from('social_conversations')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -40,7 +41,7 @@ export async function POST(
     const { data: messages, error: msgError } = await supabaseAdmin
       .from('social_messages')
       .select('*')
-      .eq('conversation_id', params.id)
+      .eq('conversation_id', id)
       .order('created_at', { ascending: true })
     
     if (msgError) {

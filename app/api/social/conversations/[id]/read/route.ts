@@ -8,8 +8,9 @@ import { supabaseAdmin } from '@/lib/supabase'
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -22,7 +23,7 @@ export async function PATCH(
     const { data: conv, error: convError } = await supabaseAdmin
       .from('social_conversations')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -37,7 +38,7 @@ export async function PATCH(
     await supabaseAdmin
       .from('social_messages')
       .update({ is_read: true })
-      .eq('conversation_id', params.id)
+      .eq('conversation_id', id)
       .eq('sender_type', 'customer')
 
     // Update conversation unread count to 0
@@ -47,7 +48,7 @@ export async function PATCH(
         unread_count: 0,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

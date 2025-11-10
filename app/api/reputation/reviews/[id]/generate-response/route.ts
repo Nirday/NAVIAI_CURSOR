@@ -9,8 +9,9 @@ import { generateAndRequestApproval } from '@/libs/reputation-hub/src/reply_assi
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -23,7 +24,7 @@ export async function POST(
     const { data: review, error: reviewError } = await supabaseAdmin
       .from('reviews')
       .select('id, user_id, status')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
 
@@ -43,7 +44,7 @@ export async function POST(
     }
 
     // Generate response and send approval notification
-    await generateAndRequestApproval(params.id)
+    await generateAndRequestApproval(id)
 
     return NextResponse.json({ 
       success: true,

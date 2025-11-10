@@ -9,8 +9,9 @@ import { decryptToken } from '@/libs/connections-hub/src/encryption'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -42,7 +43,7 @@ export async function POST(
           access_token
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -89,7 +90,7 @@ export async function POST(
     const { data: message, error: msgError } = await supabaseAdmin
       .from('social_messages')
       .insert({
-        conversation_id: params.id,
+        conversation_id: id,
         platform_message_id: platformMessageId,
         platform: connection.platform,
         sender_id: connection.platform_account_id,
@@ -117,7 +118,7 @@ export async function POST(
         status: 'open', // Keep conversation open when we reply
         unread_count: 0 // Reset unread count since we just replied
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     return NextResponse.json({
       success: true,

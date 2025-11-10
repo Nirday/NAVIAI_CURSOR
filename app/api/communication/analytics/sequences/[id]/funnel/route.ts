@@ -9,8 +9,9 @@ import { supabaseAdmin } from '@/lib/supabase'
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -23,7 +24,7 @@ export async function GET(
     const { data: sequence, error: seqError } = await supabaseAdmin
       .from('automation_sequences')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -38,7 +39,7 @@ export async function GET(
     const { data: steps, error: stepsError } = await supabaseAdmin
       .from('automation_steps')
       .select('id, step_order, action, wait_days, subject')
-      .eq('sequence_id', params.id)
+      .eq('sequence_id', id)
       .order('step_order', { ascending: true })
     
     if (stepsError) {
@@ -49,7 +50,7 @@ export async function GET(
     const { data: progress, error: progressError } = await supabaseAdmin
       .from('automation_contact_progress')
       .select('current_step_id')
-      .eq('sequence_id', params.id)
+      .eq('sequence_id', id)
     
     if (progressError) {
       throw new Error(`Failed to fetch progress: ${progressError.message}`)

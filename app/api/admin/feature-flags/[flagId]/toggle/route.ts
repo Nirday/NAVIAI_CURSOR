@@ -11,9 +11,12 @@ import { createAuditLog } from '@/libs/admin-center/src/data'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { flagId: string } }
+  { params }: { params: Promise<{ flagId: string }> }
 ) {
-  try {
+  const { flagId } = await params
+   try {
+    const { flagId } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -55,7 +58,7 @@ export async function POST(
     }
 
     // Get current flag state for audit log
-    const currentFlag = await getFeatureFlag(params.flagId)
+    const currentFlag = await getFeatureFlag(flagId)
     if (!currentFlag) {
       return NextResponse.json(
         { error: 'Feature flag not found' },
@@ -64,11 +67,11 @@ export async function POST(
     }
 
     // Toggle flag
-    await toggleFeatureFlag(params.flagId, enabled)
+    await toggleFeatureFlag(flagId, enabled)
 
     // Create audit log
     await createAuditLog(userId, 'feature_flag_toggled', {
-      flagId: params.flagId,
+      flagId: flagId,
       oldValue: currentFlag.isEnabled,
       newValue: enabled,
       description: currentFlag.description

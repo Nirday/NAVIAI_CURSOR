@@ -9,8 +9,9 @@ import { SocialIdea } from '@/libs/social-hub/src/types'
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -21,7 +22,7 @@ export async function PATCH(
   try {
     const body = await req.json()
     const { status } = body
-    const ideaId = params.id
+    const ideaId = id
 
     if (!status || !['used', 'dismissed'].includes(status)) {
       return NextResponse.json(

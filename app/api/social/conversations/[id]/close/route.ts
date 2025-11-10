@@ -8,8 +8,9 @@ import { supabaseAdmin } from '@/lib/supabase'
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -25,7 +26,7 @@ export async function PATCH(
     const { data: conv, error: convError } = await supabaseAdmin
       .from('social_conversations')
       .select('id, status')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
     
@@ -52,7 +53,7 @@ export async function PATCH(
         status: newStatus,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (updateError) {
       throw new Error(`Failed to update conversation: ${updateError.message}`)

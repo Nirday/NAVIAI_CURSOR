@@ -11,9 +11,12 @@ import { getUserRole } from '@/libs/admin-center/src/data'
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
-  try {
+  const { userId } = await params
+   try {
+    const { userId } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -44,7 +47,7 @@ export async function GET(
 
     // Get user from Supabase Auth
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(
-      params.userId
+      userId
     )
 
     if (userError || !userData?.user) {
@@ -54,20 +57,20 @@ export async function GET(
     const authUser = userData.user
 
     // Get role from database
-    const role = await getUserRole(params.userId)
+    const role = await getUserRole(userId)
 
     // Get business profile name
     const { data: profileData } = await supabaseAdmin
       .from('business_profiles')
       .select('business_name')
-      .eq('user_id', params.userId)
+      .eq('user_id', userId)
       .single()
 
     // Get subscription status
     const { data: subData } = await supabaseAdmin
       .from('subscriptions')
       .select('status, stripe_price_id')
-      .eq('user_id', params.userId)
+      .eq('user_id', userId)
       .single()
 
     const user = {

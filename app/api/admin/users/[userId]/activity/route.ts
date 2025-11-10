@@ -10,9 +10,12 @@ import { requireAdmin } from '@/libs/admin-center/src/access_control'
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
-  try {
+  const { userId } = await params
+   try {
+    const { userId } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -45,7 +48,7 @@ export async function GET(
     const { data, error } = await supabaseAdmin
       .from('activity_events')
       .select('*')
-      .eq('user_id', params.userId)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(100)
 

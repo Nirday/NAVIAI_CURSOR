@@ -11,8 +11,9 @@ import { sendSMS } from '@/libs/communication-hub/src/sms_service'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
   
@@ -49,7 +50,7 @@ export async function POST(
     const { data: contact, error: contactError } = await supabaseAdmin
       .from('contacts')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', userId)
       .single()
 
@@ -106,7 +107,7 @@ export async function POST(
       .from('activity_events')
       .insert({
         user_id: userId,
-        contact_id: params.id,
+        contact_id: id,
         event_type: eventType,
         content: content
       })

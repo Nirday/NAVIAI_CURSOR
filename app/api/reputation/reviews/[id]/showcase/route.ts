@@ -8,9 +8,10 @@ import { triggerShowcaseAction } from '@/libs/reputation-hub/src/showcase_handle
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id: reviewId } = params
+  const { id } = await params
+   const { id: reviewId } = params
   const hdrs = headers()
   const userId = hdrs.get('x-user-id')
 

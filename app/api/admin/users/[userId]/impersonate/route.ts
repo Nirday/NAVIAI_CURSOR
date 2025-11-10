@@ -12,9 +12,12 @@ import { randomUUID } from 'crypto'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
-  try {
+  const { userId } = await params
+   try {
+    const { userId } = await params
+    
     // Get authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -47,7 +50,7 @@ export async function POST(
 
     // Get target user
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(
-      params.userId
+      userId
     )
 
     if (userError || !userData?.user) {
@@ -66,7 +69,7 @@ export async function POST(
 
     // Create audit log
     await createAuditLog(adminUserId, 'user_impersonated', {
-      targetUserId: params.userId,
+      targetUserId: userId,
       targetUserEmail: userData.user.email || '',
       impersonationToken: impersonationToken
     })
