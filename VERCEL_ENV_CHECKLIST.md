@@ -197,9 +197,12 @@
 
 ---
 
-## ✅ ALREADY CONFIGURED (Verify These Are Set)
+## 📋 COPY FROM YOUR LOCAL .env.local
 
-These variables should already exist in your .env.local and must be added to Vercel:
+**IMPORTANT**: These variables already exist in your local `.env.local` file.  
+**YOU MUST MANUALLY COPY THEM** to Vercel Dashboard → Settings → Environment Variables.
+
+Vercel CANNOT read your local `.env.local` file - you must add each one manually:
 
 1. **NEXT_PUBLIC_SUPABASE_URL** ✅
    - Your Supabase project URL
