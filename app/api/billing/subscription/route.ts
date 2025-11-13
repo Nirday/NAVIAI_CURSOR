@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { getSubscription } from '@/libs/billing-hub/src/data'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/billing/subscription
  * Fetches the current subscription for the authenticated user
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 
   if (!userId) {

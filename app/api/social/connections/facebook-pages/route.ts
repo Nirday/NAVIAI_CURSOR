@@ -10,12 +10,14 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { encryptToken } from '@/libs/connections-hub/src/encryption'
 import { getInstagramAccount } from '@/libs/connections-hub/src/oauth'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/social/connections/facebook-pages
  * Saves selected Facebook Page as connection
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

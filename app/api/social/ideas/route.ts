@@ -3,13 +3,15 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SocialIdea } from '@/libs/social-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/social/ideas
  * Fetches social ideas for the authenticated user
  * Query params: status (optional, defaults to 'new')
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

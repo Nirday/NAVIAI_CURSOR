@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { fetchContactsForEmailBroadcast, fetchContactsForSmsBroadcast } from '@/libs/communication-hub/src/contact_adapter'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/communication/audiences/preview
  * Previews audience size based on channel and tags
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

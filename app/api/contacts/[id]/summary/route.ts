@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { Contact, ActivityEvent } from '@/libs/contact-hub/src/types'
 import { generateActivitySummary } from '@/libs/contact-hub/src/ai_summary'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/contacts/[id]/summary
  * Generates an AI summary of the contact's activity history
@@ -13,7 +15,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

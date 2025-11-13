@@ -3,12 +3,14 @@ import { headers } from 'next/headers'
 import { createReviewRequestCampaign } from '@/libs/reputation-hub/src/review_campaign'
 import { ReviewPlatform } from '@/libs/reputation-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/reputation/campaigns/create
  * Creates a review request campaign with review gating flow
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 
   if (!userId) {

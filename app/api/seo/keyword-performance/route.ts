@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { getKeywordPerformanceHistory, getLatestKeywordPerformance } from '@/libs/seo-audit/src/keyword_tracker'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/seo/keyword-performance
  * Fetches keyword performance data
  * Query params: days (default: 30), keyword (optional)
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

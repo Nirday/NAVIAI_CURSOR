@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/content/settings
  * Fetches content settings for the authenticated user
  */
 export async function GET() {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {
@@ -62,7 +64,7 @@ export async function GET() {
  * Updates content settings for the authenticated user
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

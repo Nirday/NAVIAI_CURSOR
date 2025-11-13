@@ -4,12 +4,14 @@ import { runAiFix } from '@/libs/seo-audit/src/fixer'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SeoIssue } from '@/libs/seo-audit/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/seo/fix
  * Triggers AI fix for an SEO issue
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

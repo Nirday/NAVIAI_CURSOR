@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SocialIdea } from '@/libs/social-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * PATCH /api/social/ideas/[id]
  * Updates idea status (use or dismiss)
@@ -12,7 +14,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

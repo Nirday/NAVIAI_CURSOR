@@ -4,12 +4,14 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { Broadcast, BroadcastContentVersion, AbTestConfig } from '@/libs/communication-hub/src/types'
 import { fetchContactsForEmailBroadcast, fetchContactsForSmsBroadcast } from '@/libs/communication-hub/src/contact_adapter'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/communication/broadcasts
  * Creates a new broadcast
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

@@ -3,12 +3,14 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SeoSettings } from '@/libs/seo-audit/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/seo/settings
  * Fetches SEO settings for the authenticated user
  */
 export async function GET() {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {
@@ -65,7 +67,7 @@ export async function GET() {
  * Updates SEO settings for the authenticated user
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { transcribeAudio, transcribeAudioFromBase64 } from '@/libs/voice/src/whisper_service'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/voice/transcribe
  * Transcribe audio to text using OpenAI Whisper
  * V1.5: Voice-first interface support
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

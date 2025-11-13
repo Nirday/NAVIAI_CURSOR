@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import Stripe from 'stripe'
 
+
+export const dynamic = 'force-dynamic'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-11-20.acacia'
 })
@@ -11,7 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
  * Fetches products from Stripe and filters by type
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 
   if (!userId) {

@@ -3,12 +3,14 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { ReviewSource } from '@/libs/reputation-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/reputation/sources
  * Fetch all review sources for the user
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {
@@ -56,7 +58,7 @@ export async function GET(req: NextRequest) {
  * Create a new review source (for Yelp API key entry)
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

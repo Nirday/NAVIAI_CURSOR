@@ -4,6 +4,8 @@ import { getWebsiteByUserId, upsertWebsiteDraft } from '@/libs/website-builder/s
 import { ColorPalette } from '@/libs/website-builder/src/color_extractor'
 import { Website } from '@/libs/website-builder/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/website/apply-colors
  * Apply a custom color palette to the user's website
@@ -13,7 +15,7 @@ import { Website } from '@/libs/website-builder/src/types'
  *   - preserveFonts (optional): Keep existing fonts (default: true)
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

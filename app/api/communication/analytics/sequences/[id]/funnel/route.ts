@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/communication/analytics/sequences/[id]/funnel
  * Fetches funnel data for a specific automation sequence
@@ -12,7 +14,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

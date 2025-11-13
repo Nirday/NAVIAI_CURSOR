@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SocialConversation, SocialMessage } from '@/libs/social-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/social/conversations
  * Fetches all conversations for the authenticated user
@@ -11,7 +13,7 @@ import { SocialConversation, SocialMessage } from '@/libs/social-hub/src/types'
  * - status: 'open' | 'closed' (optional, defaults to 'open')
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

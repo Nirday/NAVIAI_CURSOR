@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { getProfile } from '@/libs/chat-core/src/profile'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/profile
  * Fetches business profile for the authenticated user
  */
 export async function GET() {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/mobile/register-device
  * Register device token for push notifications
  * V1.5: Mobile app push notification support
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

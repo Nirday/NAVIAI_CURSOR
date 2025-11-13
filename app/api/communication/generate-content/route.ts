@@ -5,12 +5,14 @@ import { generateCommunicationContent } from '@/libs/communication-hub/src/compo
 import { BusinessProfile } from '@/libs/chat-core/src/types'
 import { CommunicationSettings } from '@/libs/communication-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/communication/generate-content
  * Generates communication content (subject lines and body) using AI
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

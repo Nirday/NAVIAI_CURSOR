@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { Contact } from '@/libs/contact-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/contacts/[id]
  * Fetches a single contact by ID
@@ -12,7 +14,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

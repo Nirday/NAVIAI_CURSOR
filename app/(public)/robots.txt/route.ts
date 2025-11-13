@@ -1,8 +1,8 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-export const dynamic = 'force-dynamic'
 
+export const dynamic = 'force-dynamic'
 function getBaseDomain(): string {
   return process.env.NEXT_PUBLIC_PUBLISH_BASE_DOMAIN || 'naviai.local'
 }

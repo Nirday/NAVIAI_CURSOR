@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 
+
+export const dynamic = 'force-dynamic'
 function getAuthenticatedUserId(): string | null {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   return userId && userId.length > 0 ? userId : null
 }

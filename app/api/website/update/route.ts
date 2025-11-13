@@ -5,13 +5,15 @@ import { validateWebsiteData } from '@/libs/website-builder/src/validation'
 import { publishWebsite } from '@/libs/website-builder/src/publisher'
 import { Website } from '@/libs/website-builder/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/website/update
  * V1.5: Form-based website editor endpoint
  * Updates website data and publishes
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

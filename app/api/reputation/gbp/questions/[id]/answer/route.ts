@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { publishGBPAnswerToPlatform } from '@/libs/reputation-hub/src/gbp_qa'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/reputation/gbp/questions/[id]/answer
  * Publish an answer to a GBP question
@@ -11,7 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

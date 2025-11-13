@@ -5,13 +5,15 @@ import { createCallTrackingNumber, getCallTrackingNumber } from '@/libs/call-tra
 import { getSubscription } from '@/libs/billing-hub/src/data'
 import { getEntitlementsByPriceId } from '@/libs/billing-hub/src/config/entitlements'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/call-tracking/provision
  * Provision a tracked phone number for the user
  * Requires Growth or Pro plan
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest) {
  * Get user's tracked phone number
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

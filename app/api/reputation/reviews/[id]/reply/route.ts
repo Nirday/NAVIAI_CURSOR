@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { decryptToken } from '@/libs/connections-hub/src/encryption'
 import { ReviewPlatform } from '@/libs/reputation-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/reputation/reviews/[id]/reply
  * Sends a manual reply to a review (bypassing AI approval workflow)
@@ -13,7 +15,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

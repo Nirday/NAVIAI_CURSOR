@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { triggerShowcaseAction } from '@/libs/reputation-hub/src/showcase_handler'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/reputation/reviews/[id]/showcase
  * Triggers a showcase action for a review (website or social)
@@ -12,7 +14,7 @@ export async function POST(
 ) {
   const { id } = await params
    const { id: reviewId } = params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 
   if (!userId) {

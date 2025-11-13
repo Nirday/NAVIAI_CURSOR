@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { decryptToken } from '@/libs/connections-hub/src/encryption'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/social/conversations/[id]/reply
  * Sends a reply message to a social media conversation
@@ -12,7 +14,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

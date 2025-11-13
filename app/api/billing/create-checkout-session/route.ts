@@ -3,12 +3,14 @@ import { headers } from 'next/headers'
 import { createCheckoutSession } from '@/libs/billing-hub/src/checkout'
 import { supabaseAdmin } from '@/lib/supabase'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/billing/create-checkout-session
  * Creates a Stripe Checkout session for subscription or one-time payment
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 
   if (!userId) {

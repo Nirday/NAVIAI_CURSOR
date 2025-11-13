@@ -4,7 +4,7 @@ import Renderer from '../../../../../libs/website-builder/src/Renderer'
 import { getWebsiteByUserId, getPageBySlug } from '../../../../../libs/website-builder/src/data'
 
 function getAuthenticatedUserId(): string | null {
-  const hdrs = headers()
+  const hdrs = await headers()
   const id = hdrs.get('x-user-id')
   return id && id.length > 0 ? id : null
 }

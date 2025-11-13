@@ -3,13 +3,15 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SocialPost } from '@/libs/social-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/social/posts
  * Fetches social posts for the authenticated user
  * Query params: status (optional), platform (optional), startDate, endDate
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {
@@ -83,7 +85,7 @@ export async function GET(req: NextRequest) {
  * Creates a new social post (draft or scheduled)
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

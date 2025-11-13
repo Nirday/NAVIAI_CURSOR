@@ -5,6 +5,8 @@ import { getReplySuggestion } from '@/../../../../libs/social-hub/src/reply_assi
 import { SocialConversation, SocialMessage } from '@/libs/social-hub/src/types'
 import { BusinessProfile } from '@/libs/chat-core/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/social/conversations/[id]/suggest-reply
  * Generates an AI reply suggestion for a conversation
@@ -14,7 +16,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

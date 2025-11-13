@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { getFixStatus } from '@/libs/seo-audit/src/fixer'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/seo/fix-status
  * Gets the fix status for an SEO issue
  * Query params: issueId
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

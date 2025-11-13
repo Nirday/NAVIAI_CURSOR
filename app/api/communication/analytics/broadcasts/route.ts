@@ -3,12 +3,14 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { Broadcast } from '@/libs/communication-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/communication/analytics/broadcasts
  * Fetches all broadcasts with analytics for the authenticated user
  */
 export async function GET() {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

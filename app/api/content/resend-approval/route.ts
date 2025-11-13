@@ -5,12 +5,14 @@ import { sendApprovalNotification } from '../../../../libs/content-engine/src/ap
 import { BlogPost } from '../../../../libs/content-engine/src/types'
 import { BusinessProfile } from '../../../../libs/chat-core/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/content/resend-approval
  * Resends approval notification for a pending post
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

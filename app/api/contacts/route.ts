@@ -3,13 +3,15 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { Contact } from '@/libs/contact-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/contacts
  * Fetches all contacts for the authenticated user
  * Supports search and tag filtering
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest) {
  * Creates a new contact
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

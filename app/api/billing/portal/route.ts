@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { getSubscription } from '@/libs/billing-hub/src/data'
 
+
+export const dynamic = 'force-dynamic'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-11-20.acacia'
 })
@@ -12,7 +14,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
  * Creates a Stripe Customer Portal session and returns the URL
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 
   if (!userId) {

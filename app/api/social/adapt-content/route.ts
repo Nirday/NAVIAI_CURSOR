@@ -3,12 +3,14 @@ import { headers } from 'next/headers'
 import { adaptContentForPlatform } from '@/libs/social-hub/src/adapter'
 import { BusinessProfile } from '@/libs/chat-core/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/social/adapt-content
  * Adapts content for Instagram or Twitter using AI
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

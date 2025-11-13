@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { extractColorsFromUrl, extractColorsFromImageBuffer, extractColorsFromWebsiteUrl, generateColorPalette } from '@/libs/website-builder/src/color_extractor'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/website/extract-colors
  * Extract color palette from an image URL, uploaded image, or website URL
@@ -14,7 +16,7 @@ import { extractColorsFromUrl, extractColorsFromImageBuffer, extractColorsFromWe
  *   - preferLight (optional): Prefer light theme palette
  */
 export async function POST(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

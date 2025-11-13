@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { getAllTemplates, getRecommendedTemplates, getTemplatesByCategory, getTemplatesForIndustry, getTemplatesByVisualStyle } from '@/libs/website-builder/src/templates'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/website/templates
  * Get available website templates
@@ -12,7 +14,7 @@ import { getAllTemplates, getRecommendedTemplates, getTemplatesByCategory, getTe
  *   - recommended (optional): Get recommended templates for industry
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

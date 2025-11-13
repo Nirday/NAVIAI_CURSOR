@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { sendEmail } from '@/libs/communication-hub/src/email_service'
 import { sendSMS } from '@/libs/communication-hub/src/sms_service'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * POST /api/contacts/[id]/send-message
  * Sends a one-to-one email or SMS to a contact
@@ -14,7 +16,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   
   if (!userId) {

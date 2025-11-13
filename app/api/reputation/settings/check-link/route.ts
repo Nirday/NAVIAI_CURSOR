@@ -3,12 +3,14 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import { ReviewPlatform } from '@/libs/reputation-hub/src/types'
 
+
+export const dynamic = 'force-dynamic'
 /**
  * GET /api/reputation/settings/check-link?platform=google
  * Checks if a review link exists for the specified platform
  */
 export async function GET(req: NextRequest) {
-  const hdrs = headers()
+  const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 
   if (!userId) {
