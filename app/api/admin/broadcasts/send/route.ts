@@ -97,8 +97,9 @@ export async function POST(req: NextRequest) {
       // Get user emails
       for (const userId of userIds) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-        if (userData?.user?.email) {
-          recipients.push({ id: userId, email: userData.user.email })
+        const email = userData?.user?.email
+        if (email && typeof email === 'string') {
+          recipients.push({ id: userId, email })
         }
       }
     } else if (targetAudience === 'trial_users') {
@@ -118,8 +119,9 @@ export async function POST(req: NextRequest) {
       // Get user emails
       for (const userId of userIds) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-        if (userData?.user?.email) {
-          recipients.push({ id: userId, email: userData.user.email })
+        const email = userData?.user?.email
+        if (email && typeof email === 'string') {
+          recipients.push({ id: userId, email })
         }
       }
     }
