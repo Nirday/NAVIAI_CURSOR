@@ -3,12 +3,12 @@ import { NextResponse } from 'next/server'
 
 
 export const dynamic = 'force-dynamic'
-function getBaseDomain(): string {
+async function getBaseDomain(...args): Promise<string> {
   return process.env.NEXT_PUBLIC_PUBLISH_BASE_DOMAIN || 'naviai.local'
 }
 
 function extractDomainFromHost(host: string): string | null {
-  const base = getBaseDomain()
+  const base = await getBaseDomain()
   if (!host.endsWith(base)) return null
   if (host === base) return null
   return host

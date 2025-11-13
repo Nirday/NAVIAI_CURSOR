@@ -52,14 +52,15 @@ export async function POST(
       userId
     )
 
-    if (userError || !userData?.user?.email) {
+    const email = userData?.user?.email
+    if (userError || !email || typeof email !== 'string') {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     // Send password reset email via Supabase Auth
     const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
-      email: userData.user.email
+      email
     })
 
     if (resetError) {
@@ -69,7 +70,7 @@ export async function POST(
     // Create audit log
     await createAuditLog(adminUserId, 'password_reset_sent', {
       targetUserId: userId,
-      targetUserEmail: userData.user.email
+      targetUserEmail: email
     })
 
     return NextResponse.json({ success: true })

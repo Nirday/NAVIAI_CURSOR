@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
 
     // Verify email matches (optional security check)
     const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-    if (userData?.user?.email && userData.user.email.toLowerCase() !== invite.email.toLowerCase()) {
+    const userEmail = userData?.user?.email
+    if (userEmail && typeof userEmail === 'string' && userEmail.toLowerCase() !== invite.email.toLowerCase()) {
       return NextResponse.json(
         { error: 'This invitation was sent to a different email address.' },
         { status: 400 }

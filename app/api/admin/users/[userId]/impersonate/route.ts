@@ -68,9 +68,10 @@ export async function POST(
     // The token will be validated by middleware/API routes that check for impersonation
 
     // Create audit log
+    const email = userData.user.email
     await createAuditLog(adminUserId, 'user_impersonated', {
       targetUserId: userId,
-      targetUserEmail: userData.user.email || '',
+      targetUserEmail: (email && typeof email === 'string') ? email : '',
       impersonationToken: impersonationToken
     })
 

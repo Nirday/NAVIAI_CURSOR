@@ -546,8 +546,9 @@ async function getUserEmail(userId: string): Promise<string | null> {
     if (supabaseAdmin.auth?.admin) {
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId)
       
-      if (!userError && userData?.user?.email) {
-        return userData.user.email
+      const email = userData?.user?.email
+      if (!userError && email && typeof email === 'string') {
+        return email
       }
     }
     

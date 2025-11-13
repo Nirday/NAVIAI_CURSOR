@@ -506,8 +506,9 @@ async function sendAuditNotificationEmail(
       if (supabaseAdmin.auth?.admin) {
         const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId)
         
-        if (!userError && userData?.user?.email) {
-          email = userData.user.email
+        const userEmail = userData?.user?.email
+        if (!userError && userEmail && typeof userEmail === 'string') {
+          email = userEmail
         }
       }
       
