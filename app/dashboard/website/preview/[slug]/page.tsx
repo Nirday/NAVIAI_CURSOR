@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import Renderer from '../../../../../libs/website-builder/src/Renderer'
 import { getWebsiteByUserId, getPageBySlug } from '../../../../../libs/website-builder/src/data'
 
-function getAuthenticatedUserId(): string | null {
+async function getAuthenticatedUserId(): Promise<string | null> {
   const hdrs = await headers()
   const id = hdrs.get('x-user-id')
   return id && id.length > 0 ? id : null
@@ -13,7 +13,7 @@ type Props = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const userId = getAuthenticatedUserId()
+  const userId = await getAuthenticatedUserId()
   if (!userId) return {}
   const website = await getWebsiteByUserId(userId)
   if (!website) return {}
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { slug } = await params
-  const userId = getAuthenticatedUserId()
+  const userId = await getAuthenticatedUserId()
   if (!userId) {
     return <div className="p-6">Unauthorized</div>
   }

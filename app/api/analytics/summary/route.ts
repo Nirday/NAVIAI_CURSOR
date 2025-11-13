@@ -5,14 +5,14 @@ import { getAnalyticsSummary } from '../../../../libs/website-builder/src/analyt
 
 
 export const dynamic = 'force-dynamic'
-function getAuthenticatedUserId(): string | null {
+async function getAuthenticatedUserId(): Promise<string | null> {
   const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
   return userId && userId.length > 0 ? userId : null
 }
 
 export async function GET(req: NextRequest) {
-  const userId = getAuthenticatedUserId()
+  const userId = await getAuthenticatedUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
