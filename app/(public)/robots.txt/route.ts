@@ -1,6 +1,8 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 function getBaseDomain(): string {
   return process.env.NEXT_PUBLIC_PUBLISH_BASE_DOMAIN || 'naviai.local'
 }
@@ -13,7 +15,7 @@ function extractDomainFromHost(host: string): string | null {
 }
 
 export async function GET() {
-  const hdrs = headers()
+  const hdrs = await headers()
   const host = hdrs.get('host') || ''
   const domain = extractDomainFromHost(host)
 
