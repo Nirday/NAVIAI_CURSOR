@@ -8,6 +8,11 @@ import { sendEmail } from '@/libs/communication-hub/src/email_service'
 
 type TargetAudience = 'all_users' | 'paying_users' | 'trial_users'
 
+// Type guard helper for email
+function isStringEmail(email: unknown): email is string {
+  return typeof email === 'string' && email.length > 0
+}
+
 /**
  * POST /api/admin/broadcasts/send
  * Sends an admin broadcast to the selected audience (super admin only)
@@ -98,7 +103,7 @@ export async function POST(req: NextRequest) {
       for (const userId of userIds) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
         const email = userData?.user?.email
-        if (email && typeof email === 'string') {
+        if (isStringEmail(email)) {
           recipients.push({ id: userId, email })
         }
       }
@@ -120,7 +125,7 @@ export async function POST(req: NextRequest) {
       for (const userId of userIds) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
         const email = userData?.user?.email
-        if (email && typeof email === 'string') {
+        if (isStringEmail(email)) {
           recipients.push({ id: userId, email })
         }
       }
