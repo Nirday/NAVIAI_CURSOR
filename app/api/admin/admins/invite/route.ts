@@ -88,7 +88,10 @@ export async function POST(req: NextRequest) {
 
     // Get inviter's name for email
     const { data: inviterData } = await supabaseAdmin.auth.admin.getUserById(superAdminUserId)
-    const inviterName = inviterData?.user?.email?.split('@')[0] || 'Administrator'
+    const inviterEmail = inviterData?.user?.email
+    const inviterName = (inviterEmail && typeof inviterEmail === 'string') 
+      ? inviterEmail.split('@')[0] 
+      : 'Administrator'
     const platformName = process.env.PLATFORM_NAME || 'Navi AI'
 
     // Send invitation email

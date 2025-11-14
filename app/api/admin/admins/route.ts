@@ -52,9 +52,11 @@ export async function GET(req: NextRequest) {
     const admins = await Promise.all(
       (adminProfiles || []).map(async (profile: any) => {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(profile.user_id)
+        const email = userData?.user?.email
+        const emailString = (email && typeof email === 'string') ? email : 'Unknown'
         return {
           id: profile.user_id,
-          email: userData?.user?.email || 'Unknown',
+          email: emailString,
           role: profile.role
         }
       })

@@ -382,7 +382,8 @@ async function getOrCreateContact(userId: string, customerId: string): Promise<v
 async function updateContactTags(userId: string, status: SubscriptionStatus, customerId?: string): Promise<void> {
   // Get user email
   const { data: authData } = await supabaseAdmin.auth.admin.getUserById(userId)
-  const userEmail = authData?.user?.email
+  const email = authData?.user?.email
+  const userEmail = (email && typeof email === 'string') ? email : null
 
   if (!userEmail) {
     console.error('No email found for user')

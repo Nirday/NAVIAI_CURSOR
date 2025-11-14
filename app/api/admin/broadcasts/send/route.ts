@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
         const email = userData?.user?.email
         if (email && typeof email === 'string') {
-          recipients.push({ id: userId, email: email as string })
+          recipients.push({ id: userId, email })
         }
       }
     } else if (targetAudience === 'trial_users') {
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
         const email = userData?.user?.email
         if (email && typeof email === 'string') {
-          recipients.push({ id: userId, email: email as string })
+          recipients.push({ id: userId, email })
         }
       }
     }

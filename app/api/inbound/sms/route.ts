@@ -17,8 +17,11 @@ import { handleApproval as handleContentApproval, parseSMSReply } from '@/libs/c
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
-    const from = formData.get('From') as string
-    const body = formData.get('Body') as string
+    const fromEntry = formData.get('From')
+    const bodyEntry = formData.get('Body')
+    
+    const from = typeof fromEntry === 'string' ? fromEntry : null
+    const body = typeof bodyEntry === 'string' ? bodyEntry : null
 
     if (!from || !body) {
       return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response><Message>Missing required fields.</Message></Response>', {

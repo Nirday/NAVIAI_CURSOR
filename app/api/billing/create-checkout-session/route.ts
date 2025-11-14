@@ -39,8 +39,9 @@ export async function POST(req: NextRequest) {
     
     // Try to get from auth.users
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId)
-    if (!authError && authData?.user?.email) {
-      userEmail = authData.user.email
+    const email = authData?.user?.email
+    if (!authError && email && typeof email === 'string') {
+      userEmail = email
     } else {
       // Fallback: try business_profiles
       const { data: profileData } = await supabaseAdmin

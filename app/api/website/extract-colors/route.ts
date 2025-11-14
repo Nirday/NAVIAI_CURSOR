@@ -44,9 +44,13 @@ export async function POST(req: NextRequest) {
     }
     
     // Support both JSON and FormData
-    const imageUrl = (formData?.get('imageUrl') as string) || body.imageUrl
-    const websiteUrl = (formData?.get('websiteUrl') as string) || body.websiteUrl
-    const imageBase64 = (formData?.get('image') as string) || body.image
+    const imageUrlEntry = formData?.get('imageUrl')
+    const websiteUrlEntry = formData?.get('websiteUrl')
+    const imageEntry = formData?.get('image')
+    
+    const imageUrl = (typeof imageUrlEntry === 'string' ? imageUrlEntry : null) || body.imageUrl
+    const websiteUrl = (typeof websiteUrlEntry === 'string' ? websiteUrlEntry : null) || body.websiteUrl
+    const imageBase64 = (typeof imageEntry === 'string' ? imageEntry : null) || body.image
     const preferDark = (formData?.get('preferDark') === 'true') || body.preferDark === true
     const preferLight = (formData?.get('preferLight') === 'true') || body.preferLight === true
 

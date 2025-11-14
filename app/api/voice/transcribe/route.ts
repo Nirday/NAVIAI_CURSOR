@@ -19,9 +19,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const formData = await req.formData()
-    const audioFile = formData.get('audio') as File
-    const base64Audio = formData.get('base64Audio') as string
-    const language = formData.get('language') as string || 'en'
+    const audioFileEntry = formData.get('audio')
+    const base64AudioEntry = formData.get('base64Audio')
+    const languageEntry = formData.get('language')
+    
+    const audioFile = audioFileEntry instanceof File ? audioFileEntry : null
+    const base64Audio = typeof base64AudioEntry === 'string' ? base64AudioEntry : null
+    const language = typeof languageEntry === 'string' ? languageEntry : 'en'
 
     if (!audioFile && !base64Audio) {
       return NextResponse.json(
@@ -34,8 +38,13 @@ export async function POST(req: NextRequest) {
 
     if (audioFile) {
       transcription = await transcribeAudio(audioFile, language)
-    } else {
+    } else if (base64Audio) {
       transcription = await transcribeAudioFromBase64(base64Audio, language)
+    } else {
+      return NextResponse.json(
+        { error: 'Either audio file or base64Audio is required' },
+        { status: 400 }
+      )
     }
 
     return NextResponse.json({ transcription })

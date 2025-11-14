@@ -69,9 +69,10 @@ export async function POST(
 
     // Create audit log
     const email = userData.user.email
+    const emailString = (email && typeof email === 'string') ? email : ''
     await createAuditLog(adminUserId, 'user_impersonated', {
       targetUserId: userId,
-      targetUserEmail: (email && typeof email === 'string') ? email : '',
+      targetUserEmail: emailString,
       impersonationToken: impersonationToken
     })
 
