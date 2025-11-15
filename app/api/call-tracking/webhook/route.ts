@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       console.warn(`[Call Webhook] No user found for tracked number: ${to}`)
       // Still respond to Twilio to avoid retries
-      return NextResponse.xml(
+      return new NextResponse(
         '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
         { headers: { 'Content-Type': 'text/xml' } }
       )
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (callStatus === 'initiated' || callStatus === 'ringing') {
       // Call just started - we'll log it when completed
       // For now, just acknowledge
-      return NextResponse.xml(
+      return new NextResponse(
         '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
         { headers: { 'Content-Type': 'text/xml' } }
       )
@@ -82,14 +82,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Respond to Twilio
-    return NextResponse.xml(
+    return new NextResponse(
       '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
       { headers: { 'Content-Type': 'text/xml' } }
     )
   } catch (error: any) {
     console.error('[Call Webhook] Error processing webhook:', error)
     // Still respond to Twilio to avoid retries
-    return NextResponse.xml(
+    return new NextResponse(
       '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
       { headers: { 'Content-Type': 'text/xml' } }
     )
