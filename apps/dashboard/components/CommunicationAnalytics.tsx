@@ -223,12 +223,12 @@ function BroadcastRow({ broadcast }: { broadcast: Broadcast & { openRate?: numbe
           {broadcast.sentCount}
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-          {broadcast.channel === 'email' && broadcast.openRate !== null
+          {broadcast.channel === 'email' && broadcast.openRate != null
             ? `${broadcast.openRate.toFixed(1)}%`
             : 'N/A'}
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-          {broadcast.clickRate !== null
+          {broadcast.clickRate != null
             ? `${broadcast.clickRate.toFixed(1)}%`
             : 'N/A'}
         </td>
@@ -295,7 +295,7 @@ function AbTestResultCard({ broadcast }: { broadcast: Broadcast }) {
             <div className="text-xs text-green-600 font-semibold mb-2">Winner</div>
           )}
           <div className="text-sm text-gray-900 font-semibold">
-            {variantAStats.openRate !== null
+            {variantAStats.openRate != null
               ? `${variantAStats.openRate.toFixed(1)}% Open Rate`
               : 'Open Rate N/A'}
           </div>
@@ -311,7 +311,7 @@ function AbTestResultCard({ broadcast }: { broadcast: Broadcast }) {
             <div className="text-xs text-green-600 font-semibold mb-2">Winner</div>
           )}
           <div className="text-sm text-gray-900 font-semibold">
-            {variantBStats.openRate !== null
+            {variantBStats.openRate != null
               ? `${variantBStats.openRate.toFixed(1)}% Open Rate`
               : 'Open Rate N/A'}
           </div>
