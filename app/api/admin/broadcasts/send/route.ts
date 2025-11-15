@@ -8,9 +8,14 @@ import { sendEmail } from '@/libs/communication-hub/src/email_service'
 
 type TargetAudience = 'all_users' | 'paying_users' | 'trial_users'
 
-// Type guard helper for email
+// Type guard helper for email - ensures proper type narrowing
 function isStringEmail(email: unknown): email is string {
   return typeof email === 'string' && email.length > 0
+}
+
+// Helper to safely extract email string
+function getEmailString(email: unknown): string | null {
+  return isStringEmail(email) ? email : null
 }
 
 /**
@@ -102,9 +107,9 @@ export async function POST(req: NextRequest) {
       // Get user emails
       for (const userId of userIds) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-        const email = userData?.user?.email
-        if (isStringEmail(email)) {
-          recipients.push({ id: userId, email })
+        const emailString = getEmailString(userData?.user?.email)
+        if (emailString) {
+          recipients.push({ id: String(userId), email: emailString })
         }
       }
     } else if (targetAudience === 'trial_users') {
@@ -124,9 +129,9 @@ export async function POST(req: NextRequest) {
       // Get user emails
       for (const userId of userIds) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-        const email = userData?.user?.email
-        if (isStringEmail(email)) {
-          recipients.push({ id: userId, email })
+        const emailString = getEmailString(userData?.user?.email)
+        if (emailString) {
+          recipients.push({ id: String(userId), email: emailString })
         }
       }
     }
