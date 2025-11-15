@@ -491,7 +491,7 @@ async function applyTagChanges(
           event_type: 'billing_status_change',
           content: statusChangeMessage
         })
-        .catch(error => {
+        .catch((error: any) => {
           console.error('Error logging billing status change:', error)
         })
     }
