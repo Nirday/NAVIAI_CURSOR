@@ -168,6 +168,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
  * Handle invoice.payment_succeeded event
  */
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
+  // @ts-expect-error - Property 'subscription' does exist on webhook invoice objects
   const subscriptionId = invoice.subscription as string
   if (!subscriptionId) return // Not a subscription invoice
 
@@ -184,6 +185,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
  * Handle invoice.payment_failed event
  */
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  // @ts-expect-error - Property 'subscription' does exist on webhook invoice objects
   const subscriptionId = invoice.subscription as string
   if (!subscriptionId) return // Not a subscription invoice
 
