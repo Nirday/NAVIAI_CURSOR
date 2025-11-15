@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getReplySuggestion } from '@/../../../../libs/social-hub/src/reply_assistant'
+import { getReplySuggestion } from '@/libs/social-hub/src/reply_assistant'
 import { SocialConversation, SocialMessage } from '@/libs/social-hub/src/types'
 import { BusinessProfile } from '@/libs/chat-core/src/types'
 
