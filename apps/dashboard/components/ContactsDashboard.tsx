@@ -147,11 +147,11 @@ export default function ContactsDashboard({
   }
 
   // If contact detail is selected, show detail view
-  if (selectedContactId) {
+  if (selectedContact) {
     return (
       <div className={`rounded-lg border bg-white ${className}`}>
         <ContactDetailView
-          contactId={selectedContactId}
+          contactId={selectedContact.id}
           userId={userId}
           onBack={() => setSelectedContactId(null)}
         />
