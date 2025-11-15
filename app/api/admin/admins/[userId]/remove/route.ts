@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { requireSuperAdmin } from '@/libs/admin-center/src/access_control'
 import { setUserRole, getUserRole, createAuditLog } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/admin/admins/[userId]/remove
  * Removes admin access from a user (super admin only)

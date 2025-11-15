@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { requireAdmin } from '@/libs/admin-center/src/access_control'
 import { createAuditLog } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/admin/seo-opportunities/[id]/review
  * Approves or rejects an SEO opportunity (admin only, creates audit log)

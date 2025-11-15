@@ -6,6 +6,8 @@ import { requireAdmin } from '@/libs/admin-center/src/access_control'
 import { createAuditLog } from '@/libs/admin-center/src/data'
 import { randomUUID } from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/admin/users/[userId]/impersonate
  * Creates impersonation session (admin only, creates audit log)

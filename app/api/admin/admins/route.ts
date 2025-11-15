@@ -4,6 +4,8 @@ import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from '@/lib/supabase'
 import { requireSuperAdmin } from '@/libs/admin-center/src/access_control'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/admins
  * Fetches current admin users and pending invites (super admin only)

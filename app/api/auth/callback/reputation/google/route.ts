@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { exchangeGBPCodeForToken, parseGBPStateToken, getGBPAccounts, getGBPLocationsForAccount } from '@/libs/reputation-hub/src/gbp_oauth'
 import { encryptToken } from '@/libs/connections-hub/src/encryption'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/reputation/google
  * OAuth callback handler for Google Business Profile

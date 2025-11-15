@@ -9,6 +9,8 @@ import { encryptToken } from '@/libs/connections-hub/src/encryption'
 import { supabaseAdmin } from '@/lib/supabase'
 import { fetchReviewLink } from '@/libs/reputation-hub/src/review_link_fetcher'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/reputation/facebook
  * Handles Facebook OAuth callback for review sources

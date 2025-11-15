@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { requireAdmin } from '@/libs/admin-center/src/access_control'
 import { getUserRole } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/users/[userId]
  * Fetches detailed user information (admin only)

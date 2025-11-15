@@ -9,6 +9,8 @@ import { encryptToken } from '@/libs/connections-hub/src/encryption'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SocialConnection } from '@/libs/social-hub/src/types'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/facebook
  * Handles Facebook OAuth callback

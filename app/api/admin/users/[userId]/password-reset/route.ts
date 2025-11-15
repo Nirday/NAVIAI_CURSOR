@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { requireAdmin } from '@/libs/admin-center/src/access_control'
 import { createAuditLog } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/admin/users/[userId]/password-reset
  * Sends password reset email to user (admin only, creates audit log)

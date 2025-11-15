@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { requireSuperAdmin } from '@/libs/admin-center/src/access_control'
 import { createAuditLog } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/admin/invites/[id]/revoke
  * Revokes a pending admin invite (super admin only)

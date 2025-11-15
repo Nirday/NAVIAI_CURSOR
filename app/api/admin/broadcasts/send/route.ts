@@ -6,6 +6,8 @@ import { requireSuperAdmin } from '@/libs/admin-center/src/access_control'
 import { createAuditLog } from '@/libs/admin-center/src/data'
 import { sendEmail } from '@/libs/communication-hub/src/email_service'
 
+export const dynamic = 'force-dynamic'
+
 type TargetAudience = 'all_users' | 'paying_users' | 'trial_users'
 
 // Type guard helper for email - ensures proper type narrowing

@@ -5,8 +5,10 @@ import { upsertSubscription, createOneTimePayment } from '@/libs/billing-hub/src
 import { SubscriptionStatus } from '@/libs/billing-hub/src/types'
 import { sendTrialEndingEmail, sendPaymentFailedEmail } from '@/libs/communication-hub/src/system_emails'
 
+export const dynamic = 'force-dynamic'
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia'
+  apiVersion: '2025-10-29.clover'
 })
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || ''

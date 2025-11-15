@@ -4,6 +4,8 @@ import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getAdminInviteByToken, acceptAdminInvite, setUserRole, createUserProfile, getUserRole } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/admin/invites/accept
  * Accepts an admin invite by validating token and updating user role

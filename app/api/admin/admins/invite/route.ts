@@ -8,6 +8,8 @@ import { createAuditLog } from '@/libs/admin-center/src/data'
 import { sendEmail } from '@/libs/communication-hub/src/email_service'
 import { randomUUID } from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'https://app.naviai.com'
 
 /**

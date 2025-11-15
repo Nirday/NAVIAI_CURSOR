@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSearchConsoleOAuthUrl } from '@/libs/connections-hub/src/search_console_oauth'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/search-console/initiate
  * Initiate Google Search Console OAuth flow

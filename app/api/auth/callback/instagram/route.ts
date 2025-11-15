@@ -8,6 +8,8 @@ import { exchangeCodeForToken, parseStateToken, getFacebookPages, getInstagramAc
 import { encryptToken } from '@/libs/connections-hub/src/encryption'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/instagram
  */

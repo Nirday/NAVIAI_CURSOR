@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { exchangeSearchConsoleCodeForToken, parseSearchConsoleStateToken } from '@/libs/connections-hub/src/search_console_oauth'
 import { encryptToken } from '@/libs/connections-hub/src/encryption'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/search-console
  * OAuth callback handler for Google Search Console

@@ -4,6 +4,8 @@ import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from '@/lib/supabase'
 import { requireAdmin } from '@/libs/admin-center/src/access_control'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/system-health/metrics
  * Fetches key system metrics (admin only)

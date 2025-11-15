@@ -5,6 +5,8 @@ import { toggleFeatureFlag, getFeatureFlag } from '@/libs/admin-center/src/data'
 import { requireAdmin } from '@/libs/admin-center/src/access_control'
 import { createAuditLog } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/admin/feature-flags/[flagId]/toggle
  * Toggles a feature flag (admin only, creates audit log)

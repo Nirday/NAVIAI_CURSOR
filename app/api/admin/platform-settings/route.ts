@@ -6,6 +6,8 @@ import { requireSuperAdmin } from '@/libs/admin-center/src/access_control'
 import { getAllPlatformSettings, getPlatformSetting, updatePlatformSetting } from '@/libs/admin-center/src/data'
 import { createAuditLog } from '@/libs/admin-center/src/data'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/platform-settings
  * Fetches all platform settings (super admin only)

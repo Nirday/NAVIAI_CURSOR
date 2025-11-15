@@ -7,6 +7,8 @@ import { exchangeCodeForToken, parseStateToken, getPlatformUserProfile } from '@
 import { encryptToken } from '@/libs/connections-hub/src/encryption'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/linkedin
  */
