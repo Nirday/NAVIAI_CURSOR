@@ -38,7 +38,8 @@ export default function PostComposer({ userId, profile, onPostSaved, onCancel, p
   }, [prefillContent])
 
   const characterCount = content.length
-  const limit: { max: number; warning: number } = PLATFORM_LIMITS[selectedPlatform] || PLATFORM_LIMITS.facebook
+  // Type-safe access to platform limits
+  const limit: { max: number; warning: number } = (PLATFORM_LIMITS as Record<string, { max: number; warning: number }>)[selectedPlatform] || PLATFORM_LIMITS.facebook
   const isOverLimit = characterCount > limit.max
   const isNearLimit = characterCount > limit.warning && !isOverLimit
   const remainingChars = limit.max - characterCount
