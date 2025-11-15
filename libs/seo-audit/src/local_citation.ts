@@ -187,7 +187,7 @@ async function simulatePlatformCheck(
   
   // For V1, we'll return true if data is valid (simulating that listing exists)
   // In production, you'd make actual API calls to verify
-  return hasValidData
+  return !!hasValidData
 }
 
 /**

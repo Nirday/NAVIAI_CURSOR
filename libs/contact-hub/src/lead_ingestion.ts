@@ -82,6 +82,9 @@ export async function ingestNewLead(
         }
 
         // For existing contacts, return without creating lead_capture event
+        if (!contact) {
+          throw new LeadIngestionError('Contact is null after update')
+        }
         return { contact, activityEvent: null as any }
       }
     }

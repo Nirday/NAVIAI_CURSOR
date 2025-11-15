@@ -69,6 +69,9 @@ async function getValidAccessToken(source: ReviewSource): Promise<string> {
   }
   
   // Decrypt and return token
+  if (!source.accessToken) {
+    throw new Error('Access token is missing. Please reconnect your Google Business Profile.')
+  }
   return decryptToken(source.accessToken)
 }
 

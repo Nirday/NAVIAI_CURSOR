@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const profile = await getProfile(userId)
     
     // Get suggestions
-    const suggestions = await getSuggestedPrompts(userId, profile)
+    const suggestions = await getSuggestedPrompts(userId, profile || undefined)
     
     return NextResponse.json({
       success: true,

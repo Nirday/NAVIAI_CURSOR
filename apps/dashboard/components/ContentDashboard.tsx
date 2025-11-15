@@ -270,7 +270,7 @@ function PostListView({
               <div className="flex-1">
                 <h3 className="font-medium text-gray-900 mb-2">{post.title}</h3>
                 <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <span>{getStatusBadge(post.status, post.scheduledAt)}</span>
+                  <span>{getStatusBadge(post.status, post.scheduledAt ? (post.scheduledAt instanceof Date ? post.scheduledAt.toISOString() : post.scheduledAt) : null)}</span>
                   {post.focusKeyword && (
                     <span>Keyword: {post.focusKeyword}</span>
                   )}
