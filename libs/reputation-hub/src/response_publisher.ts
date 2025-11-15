@@ -202,7 +202,7 @@ async function getValidAccessToken(sourceData: any): Promise<string> {
         .from('review_sources')
         .update({
           access_token: refreshedToken.encryptedToken,
-          refresh_token: refreshedToken.refreshToken ? refreshedToken.encryptedRefreshToken : sourceData.refresh_token,
+          refresh_token: refreshedToken.encryptedRefreshToken || sourceData.refresh_token,
           token_expires_at: refreshedToken.expiresAt ? refreshedToken.expiresAt.toISOString() : null
         })
         .eq('id', sourceData.id)
@@ -323,7 +323,9 @@ async function publishToGoogle(
     accessToken: sourceData.access_token,
     refreshToken: sourceData.refresh_token,
     tokenExpiresAt: sourceData.token_expires_at ? new Date(sourceData.token_expires_at) : null,
-    isActive: sourceData.is_active
+    isActive: sourceData.is_active,
+    createdAt: new Date(sourceData.created_at),
+    updatedAt: new Date(sourceData.updated_at)
   }
 
   const result = await publishGBPReply(locationId, reviewId, responseContent, source)

@@ -12,8 +12,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-   const { id: reviewId } = params
+  const { id: reviewId } = await params
   const hdrs = await headers()
   const userId = hdrs.get('x-user-id')
 

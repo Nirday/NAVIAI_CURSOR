@@ -64,7 +64,14 @@ const ImageGallerySectionSchema = z.object({
 
 const ContactFormSectionSchema = z.object({
   id: z.string(),
-  type: z.literal('contact_form')
+  type: z.literal('contact_form'),
+  fields: z.array(z.object({
+    name: z.enum(['name', 'email', 'message']),
+    label: z.string(),
+    required: z.boolean().optional()
+  })),
+  submitLabel: z.string().optional(),
+  successMessage: z.string().optional()
 })
 
 const EmbedSectionSchema = z.object({
@@ -153,7 +160,7 @@ export function validateWebsiteData(data: any): {
 
     if (!result.success) {
       // Convert Zod errors to field-level errors
-      const errors = result.error.errors.map((err) => ({
+      const errors = result.error.issues.map((err) => ({
         field: err.path.join('.'),
         message: err.message
       }))

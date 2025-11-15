@@ -41,7 +41,9 @@ export async function fetchGBPQuestionsForUser(userId: string): Promise<void> {
           accessToken: sourceData.access_token,
           refreshToken: sourceData.refresh_token,
           tokenExpiresAt: sourceData.token_expires_at ? new Date(sourceData.token_expires_at) : null,
-          isActive: sourceData.is_active
+          isActive: sourceData.is_active,
+          createdAt: new Date(sourceData.created_at),
+          updatedAt: new Date(sourceData.updated_at)
         }
 
         const locationId = sourceData.gbp_location_id || sourceData.platform_account_id
@@ -68,8 +70,8 @@ export async function fetchGBPQuestionsForUser(userId: string): Promise<void> {
           // Generate AI answer suggestion
           const suggestedAnswer = await generateAnswerSuggestion(
             userId,
-            question.questionText,
-            question.askedBy
+            question.text,
+            question.author?.displayName || 'Customer'
           )
 
           // Save question
@@ -79,7 +81,7 @@ export async function fetchGBPQuestionsForUser(userId: string): Promise<void> {
               user_id: userId,
               source_id: source.id,
               question_id: question.questionId,
-              question_text: question.questionText,
+              question_text: question.text,
               asked_by: question.author?.displayName || null,
               suggested_answer: suggestedAnswer,
               status: 'pending'
@@ -198,7 +200,9 @@ export async function publishGBPAnswerToPlatform(
       accessToken: source.access_token,
       refreshToken: source.refresh_token,
       tokenExpiresAt: source.token_expires_at ? new Date(source.token_expires_at) : null,
-      isActive: source.is_active
+      isActive: source.is_active,
+      createdAt: new Date(source.created_at),
+      updatedAt: new Date(source.updated_at)
     }
 
     const locationId = source.gbp_location_id || source.platform_account_id
