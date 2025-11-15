@@ -45,15 +45,16 @@ export async function POST(req: NextRequest) {
     }
 
     const businessProfile: BusinessProfile = {
-      id: profileData.id,
       userId: profileData.user_id,
       businessName: profileData.business_name,
       industry: profileData.industry,
       location: profileData.location,
       contactInfo: profileData.contact_info,
       services: profileData.services,
+      hours: profileData.hours || [],
       targetAudience: profileData.target_audience,
       brandVoice: profileData.brand_voice,
+      customAttributes: profileData.custom_attributes || [],
       createdAt: new Date(profileData.created_at),
       updatedAt: new Date(profileData.updated_at)
     }
