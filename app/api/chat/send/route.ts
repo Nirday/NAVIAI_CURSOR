@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
     }
     
     // Process the user message through the orchestrator
-    const response = await processUserMessage(userId, message)
+    const responseContent = await processUserMessage(userId, message)
     
     return NextResponse.json({
       success: true,
       response: {
-        messageId: response.messageId,
-        content: response.content,
-        timestamp: response.timestamp
+        messageId: undefined,
+        content: responseContent,
+        timestamp: new Date().toISOString()
       }
     })
     
