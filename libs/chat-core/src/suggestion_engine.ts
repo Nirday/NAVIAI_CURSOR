@@ -349,7 +349,7 @@ async function getRecentSuggestions(userId: string, hours: number = 24): Promise
       throw new SuggestionError(`Failed to fetch recent suggestions: ${error.message}`)
     }
     
-    return (data || []).map(item => ({
+    return (data || []).map((item: any) => ({
       id: item.id,
       text: item.text,
       category: item.category,

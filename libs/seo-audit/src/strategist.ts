@@ -32,7 +32,7 @@ export async function runCompetitiveStrategist(): Promise<void> {
     }
     
     // Filter to users with competitors
-    const validSettings = (settings || []).filter(setting => {
+    const validSettings = (settings || []).filter((setting: any) => {
       const competitors = setting.competitors || []
       return competitors.length > 0
     })

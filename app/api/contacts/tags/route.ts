@@ -31,7 +31,7 @@ export async function GET() {
     const allTags = new Set<string>()
     for (const contact of contacts || []) {
       if (contact.tags && Array.isArray(contact.tags)) {
-        contact.tags.forEach(tag => allTags.add(tag))
+        contact.tags.forEach((tag: string) => allTags.add(tag))
       }
     }
 

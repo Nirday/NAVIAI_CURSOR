@@ -38,7 +38,7 @@ export default function PostComposer({ userId, profile, onPostSaved, onCancel, p
   }, [prefillContent])
 
   const characterCount = content.length
-  const limit = PLATFORM_LIMITS[selectedPlatform]
+  const limit = PLATFORM_LIMITS[selectedPlatform as SocialPlatform]
   const isOverLimit = characterCount > limit.max
   const isNearLimit = characterCount > limit.warning && !isOverLimit
   const remainingChars = limit.max - characterCount

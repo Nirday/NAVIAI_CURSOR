@@ -40,7 +40,7 @@ export async function generateSocialIdeas(): Promise<void> {
     }
     
     // Get unique user IDs
-    const userIds = [...new Set(connections.map(c => c.user_id))]
+    const userIds = [...new Set(connections.map((c: any) => c.user_id))]
     console.log(`[Social Ideas] Found ${userIds.length} user(s) with active connections`)
     
     let successCount = 0

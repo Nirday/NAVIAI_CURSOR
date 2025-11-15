@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Sort by severity
-    const sortedIssues = (data || []).sort((a, b) => {
+    const sortedIssues = (data || []).sort((a: any, b: any) => {
       const aSeverity = severityOrder[a.severity] || 0
       const bSeverity = severityOrder[b.severity] || 0
       return bSeverity - aSeverity

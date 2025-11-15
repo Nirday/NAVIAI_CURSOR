@@ -39,7 +39,7 @@ export async function runWeeklyHealthAudits(): Promise<void> {
     }
     
     // Filter to only users with at least one keyword or competitor
-    const validSettings = (settings || []).filter(setting => {
+    const validSettings = (settings || []).filter((setting: any) => {
       const keywords = setting.keywords || []
       const competitors = setting.competitors || []
       return keywords.length > 0 || competitors.length > 0
@@ -116,7 +116,7 @@ async function runUserHealthAudit(userId: string): Promise<void> {
   const websiteIssues = await runWebsiteAudit(websiteUrl, userId)
   
   // Update issue auditReportId and assign temporary IDs
-  const websiteIssuesWithIds = websiteIssues.map(issue => ({
+  const websiteIssuesWithIds = websiteIssues.map((issue: any) => ({
     ...issue,
     id: randomUUID(),
     auditReportId
@@ -126,7 +126,7 @@ async function runUserHealthAudit(userId: string): Promise<void> {
   const { issues: localIssues } = await analyzeLocalCitations(profile, userId, auditReportId)
   
   // Update local issue IDs
-  const localIssuesWithIds = localIssues.map(issue => ({
+  const localIssuesWithIds = localIssues.map((issue: any) => ({
     ...issue,
     id: randomUUID()
   }))
@@ -180,7 +180,7 @@ export async function runDailyRankTracker(): Promise<void> {
     }
     
     // Filter to only users with at least one keyword
-    const validSettings = (settings || []).filter(setting => {
+    const validSettings = (settings || []).filter((setting: any) => {
       const keywords = setting.keywords || []
       return keywords.length > 0
     })
@@ -440,7 +440,7 @@ async function getNewHighSeverityIssues(
     
     if (!previousReports) {
       // No previous report, all issues are "new"
-      return currentIssues.map(issue => ({
+      return currentIssues.map((issue: any) => ({
         id: issue.id,
         userId: issue.user_id,
         auditReportId: issue.audit_report_id,
@@ -462,12 +462,12 @@ async function getNewHighSeverityIssues(
       .eq('audit_report_id', previousReports.id)
       .in('severity', ['high', 'critical'])
     
-    const previousTitles = new Set((previousIssues || []).map(i => i.title))
+    const previousTitles = new Set((previousIssues || []).map((i: any) => i.title))
     
     // Filter to only new issues
     const newIssues = currentIssues
-      .filter(issue => !previousTitles.has(issue.title))
-      .map(issue => ({
+      .filter((issue: any) => !previousTitles.has(issue.title))
+      .map((issue: any) => ({
         id: issue.id,
         userId: issue.user_id,
         auditReportId: issue.audit_report_id,

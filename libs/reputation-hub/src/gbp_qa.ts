@@ -249,7 +249,7 @@ export async function runGBPQuestionFetcher(): Promise<void> {
       return
     }
 
-    const userIds = [...new Set(sources.map(s => s.user_id))]
+    const userIds = [...new Set(sources.map((s: any) => s.user_id))]
 
     for (const userId of userIds) {
       try {

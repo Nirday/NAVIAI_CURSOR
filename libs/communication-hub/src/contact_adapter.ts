@@ -40,7 +40,7 @@ export async function fetchContactsForEmailBroadcast(
     }
     
     // Map database rows to Contact interface
-    return (data || []).map(row => ({
+    return (data || []).map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       name: row.name,
@@ -83,7 +83,7 @@ export async function fetchContactsForSmsBroadcast(
     }
     
     // Map database rows to Contact interface
-    let contacts = (data || []).map(row => ({
+    let contacts = (data || []).map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       name: row.name,
@@ -96,8 +96,8 @@ export async function fetchContactsForSmsBroadcast(
     
     // Apply tag filtering with OR logic (contact must have any of the specified tags)
     if (tags && tags.length > 0) {
-      contacts = contacts.filter(contact => 
-        tags.some(tag => contact.tags.includes(tag))
+      contacts = contacts.filter((contact: any) => 
+        tags.some((tag: string) => contact.tags.includes(tag))
       )
     }
     
@@ -133,7 +133,7 @@ export async function fetchAllContacts(
     }
     
     // Map database rows to Contact interface
-    let contacts = (data || []).map(row => ({
+    let contacts = (data || []).map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       name: row.name,
@@ -146,8 +146,8 @@ export async function fetchAllContacts(
     
     // Apply tag filtering with OR logic (contact must have any of the specified tags)
     if (tags && tags.length > 0) {
-      contacts = contacts.filter(contact => 
-        tags.some(tag => contact.tags.includes(tag))
+      contacts = contacts.filter((contact: any) => 
+        tags.some((tag: string) => contact.tags.includes(tag))
       )
     }
     

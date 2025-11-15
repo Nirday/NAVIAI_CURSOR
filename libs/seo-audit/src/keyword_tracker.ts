@@ -295,7 +295,7 @@ export async function getKeywordPerformanceHistory(
     cutoffDate.setDate(cutoffDate.getDate() - days)
     
     return data
-      .map(row => ({
+      .map((row: any) => ({
         id: row.id,
         userId: row.user_id,
         keyword: row.keyword,
@@ -305,8 +305,8 @@ export async function getKeywordPerformanceHistory(
         date: new Date(row.date),
         createdAt: new Date(row.created_at)
       }))
-      .filter(perf => perf.date >= cutoffDate)
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .filter((perf: any) => perf.date >= cutoffDate)
+      .sort((a: any, b: any) => b.date.getTime() - a.date.getTime())
   } catch (error: any) {
     console.error(`Error fetching keyword performance history:`, error)
     throw error
@@ -338,7 +338,7 @@ export async function getLatestKeywordPerformance(
     }
     
     // Get unique keywords
-    const uniqueKeywords = [...new Set(keywordsData.map(k => k.keyword))]
+    const uniqueKeywords = [...new Set(keywordsData.map((k: any) => k.keyword))]
     
     // Get latest performance for each keyword
     const latestPerformance: KeywordPerformance[] = []

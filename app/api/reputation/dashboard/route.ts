@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     // Calculate key metrics
     const totalReviews = reviews.length
     const averageRating = totalReviews > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+      ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / totalReviews
       : 0
 
     // Response rate: percentage of reviews with status 'response_sent'

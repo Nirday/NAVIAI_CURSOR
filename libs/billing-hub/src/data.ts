@@ -146,7 +146,7 @@ export async function getOneTimePayments(userId: string): Promise<OneTimePayment
     throw new Error(`Failed to fetch one-time payments: ${error.message}`)
   }
 
-  return (data || []).map(p => ({
+  return (data || []).map((p: any) => ({
     id: p.id,
     userId: p.user_id,
     stripeCustomerId: p.stripe_customer_id,

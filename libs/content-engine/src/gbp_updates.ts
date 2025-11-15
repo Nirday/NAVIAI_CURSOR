@@ -103,7 +103,7 @@ export async function runWeeklyGBPUpdates(): Promise<void> {
     }
 
     // Get unique user IDs
-    const userIds = [...new Set(sources.map(s => s.user_id))]
+    const userIds = [...new Set(sources.map((s: any) => s.user_id))]
 
     console.log(`[GBP Updates] Found ${userIds.length} user(s) with GBP connections`)
 

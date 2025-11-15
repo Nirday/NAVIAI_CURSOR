@@ -96,7 +96,7 @@ export async function getAllFeatureFlags(): Promise<FeatureFlag[]> {
     throw new Error(`Failed to fetch feature flags: ${error.message}`)
   }
 
-  return data.map(row => ({
+  return data.map((row: any) => ({
     flagId: row.flag_id,
     description: row.description,
     isEnabled: row.is_enabled
@@ -195,7 +195,7 @@ export async function getAuditLogs(limit: number = 100): Promise<AdminAuditLog[]
     throw new Error(`Failed to fetch audit logs: ${error.message}`)
   }
 
-  return data.map(row => ({
+  return data.map((row: any) => ({
     id: row.id,
     adminUserId: row.admin_user_id,
     action: row.action,
@@ -344,7 +344,7 @@ export async function getJobRunLogs(jobName?: string, limit: number = 50): Promi
     throw new Error(`Failed to fetch job run logs: ${error.message}`)
   }
 
-  return data.map(row => ({
+  return data.map((row: any) => ({
     id: row.id,
     jobName: row.job_name,
     status: row.status,
@@ -369,7 +369,7 @@ export async function getAllPlatformSettings(): Promise<PlatformSetting[]> {
     throw new Error(`Failed to fetch platform settings: ${error.message}`)
   }
 
-  return data.map(row => ({
+  return data.map((row: any) => ({
     id: row.id,
     key: row.key,
     value: row.value,

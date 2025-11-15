@@ -37,7 +37,7 @@ export async function runReputationAnalysis(): Promise<void> {
     }
 
     // Get unique user IDs
-    const userIds = [...new Set(reviewsData.map(r => r.user_id))]
+    const userIds = [...new Set(reviewsData.map((r: any) => r.user_id))]
 
     console.log(`[Reputation Analyzer] Found ${userIds.length} user(s) with reviews`)
 
@@ -113,7 +113,7 @@ async function analyzeUserReputation(userId: string): Promise<void> {
   }
 
   // Map reviews to Review type
-  const reviews: Review[] = reviewsData.map(r => ({
+  const reviews: Review[] = reviewsData.map((r: any) => ({
     id: r.id,
     userId: r.user_id,
     sourceId: r.source_id,
