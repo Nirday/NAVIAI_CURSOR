@@ -265,6 +265,7 @@ async function saveOneTimePayment(
   // If no product_id in metadata, try to get from invoice
   // @ts-expect-error - Property 'invoice' does exist on webhook payment_intent objects
   if (!productId && paymentIntent.invoice) {
+    // @ts-expect-error - Property 'invoice' does exist on webhook payment_intent objects
     const invoice = await stripe.invoices.retrieve(paymentIntent.invoice as string)
     if (invoice.lines.data.length > 0) {
       const lineItem = invoice.lines.data[0]
