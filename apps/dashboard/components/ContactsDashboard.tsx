@@ -153,7 +153,7 @@ export default function ContactsDashboard({
         <ContactDetailView
           contactId={selectedContact.id}
           userId={userId}
-          onBack={() => setSelectedContactId(null)}
+          onBack={() => setSelectedContact(null)}
         />
       </div>
     )
