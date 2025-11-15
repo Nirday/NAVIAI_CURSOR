@@ -65,7 +65,7 @@ export async function GET(
     }
 
     // Build funnel data
-    const funnelData = (steps || []).map(step => {
+    const funnelData = (steps || []).map((step: any) => {
       const count = stepCounts[step.id] || 0
       
       // Generate step description
