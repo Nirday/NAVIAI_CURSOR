@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Update setting
-      const updatedSetting = await updatePlatformSetting(key, newValue, superAdminUserId)
+      await updatePlatformSetting(key, newValue, superAdminUserId)
 
       // Create audit log
       await createAuditLog(superAdminUserId, 'platform_setting_updated', {
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
       updateResults.push({
         key,
         oldValue: existingSetting.value,
-        newValue: updatedSetting.value
+        newValue: newValue
       })
     }
 
