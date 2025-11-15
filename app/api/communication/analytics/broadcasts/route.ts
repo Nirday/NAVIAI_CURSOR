@@ -30,7 +30,7 @@ export async function GET() {
     }
 
     // Format broadcasts with analytics
-    const formattedBroadcasts = (broadcasts || []).map(b => {
+    const formattedBroadcasts = (broadcasts || []).map((b: any) => {
       const broadcast: Broadcast = {
         id: b.id,
         userId: b.user_id,
