@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     // Fetch metrics in parallel
     const [usersCount, subscriptionsCount, jobsFailedCount] = await Promise.all([
       // Total Users
-      supabaseAdmin.auth.admin.listUsers().then(({ data, error }) => {
+      supabaseAdmin.auth.admin.listUsers().then(({ data, error }: { data: any; error: any }) => {
         if (error) {
           console.error('Error fetching users:', error)
           return 0
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
         .from('subscriptions')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'active')
-        .then(({ count, error }) => {
+        .then(({ count, error }: { count: number | null; error: any }) => {
           if (error) {
             console.error('Error fetching subscriptions:', error)
             return 0
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('status', 'failed')
         .gte('started_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .then(({ count, error }) => {
+        .then(({ count, error }: { count: number | null; error: any }) => {
           if (error) {
             console.error('Error fetching failed jobs:', error)
             return 0
