@@ -93,15 +93,16 @@ export async function POST(
     }
 
     const businessProfile: BusinessProfile = {
-      id: profile.id,
       userId: profile.user_id,
       businessName: profile.business_name,
       industry: profile.industry,
       location: profile.location,
       contactInfo: profile.contact_info,
       services: profile.services,
+      hours: profile.hours || [],
       targetAudience: profile.target_audience,
       brandVoice: profile.brand_voice,
+      customAttributes: profile.custom_attributes || [],
       createdAt: new Date(profile.created_at),
       updatedAt: new Date(profile.updated_at)
     }
