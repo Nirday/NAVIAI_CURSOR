@@ -284,7 +284,7 @@ async function saveOneTimePayment(
     stripeProductId: productId || 'unknown',
     amount: paymentIntent.amount,
     currency: paymentIntent.currency,
-    status: paymentIntent.status === 'succeeded' ? 'succeeded' : paymentIntent.status === 'failed' ? 'failed' : 'pending'
+    status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending'
   })
 
   // Get or create contact for one-time payment
