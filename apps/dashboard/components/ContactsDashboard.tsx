@@ -250,7 +250,7 @@ export default function ContactsDashboard({
                     if (onContactClick) {
                       onContactClick(contact)
                     } else {
-                      setSelectedContactId(contact.id)
+                      setSelectedContact(contact)
                     }
                   }}
                   className="hover:bg-gray-50 cursor-pointer"
