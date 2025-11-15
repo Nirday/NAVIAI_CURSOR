@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         continue
       }
 
-      const formattedMessages: SocialMessage[] = (messages || []).map(msg => ({
+      const formattedMessages: SocialMessage[] = (messages || []).map((msg: any) => ({
         id: msg.id,
         conversationId: msg.conversation_id,
         platformMessageId: msg.platform_message_id,

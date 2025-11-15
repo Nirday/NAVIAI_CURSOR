@@ -44,7 +44,7 @@ export async function GET() {
         continue
       }
 
-      const formattedSteps: AutomationStep[] = (steps || []).map(step => ({
+      const formattedSteps: AutomationStep[] = (steps || []).map((step: any) => ({
         id: step.id,
         sequenceId: step.sequence_id,
         order: step.step_order,
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
       .eq('sequence_id', sequence.id)
       .order('step_order', { ascending: true })
 
-    const formattedSteps: AutomationStep[] = (createdSteps || []).map(step => ({
+    const formattedSteps: AutomationStep[] = (createdSteps || []).map((step: any) => ({
       id: step.id,
       sequenceId: step.sequence_id,
       order: step.step_order,

@@ -50,7 +50,7 @@ export async function POST(
       throw new Error(`Failed to fetch messages: ${msgError.message}`)
     }
 
-    const formattedMessages: SocialMessage[] = (messages || []).map(msg => ({
+    const formattedMessages: SocialMessage[] = (messages || []).map((msg: any) => ({
       id: msg.id,
       conversationId: msg.conversation_id,
       platformMessageId: msg.platform_message_id,

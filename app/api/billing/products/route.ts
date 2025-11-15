@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     // Filter products based on type
     const filteredProducts = await Promise.all(
       products.data
-        .map(async (product) => {
+        .map(async (product: any) => {
           // Fetch all prices for this product
           const prices = await stripe.prices.list({
             product: product.id,
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
           })
 
           // Filter prices based on type
-          const relevantPrices = prices.data.filter(price => {
+          const relevantPrices = prices.data.filter((price: any) => {
             if (type === 'one_time') {
               // For one-time products, check metadata AND price type
               return product.metadata?.product_type === 'one_time' && price.type === 'one_time'
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
             name: product.name,
             description: product.description,
             default_price: relevantPrices[0]?.id || null,
-            prices: relevantPrices.map(p => ({
+            prices: relevantPrices.map((p: any) => ({
               id: p.id,
               unit_amount: p.unit_amount,
               currency: p.currency,
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     )
 
     // Remove null entries
-    const validProducts = filteredProducts.filter(p => p !== null)
+    const validProducts = filteredProducts.filter((p: any) => p !== null)
 
     return NextResponse.json({ products: validProducts })
   } catch (error: any) {

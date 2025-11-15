@@ -48,7 +48,7 @@ export async function GET(
       throw new Error(`Failed to fetch activities: ${error.message}`)
     }
 
-    const activityEvents: ActivityEvent[] = (activities || []).map(activity => ({
+    const activityEvents: ActivityEvent[] = (activities || []).map((activity: any) => ({
       id: activity.id,
       userId: activity.user_id,
       contactId: activity.contact_id,

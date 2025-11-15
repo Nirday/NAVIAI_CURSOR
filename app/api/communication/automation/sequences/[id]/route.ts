@@ -48,7 +48,7 @@ export async function GET(
       throw new Error(`Failed to fetch steps: ${stepsError.message}`)
     }
 
-    const formattedSteps: AutomationStep[] = (steps || []).map(step => ({
+    const formattedSteps: AutomationStep[] = (steps || []).map((step: any) => ({
       id: step.id,
       sequenceId: step.sequence_id,
       order: step.step_order,
@@ -216,7 +216,7 @@ export async function PATCH(
       .eq('sequence_id', id)
       .order('step_order', { ascending: true })
 
-    const formattedSteps: AutomationStep[] = (updatedSteps || []).map(step => ({
+    const formattedSteps: AutomationStep[] = (updatedSteps || []).map((step: any) => ({
       id: step.id,
       sequenceId: step.sequence_id,
       order: step.step_order,

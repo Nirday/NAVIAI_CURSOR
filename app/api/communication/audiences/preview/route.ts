@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       count: contacts.length,
-      contacts: contacts.map(c => ({
+      contacts: contacts.map((c: any) => ({
         id: c.id,
         name: c.name,
         email: c.email,

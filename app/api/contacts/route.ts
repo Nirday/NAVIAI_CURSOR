@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       throw new Error(`Failed to fetch contacts: ${error.message}`)
     }
 
-    const contacts: Contact[] = (data || []).map(row => ({
+    const contacts: Contact[] = (data || []).map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       name: row.name,

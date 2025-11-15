@@ -30,7 +30,7 @@ export async function GET() {
 
     // Extract all unique tags
     const allTags = new Set<string>()
-    contacts?.forEach(contact => {
+    contacts?.forEach((contact: any) => {
       if (contact.tags && Array.isArray(contact.tags)) {
         contact.tags.forEach((tag: string) => allTags.add(tag))
       }

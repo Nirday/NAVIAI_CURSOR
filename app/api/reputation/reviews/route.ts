@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       throw new Error(`Failed to fetch reviews: ${error.message}`)
     }
 
-    const reviews: Review[] = (data || []).map(row => ({
+    const reviews: Review[] = (data || []).map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       sourceId: row.source_id,

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       throw new Error(`Failed to fetch review sources: ${error.message}`)
     }
 
-    const sources: ReviewSource[] = (data || []).map(row => ({
+    const sources: ReviewSource[] = (data || []).map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       platform: row.platform as ReviewSource['platform'],

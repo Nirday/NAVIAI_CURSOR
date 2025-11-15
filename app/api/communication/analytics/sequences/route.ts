@@ -43,7 +43,7 @@ export async function GET() {
         continue
       }
 
-      const formattedSteps = (steps || []).map(step => ({
+      const formattedSteps = (steps || []).map((step: any) => ({
         id: step.id,
         sequenceId: step.sequence_id,
         order: step.step_order,

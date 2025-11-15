@@ -37,18 +37,18 @@ export async function GET(req: NextRequest) {
       : 0
 
     // Response rate: percentage of reviews with status 'response_sent'
-    const respondedCount = reviews.filter(r => r.status === 'response_sent').length
+    const respondedCount = reviews.filter((r: any) => r.status === 'response_sent').length
     const responseRate = totalReviews > 0
       ? (respondedCount / totalReviews) * 100
       : 0
 
     // Rating distribution (1-5 stars)
     const ratingDistribution = {
-      1: reviews.filter(r => r.rating === 1).length,
-      2: reviews.filter(r => r.rating === 2).length,
-      3: reviews.filter(r => r.rating === 3).length,
-      4: reviews.filter(r => r.rating === 4).length,
-      5: reviews.filter(r => r.rating === 5).length
+      1: reviews.filter((r: any) => r.rating === 1).length,
+      2: reviews.filter((r: any) => r.rating === 2).length,
+      3: reviews.filter((r: any) => r.rating === 3).length,
+      4: reviews.filter((r: any) => r.rating === 4).length,
+      5: reviews.filter((r: any) => r.rating === 5).length
     }
 
     // Fetch themes
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
       throw new Error(`Failed to fetch themes: ${themesError.message}`)
     }
 
-    const themes: ReputationTheme[] = (themesData || []).map(t => ({
+    const themes: ReputationTheme[] = (themesData || []).map((t: any) => ({
       id: t.id,
       userId: t.user_id,
       type: t.type,
@@ -71,15 +71,15 @@ export async function GET(req: NextRequest) {
       createdAt: new Date(t.created_at)
     }))
 
-    const positiveThemes = themes.filter(t => t.type === 'positive')
-    const negativeThemes = themes.filter(t => t.type === 'negative')
+    const positiveThemes = themes.filter((t: any) => t.type === 'positive')
+    const negativeThemes = themes.filter((t: any) => t.type === 'negative')
 
     // Calculate rating trend (last 90 days, grouped by week)
     const now = new Date()
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
     // Filter reviews from last 90 days
-    const recentReviews = reviews.filter(r => {
+    const recentReviews = reviews.filter((r: any) => {
       const reviewedAt = new Date(r.reviewed_at)
       return reviewedAt >= ninetyDaysAgo
     })
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
     // Group by week
     const weeklyData: Record<string, { reviews: number[]; weekStart: Date }> = {}
 
-    recentReviews.forEach(r => {
+    recentReviews.forEach((r: any) => {
       const reviewedAt = new Date(r.reviewed_at)
       // Get start of week (Monday)
       const weekStart = new Date(reviewedAt)
