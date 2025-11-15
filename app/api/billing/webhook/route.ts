@@ -271,6 +271,7 @@ async function saveOneTimePayment(
       const lineItem = invoice.lines.data[0]
       // @ts-expect-error - Property 'price' does exist on webhook line_item objects
       if (lineItem.price?.product) {
+        // @ts-expect-error - Property 'price' does exist on webhook line_item objects
         productId = lineItem.price.product as string
       }
     }
