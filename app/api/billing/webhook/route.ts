@@ -269,6 +269,7 @@ async function saveOneTimePayment(
     const invoice = await stripe.invoices.retrieve(paymentIntent.invoice as string)
     if (invoice.lines.data.length > 0) {
       const lineItem = invoice.lines.data[0]
+      // @ts-expect-error - Property 'price' does exist on webhook line_item objects
       if (lineItem.price?.product) {
         productId = lineItem.price.product as string
       }
