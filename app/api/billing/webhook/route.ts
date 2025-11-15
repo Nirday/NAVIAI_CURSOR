@@ -237,6 +237,7 @@ async function saveSubscription(userId: string, subscription: Stripe.Subscriptio
 
   const status = mapStripeStatusToSubscriptionStatus(subscription.status)
   const trialEndsAt = subscription.trial_end ? new Date(subscription.trial_end * 1000) : null
+  // @ts-expect-error - Property 'current_period_end' does exist on webhook subscription objects
   const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
 
   await upsertSubscription({
