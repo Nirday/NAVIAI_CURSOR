@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+// Check if we're using mock data
+const isMockMode = typeof window !== 'undefined' && (
+  process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
+  !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
+
 /**
  * Login Page
  * Allows users to sign in or sign up
@@ -158,9 +165,9 @@ export default function LoginPage() {
         </div>
 
         {/* Quick Login for Development/Testing */}
-        {(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') && (
+        {isMockMode && (
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Development Only)</p>
+            <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Mock Mode)</p>
             <div className="space-y-2">
               <button
                 type="button"
@@ -194,6 +201,18 @@ export default function LoginPage() {
             </div>
             <p className="text-xs text-gray-400 mt-2 text-center">
               Password: demo123 / admin123
+            </p>
+          </div>
+        )}
+
+        {/* Note for production when not in mock mode */}
+        {!isMockMode && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-xs text-gray-500 text-center">
+              Using real Supabase authentication. Create an account or sign in with your credentials.
+            </p>
+            <p className="text-xs text-gray-400 mt-2 text-center">
+              To enable mock mode, set NEXT_PUBLIC_USE_MOCK_DATA=true in environment variables.
             </p>
           </div>
         )}
