@@ -159,6 +159,9 @@ export default function ContactsDashboard({
     )
   }
 
+  // Extract contact ID for tag modal if contact is selected
+  const selectedContactId = selectedContact?.id
+
   return (
     <div className={`rounded-lg border bg-white ${className}`}>
       {/* Header */}
@@ -313,7 +316,7 @@ export default function ContactsDashboard({
       )}
 
       {/* Manage Tags Modal */}
-      {showTagModal && selectedContact ? (
+      {showTagModal && selectedContact && selectedContactId && (
         <ManageTagsModal
           contact={selectedContact}
           allTags={allTags}
@@ -321,9 +324,9 @@ export default function ContactsDashboard({
             setShowTagModal(false)
             setSelectedContact(null)
           }}
-          onSave={(tags) => handleSaveTags(selectedContact.id, tags)}
+          onSave={(tags) => handleSaveTags(selectedContactId, tags)}
         />
-      ) : null}
+      )}
     </div>
   )
 }
