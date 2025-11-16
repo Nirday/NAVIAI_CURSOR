@@ -4,6 +4,8 @@ import Renderer from '../../../libs/website-builder/src/Renderer'
 import { getPublishedWebsiteByDomain, getPageBySlug } from '../../../libs/website-builder/src/data'
 import Analytics from '../../../libs/website-builder/src/Analytics'
 
+export const dynamic = 'force-dynamic'
+
 async function getHost(): Promise<string | null> {
   const hdrs = await headers()
   const host = hdrs.get('host')
