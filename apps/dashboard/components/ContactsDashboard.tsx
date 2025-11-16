@@ -313,20 +313,17 @@ export default function ContactsDashboard({
       )}
 
       {/* Manage Tags Modal */}
-      {showTagModal && selectedContact && (() => {
-        const contactId = selectedContact.id
-        return (
-          <ManageTagsModal
-            contact={selectedContact}
-            allTags={allTags}
-            onClose={() => {
-              setShowTagModal(false)
-              setSelectedContact(null)
-            }}
-            onSave={(tags) => handleSaveTags(contactId, tags)}
-          />
-        )
-      })()}
+      {showTagModal && selectedContact ? (
+        <ManageTagsModal
+          contact={selectedContact}
+          allTags={allTags}
+          onClose={() => {
+            setShowTagModal(false)
+            setSelectedContact(null)
+          }}
+          onSave={(tags) => handleSaveTags(selectedContact.id, tags)}
+        />
+      ) : null}
     </div>
   )
 }
