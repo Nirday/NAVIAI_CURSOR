@@ -54,10 +54,10 @@ export default async function PublicSite({ params }: Props) {
   const host = await getHost()
   const domain = host ? extractSubdomainDomain(host) : null
   
-  // If no subdomain (root domain), redirect to dashboard
+  // If no subdomain (root domain), redirect to login
   if (!domain) {
     const { redirect } = await import('next/navigation')
-    redirect('/dashboard')
+    redirect('/login')
     // TypeScript doesn't know redirect never returns, so we need to assert domain is string
     return null
   }
