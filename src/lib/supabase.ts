@@ -2,11 +2,12 @@ import { createClient } from '@supabase/supabase-js'
 import { mockSupabase, mockSupabaseAdmin } from './mock-supabase'
 
 // Check if we should use mock data for local development
-// Can be explicitly enabled via NEXT_PUBLIC_USE_MOCK_DATA=true
-// Or automatically enabled if Supabase env vars are missing
+// Priority: Explicit flag > Missing env vars
+// If NEXT_PUBLIC_USE_MOCK_DATA=true, always use mock (even if Supabase env vars are set)
 const useMockData = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
-                   (process.env.NEXT_PUBLIC_SUPABASE_URL === undefined || process.env.NEXT_PUBLIC_SUPABASE_URL === '') ||
-                   (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === undefined || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === '')
+                   (process.env.NEXT_PUBLIC_USE_MOCK_DATA !== 'false' && 
+                    (process.env.NEXT_PUBLIC_SUPABASE_URL === undefined || process.env.NEXT_PUBLIC_SUPABASE_URL === '' ||
+                     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === undefined || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === ''))
 
 if (useMockData && process.env.NODE_ENV !== 'production') {
   console.log('🔧 Using mock Supabase client for local development')

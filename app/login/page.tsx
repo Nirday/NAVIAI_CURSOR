@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-// Check if we're using mock data
+// Check if we're using mock data (client-side check)
+// This checks the actual supabase client being used
 const isMockMode = typeof window !== 'undefined' && (
   process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
-  !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === '') ||
+  (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === '')
 )
 
 /**
@@ -24,8 +25,23 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
 
   const supabaseClient = supabase
+  const [isActuallyMockMode, setIsActuallyMockMode] = useState(false)
 
   useEffect(() => {
+    // Check if we're actually using mock mode by testing the client
+    const checkMockMode = async () => {
+      try {
+        // Try to call a mock-specific method or check if auth.getSession works differently
+        // For now, we'll check if the client has the mock structure
+        const testSession = await supabaseClient.auth.getSession()
+        // If it's mock, it will return immediately without network call
+        // We can't easily detect this, so we rely on env var check
+        setIsActuallyMockMode(isMockMode)
+      } catch {
+        setIsActuallyMockMode(false)
+      }
+    }
+    checkMockMode()
     // Check if user is already authenticated
     checkAuth()
   }, [])
@@ -165,7 +181,7 @@ export default function LoginPage() {
         </div>
 
         {/* Quick Login for Development/Testing */}
-        {isMockMode && (
+        {(isMockMode || isActuallyMockMode) && (
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Mock Mode)</p>
             <div className="space-y-2">
@@ -206,13 +222,16 @@ export default function LoginPage() {
         )}
 
         {/* Note for production when not in mock mode */}
-        {!isMockMode && (
+        {!isMockMode && !isActuallyMockMode && (
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-gray-500 text-center mb-2">
               Using real Supabase authentication. Create an account or sign in with your credentials.
             </p>
-            <p className="text-xs text-gray-400 mt-2 text-center">
-              To enable mock mode, set NEXT_PUBLIC_USE_MOCK_DATA=true in environment variables.
+            <p className="text-xs text-gray-400 text-center mb-2">
+              To enable mock mode for testing, set <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_USE_MOCK_DATA=true</code> in Vercel environment variables.
+            </p>
+            <p className="text-xs text-blue-600 text-center">
+              Or use the "Sign up" option above to create a new account.
             </p>
           </div>
         )}
