@@ -58,6 +58,8 @@ export default async function PublicSite({ params }: Props) {
   if (!domain) {
     const { redirect } = await import('next/navigation')
     redirect('/dashboard')
+    // TypeScript doesn't know redirect never returns, so we need to assert domain is string
+    return null
   }
   
   const website = await getPublishedWebsiteByDomain(domain)
