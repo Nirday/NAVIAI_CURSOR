@@ -171,14 +171,24 @@ export async function createProfile(userId: string, profileData: PartialBusiness
       userId,
       businessName: profileData.businessName,
       industry: profileData.industry,
-      location: profileData.location || {
+      location: profileData.location ? {
+        address: profileData.location.address || '',
+        city: profileData.location.city || '',
+        state: profileData.location.state || '',
+        zipCode: profileData.location.zipCode || '',
+        country: profileData.location.country || ''
+      } : {
         address: '',
         city: '',
         state: '',
         zipCode: '',
         country: ''
       },
-      contactInfo: profileData.contactInfo || {
+      contactInfo: profileData.contactInfo ? {
+        phone: profileData.contactInfo.phone || '',
+        email: profileData.contactInfo.email || '',
+        website: profileData.contactInfo.website
+      } : {
         phone: '',
         email: ''
       },
