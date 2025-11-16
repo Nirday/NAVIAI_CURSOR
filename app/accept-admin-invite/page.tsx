@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 /**
- * Public page for accepting admin invitations
- * Users can sign in or sign up here, then accept the invite
+ * Inner component that uses useSearchParams
+ * Must be wrapped in Suspense boundary
  */
-export default function AcceptAdminInvitePage() {
+function AcceptAdminInviteContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
@@ -245,3 +245,21 @@ export default function AcceptAdminInvitePage() {
   )
 }
 
+/**
+ * Public page for accepting admin invitations
+ * Users can sign in or sign up here, then accept the invite
+ */
+export default function AcceptAdminInvitePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h1>
+          <p className="text-gray-600">Please wait while we load your invitation.</p>
+        </div>
+      </div>
+    }>
+      <AcceptAdminInviteContent />
+    </Suspense>
+  )
+}
