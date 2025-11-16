@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { SocialPlatform, PLATFORM_LIMITS, getOptimalTimingSuggestion } from '@/libs/social-hub/src/adapter'
+import { SocialPlatform } from '@/libs/social-hub/src/types'
+import { PLATFORM_LIMITS, getOptimalTimingSuggestion } from '@/libs/social-hub/src/adapter'
 import { BusinessProfile } from '@/libs/chat-core/src/types'
 import { ExclamationTriangleIcon, SparklesIcon } from '@heroicons/react/24/outline'
 
