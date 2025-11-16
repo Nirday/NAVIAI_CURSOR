@@ -32,7 +32,7 @@ export class ProfileExistsError extends Error {
 /**
  * Validates basic profile data
  */
-function validateProfileData(profile: Partial<BusinessProfile>): void {
+function validateProfileData(profile: PartialBusinessProfile): void {
   if (profile.businessName && profile.businessName.trim() === '') {
     throw new ValidationError('Business name cannot be empty')
   }
