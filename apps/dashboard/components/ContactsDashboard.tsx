@@ -146,6 +146,9 @@ export default function ContactsDashboard({
     return 'bg-gray-100 text-gray-800'
   }
 
+  // Extract contact ID for tag modal if contact is selected (before early return)
+  const selectedContactId = selectedContact?.id
+
   // If contact detail is selected, show detail view
   if (selectedContact) {
     return (
@@ -158,9 +161,6 @@ export default function ContactsDashboard({
       </div>
     )
   }
-
-  // Extract contact ID for tag modal if contact is selected
-  const selectedContactId = selectedContact?.id
 
   return (
     <div className={`rounded-lg border bg-white ${className}`}>
