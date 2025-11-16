@@ -151,7 +151,7 @@ function getSuggestionStyles(suggestion: SuggestionPrompt): string {
   }
 }
 
-function getSuggestionIcon(category: string): JSX.Element {
+function getSuggestionIcon(category: string): React.ReactElement {
   switch (category) {
     case 'aha_moment':
       return <span className="text-green-600">🎉</span>

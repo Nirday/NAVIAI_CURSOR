@@ -242,7 +242,7 @@ function PostListView({
 }: {
   posts: BlogPost[]
   onPostClick: (post: BlogPost) => void
-  getStatusBadge: (status: string, scheduledAt: string | null) => JSX.Element
+  getStatusBadge: (status: string, scheduledAt: string | null) => React.ReactElement
   formatDate: (date: string) => string
 }) {
   if (posts.length === 0) {

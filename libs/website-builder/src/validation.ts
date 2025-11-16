@@ -77,7 +77,8 @@ const ContactFormSectionSchema = z.object({
 const EmbedSectionSchema = z.object({
   id: z.string(),
   type: z.literal('embed'),
-  embedCode: z.string()
+  embedCode: z.string(),
+  htmlContent: z.string()
 })
 
 const VideoSectionSchema = z.object({
@@ -104,7 +105,7 @@ const WebsitePageSchema = z.object({
   title: z.string(),
   metaTitle: z.string(),
   metaDescription: z.string(),
-  structuredData: z.record(z.any()).nullable(),
+  structuredData: z.record(z.string(), z.any()).nullable(),
   sections: z.array(WebsiteSectionSchema)
 })
 

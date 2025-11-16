@@ -253,7 +253,7 @@ export async function runGBPQuestionFetcher(): Promise<void> {
 
     for (const userId of userIds) {
       try {
-        await fetchGBPQuestionsForUser(userId)
+        await fetchGBPQuestionsForUser(String(userId))
       } catch (error: any) {
         console.error(`[GBP Q&A] Error processing user ${userId}:`, error)
       }

@@ -110,7 +110,7 @@ export async function runWeeklyGBPUpdates(): Promise<void> {
     for (const userId of userIds) {
       try {
         // Generate GBP update
-        const updateContent = await generateWeeklyGBPUpdate(userId)
+        const updateContent = await generateWeeklyGBPUpdate(String(userId))
         if (!updateContent) {
           console.warn(`[GBP Updates] Failed to generate update for user ${userId}`)
           continue

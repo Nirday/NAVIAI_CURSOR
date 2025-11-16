@@ -266,9 +266,9 @@ export function validateNAPConsistency(citations: LocalCitation[]): {
   }
   
   // Extract unique values for each NAP component
-  const names = new Set(existingCitations.map(c => normalizeString(c.napData!.name)))
-  const addresses = new Set(existingCitations.map(c => normalizeString(c.napData!.address)))
-  const phones = new Set(existingCitations.map(c => normalizePhone(c.napData!.phone) || '').filter(Boolean))
+  const names = new Set(existingCitations.map(c => normalizeString(c.napData?.name || '')))
+  const addresses = new Set(existingCitations.map(c => normalizeString(c.napData?.address || '')))
+  const phones = new Set(existingCitations.map(c => normalizePhone(c.napData?.phone || '') || '').filter(Boolean))
   
   // Check for inconsistencies
   if (names.size > 1) {

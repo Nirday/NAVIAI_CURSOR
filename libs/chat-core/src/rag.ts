@@ -111,7 +111,8 @@ async function generateEmbedding(content: string): Promise<number[]> {
     
     return response.data[0].embedding
   } catch (error) {
-    throw new EmbeddingError(`Failed to generate embedding: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new EmbeddingError(`Failed to generate embedding: ${message}`)
   }
 }
 
@@ -156,7 +157,8 @@ export async function updateProfileEmbeddings(profile: BusinessProfile): Promise
     if (error instanceof EmbeddingError || error instanceof QueryError) {
       throw error
     }
-    throw new EmbeddingError(`Unexpected error updating profile embeddings: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new EmbeddingError(`Unexpected error updating profile embeddings: ${message}`)
   }
 }
 
@@ -192,7 +194,8 @@ export async function queryProfile(
     if (error instanceof EmbeddingError || error instanceof QueryError) {
       throw error
     }
-    throw new QueryError(`Unexpected error querying profile: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new QueryError(`Unexpected error querying profile: ${message}`)
   }
 }
 
@@ -216,7 +219,8 @@ export async function deleteProfileEmbeddings(userId: string): Promise<void> {
     if (error instanceof QueryError) {
       throw error
     }
-    throw new QueryError(`Unexpected error deleting profile embeddings: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new QueryError(`Unexpected error deleting profile embeddings: ${message}`)
   }
 }
 
@@ -243,6 +247,7 @@ export async function getProfileContent(userId: string): Promise<string | null> 
     if (error instanceof QueryError) {
       throw error
     }
-    throw new QueryError(`Unexpected error getting profile content: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new QueryError(`Unexpected error getting profile content: ${message}`)
   }
 }

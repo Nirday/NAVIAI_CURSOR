@@ -192,7 +192,8 @@ async function saveSuggestions(userId: string, suggestions: SuggestionPrompt[]):
     if (error instanceof SuggestionError) {
       throw error
     }
-    throw new SuggestionError(`Unexpected error saving suggestions: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new SuggestionError(`Unexpected error saving suggestions: ${message}`)
   }
 }
 
@@ -362,7 +363,8 @@ async function getRecentSuggestions(userId: string, hours: number = 24): Promise
     if (error instanceof SuggestionError) {
       throw error
     }
-    throw new SuggestionError(`Unexpected error fetching recent suggestions: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new SuggestionError(`Unexpected error fetching recent suggestions: ${message}`)
   }
 }
 
@@ -450,7 +452,8 @@ export async function getSuggestedPrompts(
     if (error instanceof SuggestionError) {
       throw error
     }
-    throw new SuggestionError(`Unexpected error generating suggestions: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new SuggestionError(`Unexpected error generating suggestions: ${message}`)
   }
 }
 

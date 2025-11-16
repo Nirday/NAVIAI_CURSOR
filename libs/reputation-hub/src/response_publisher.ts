@@ -119,10 +119,8 @@ async function publishReviewResponse(reviewData: any): Promise<void> {
       case 'facebook':
         platformResponseId = await publishToFacebook(reviewData, sourceData, accessToken, suggestedResponseContent)
         break
-      case 'yelp':
-        // Already handled above
-        return
       default:
+        // 'yelp' is already handled above with early return
         throw new Error(`Unsupported platform: ${platform}`)
     }
 

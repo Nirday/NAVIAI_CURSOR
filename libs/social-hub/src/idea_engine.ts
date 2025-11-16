@@ -49,7 +49,7 @@ export async function generateSocialIdeas(): Promise<void> {
     // Process each user
     for (const userId of userIds) {
       try {
-        await generateIdeasForUser(userId)
+        await generateIdeasForUser(String(userId))
         successCount++
       } catch (error: any) {
         console.error(`[Social Ideas] Error processing user ${userId}:`, error)

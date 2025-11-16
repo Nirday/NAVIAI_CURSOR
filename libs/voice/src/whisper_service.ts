@@ -26,7 +26,7 @@ export async function transcribeAudio(
       // Create a File-like object from Buffer
       // Note: In Node.js environment, we need to use FormData
       const formData = new FormData()
-      const blob = new Blob([audioFile])
+      const blob = new Blob([audioFile as BlobPart])
       file = new File([blob], 'audio.webm', { type: 'audio/webm' })
     } else {
       file = audioFile

@@ -177,8 +177,8 @@ async function fetchFacebookReviews(source: ReviewSource): Promise<Partial<Revie
     let nextPageUrl: string | null = null
 
     while (hasMore && reviews.length < 50) {
-      const fetchUrl = nextPageUrl || url
-      const response = await fetch(fetchUrl)
+      const fetchUrl: string = nextPageUrl || url
+      const response: Response = await fetch(fetchUrl)
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
@@ -187,7 +187,7 @@ async function fetchFacebookReviews(source: ReviewSource): Promise<Partial<Revie
         throw new Error(`Facebook API error: ${response.status} ${response.statusText}`)
       }
 
-      const data = await response.json()
+      const data: any = await response.json()
 
       if (data.data && Array.isArray(data.data)) {
         for (const item of data.data) {

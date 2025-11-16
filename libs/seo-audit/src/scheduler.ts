@@ -198,8 +198,8 @@ export async function runDailyRankTracker(): Promise<void> {
     
     // Process each user
     for (const setting of validSettings) {
+      const userId = setting.user_id
       try {
-        const userId = setting.user_id
         await trackKeywordRankings(userId)
         successCount++
       } catch (error: any) {

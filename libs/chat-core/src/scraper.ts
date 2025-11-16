@@ -69,7 +69,8 @@ async function checkRobotsTxt(url: string): Promise<void> {
       throw error
     }
     // If robots.txt check fails, continue with scraping attempt
-    console.log('Robots.txt check failed, proceeding with scraping:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.log('Robots.txt check failed, proceeding with scraping:', message)
   }
 }
 
@@ -162,10 +163,11 @@ async function scrapeWithCheerio(url: string): Promise<string> {
     if (error instanceof ScrapingError) {
       throw error
     }
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new ScrapingError('Website request timed out.')
     }
-    throw new ScrapingError(`Could not reach the provided website URL. ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new ScrapingError(`Could not reach the provided website URL. ${message}`)
   }
 }
 
@@ -206,7 +208,8 @@ async function scrapeWithPuppeteer(url: string): Promise<string> {
     if (error instanceof ScrapingError) {
       throw error
     }
-    throw new ScrapingError(`Could not render the website. ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new ScrapingError(`Could not render the website. ${message}`)
   } finally {
     if (browser) {
       await browser.close()
@@ -316,7 +319,8 @@ ${content}`
     if (error instanceof AIError) {
       throw error
     }
-    throw new AIError(`AI failed to extract information from the website content. ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new AIError(`AI failed to extract information from the website content. ${message}`)
   }
 }
 
@@ -342,7 +346,8 @@ export async function scrapeWebsiteForProfile(url: string): Promise<ScrapedProfi
       content = await scrapeWithCheerio(url)
       extractionMethod = 'cheerio'
     } catch (cheerioError) {
-      console.log('Cheerio failed, trying Puppeteer:', cheerioError.message)
+      const message = cheerioError instanceof Error ? cheerioError.message : String(cheerioError)
+      console.log('Cheerio failed, trying Puppeteer:', message)
       
       // Fall back to Puppeteer for dynamic content
       content = await scrapeWithPuppeteer(url)
@@ -368,6 +373,7 @@ export async function scrapeWebsiteForProfile(url: string): Promise<ScrapedProfi
     if (error instanceof ScrapingError || error instanceof AIError) {
       throw error
     }
-    throw new ScrapingError(`Unexpected error during website scraping: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new ScrapingError(`Unexpected error during website scraping: ${message}`)
   }
 }

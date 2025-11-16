@@ -47,7 +47,7 @@ export async function runReputationAnalysis(): Promise<void> {
     // Process each user
     for (const userId of userIds) {
       try {
-        await analyzeUserReputation(userId)
+        await analyzeUserReputation(String(userId))
         successCount++
       } catch (error: any) {
         console.error(`[Reputation Analyzer] Error processing user ${userId}:`, error)

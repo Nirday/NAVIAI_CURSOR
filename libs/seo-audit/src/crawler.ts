@@ -382,7 +382,7 @@ async function checkSiteWideFiles(
       // Check if sitemap is valid XML
       const sitemapText = await sitemapResponse.text()
       try {
-        const $ = cheerio.load(sitemapText, { xml: true })
+        const $ = cheerio.load(sitemapText, { xmlMode: true })
         // Basic validation - check if it has urlset or sitemapindex
         if (!$('urlset').length && !$('sitemapindex').length) {
           issues.push(createIssue(userId, auditReportId, 'technical', 'medium', null,

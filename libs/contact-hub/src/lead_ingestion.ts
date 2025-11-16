@@ -164,7 +164,8 @@ export async function ingestNewLead(
     if (error instanceof LeadIngestionError) {
       throw error
     }
-    throw new LeadIngestionError(`Unexpected error ingesting lead: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new LeadIngestionError(`Unexpected error ingesting lead: ${message}`)
   }
 }
 

@@ -61,6 +61,53 @@ function validateProfileData(profile: PartialBusinessProfile): void {
 }
 
 /**
+ * Converts string[] services to BusinessProfile services format
+ */
+function convertServices(services: string[] | BusinessProfile['services'] | undefined): BusinessProfile['services'] {
+  if (!services || services.length === 0) return []
+  // If it's already in the correct format, return as-is
+  if (typeof services[0] === 'object' && 'name' in services[0]) {
+    return services as BusinessProfile['services']
+  }
+  // Convert string[] to proper format
+  return (services as string[]).map(name => ({
+    name,
+    description: '',
+    price: undefined
+  }))
+}
+
+/**
+ * Filters out undefined hours and ensures proper format
+ */
+function convertHours(hours: Partial<BusinessProfile['hours']> | BusinessProfile['hours'] | undefined): BusinessProfile['hours'] {
+  if (!hours || hours.length === 0) return []
+  // If already in correct format, return as-is
+  if (hours.length > 0 && typeof hours[0] === 'object' && hours[0] !== null && 'day' in hours[0] && 'open' in hours[0] && 'close' in hours[0] && hours[0].day && hours[0].open && hours[0].close) {
+    return hours as BusinessProfile['hours']
+  }
+  // Filter out undefined and ensure all required fields
+  const hoursArray = Array.isArray(hours) ? hours : []
+  return hoursArray
+    .filter((h): h is BusinessProfile['hours'][0] => 
+      h !== undefined && 
+      h !== null &&
+      typeof h === 'object' &&
+      'day' in h && 
+      'open' in h && 
+      'close' in h &&
+      typeof h.day === 'string' &&
+      typeof h.open === 'string' &&
+      typeof h.close === 'string'
+    )
+    .map(h => ({
+      day: h.day as string,
+      open: h.open as string,
+      close: h.close as string
+    }))
+}
+
+/**
  * Intelligently merges services arrays by name
  */
 function mergeServices(existing: BusinessProfile['services'], incoming: BusinessProfile['services']): BusinessProfile['services'] {
@@ -192,8 +239,8 @@ export async function createProfile(userId: string, profileData: PartialBusiness
         phone: '',
         email: ''
       },
-      services: profileData.services || [],
-      hours: profileData.hours || [],
+      services: convertServices(profileData.services),
+      hours: convertHours(profileData.hours),
       brandVoice: profileData.brandVoice || 'professional',
       targetAudience: profileData.targetAudience || '',
       customAttributes: profileData.customAttributes || []
@@ -267,8 +314,8 @@ export async function updateProfile(userId: string, updates: PartialBusinessProf
       industry: updates.industry || existingProfile.industry,
       location: updates.location ? { ...existingProfile.location, ...updates.location } : existingProfile.location,
       contactInfo: updates.contactInfo ? { ...existingProfile.contactInfo, ...updates.contactInfo } : existingProfile.contactInfo,
-      services: updates.services ? mergeServices(existingProfile.services, updates.services) : existingProfile.services,
-      hours: updates.hours || existingProfile.hours,
+      services: updates.services ? mergeServices(existingProfile.services, convertServices(updates.services)) : existingProfile.services,
+      hours: updates.hours ? convertHours(updates.hours) : existingProfile.hours,
       brandVoice: updates.brandVoice || existingProfile.brandVoice,
       targetAudience: updates.targetAudience !== undefined ? updates.targetAudience : existingProfile.targetAudience,
       customAttributes: updates.customAttributes ? mergeCustomAttributes(existingProfile.customAttributes, updates.customAttributes) : existingProfile.customAttributes,
