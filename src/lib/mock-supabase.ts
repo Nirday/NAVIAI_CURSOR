@@ -161,11 +161,101 @@ class MockSupabaseClient {
 const mockSupabaseClient = new MockSupabaseClient()
 mockSupabaseClient.initMockData()
 
+// Mock session storage
+let mockSession: any = null
+
 export const mockSupabase = {
-  from: (table: string) => mockSupabaseClient.from(table)
+  from: (table: string) => mockSupabaseClient.from(table),
+  auth: {
+    getSession: async () => {
+      return {
+        data: {
+          session: mockSession
+        },
+        error: null
+      }
+    },
+    signInWithPassword: async ({ email, password }: { email: string; password: string }) => {
+      // Mock credentials for testing
+      const mockCredentials = {
+        'demo@naviai.com': 'demo123',
+        'test@example.com': 'test123',
+        'admin@naviai.com': 'admin123'
+      }
+
+      if (mockCredentials[email as keyof typeof mockCredentials] === password) {
+        mockSession = {
+          user: {
+            id: 'mock-user-123',
+            email: email,
+            app_metadata: { role: email.includes('admin') ? 'admin' : 'user' }
+          },
+          access_token: 'mock-token',
+          refresh_token: 'mock-refresh-token'
+        }
+        return {
+          data: { session: mockSession, user: mockSession.user },
+          error: null
+        }
+      }
+
+      return {
+        data: { session: null, user: null },
+        error: { message: 'Invalid login credentials' }
+      }
+    },
+    signUp: async ({ email, password }: { email: string; password: string }) => {
+      // Auto-approve signups in mock mode
+      mockSession = {
+        user: {
+          id: 'mock-user-123',
+          email: email,
+          app_metadata: { role: 'user' }
+        },
+        access_token: 'mock-token',
+        refresh_token: 'mock-refresh-token'
+      }
+      return {
+        data: { session: mockSession, user: mockSession.user },
+        error: null
+      }
+    },
+    signOut: async () => {
+      mockSession = null
+      return { error: null }
+    }
+  }
 }
 
 export const mockSupabaseAdmin = {
-  from: (table: string) => mockSupabaseClient.from(table)
+  from: (table: string) => mockSupabaseClient.from(table),
+  auth: {
+    admin: {
+      getUserById: async (userId: string) => {
+        return {
+          data: {
+            user: {
+              id: userId,
+              email: 'demo@naviai.com',
+              app_metadata: { role: 'user' }
+            }
+          },
+          error: null
+        }
+      },
+      listUsers: async () => {
+        return {
+          data: {
+            users: [{
+              id: 'mock-user-123',
+              email: 'demo@naviai.com',
+              app_metadata: { role: 'user' }
+            }]
+          },
+          error: null
+        }
+      }
+    }
+  }
 }
 

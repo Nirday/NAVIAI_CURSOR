@@ -156,6 +156,47 @@ export default function LoginPage() {
               : "Don't have an account? Sign up"}
           </button>
         </div>
+
+        {/* Quick Login for Development/Testing */}
+        {(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Development Only)</p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail('demo@naviai.com')
+                  setPassword('demo123')
+                  // Auto-submit after a brief delay
+                  setTimeout(() => {
+                    const form = document.querySelector('form') as HTMLFormElement
+                    if (form) form.requestSubmit()
+                  }, 100)
+                }}
+                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
+              >
+                Demo User (demo@naviai.com)
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail('admin@naviai.com')
+                  setPassword('admin123')
+                  setTimeout(() => {
+                    const form = document.querySelector('form') as HTMLFormElement
+                    if (form) form.requestSubmit()
+                  }, 100)
+                }}
+                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
+              >
+                Admin User (admin@naviai.com)
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-2 text-center">
+              Password: demo123 / admin123
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
