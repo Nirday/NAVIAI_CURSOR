@@ -53,7 +53,13 @@ export default async function PublicSite({ params }: Props) {
   const { segments } = await params
   const host = await getHost()
   const domain = host ? extractSubdomainDomain(host) : null
-  if (!domain) return <div>Not Found</div>
+  
+  // If no subdomain (root domain), redirect to dashboard
+  if (!domain) {
+    const { redirect } = await import('next/navigation')
+    redirect('/dashboard')
+  }
+  
   const website = await getPublishedWebsiteByDomain(domain)
   if (!website) return <div>Not Found</div>
 
