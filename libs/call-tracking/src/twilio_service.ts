@@ -92,8 +92,7 @@ export async function provisionPhoneNumber(
       phoneNumber: selectedNumber.phoneNumber,
       friendlyName: `Navi AI - User ${userId}`,
       voiceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/call-tracking/webhook`,
-      statusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/call-tracking/webhook`,
-      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
+      statusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/call-tracking/webhook`
     })
 
     return {
