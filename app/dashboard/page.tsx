@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 /**
  * Dashboard Home Page
  * Redirects authenticated users to the main dashboard view
+ * If user doesn't have a website yet, redirects to template selector
  */
 export default function DashboardPage() {
   const router = useRouter()
@@ -24,9 +25,30 @@ export default function DashboardPage() {
       return
     }
 
-    // Authenticated - redirect to a default dashboard section (e.g., website)
-    // You can change this to any default page you prefer
-    router.push('/dashboard/website')
+    // Check if user has a website
+    try {
+      const res = await fetch('/api/website/me', {
+        headers: { 'x-user-id': session.user.id }
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        if (data.website) {
+          // User has a website, go to website editor
+          router.push('/dashboard/website')
+        } else {
+          // User doesn't have a website yet, redirect to template selector
+          router.push('/dashboard/onboarding/template')
+        }
+      } else {
+        // If API call fails, assume no website and redirect to template selector
+        router.push('/dashboard/onboarding/template')
+      }
+    } catch (error) {
+      console.error('Error checking website:', error)
+      // On error, redirect to template selector
+      router.push('/dashboard/onboarding/template')
+    }
   }
 
   // Show loading state while checking auth
