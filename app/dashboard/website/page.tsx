@@ -90,6 +90,23 @@ export default function WebsiteEditorPage() {
     setBlocks(prevBlocks => prevBlocks.filter((_, i) => i !== index))
   }
 
+  const updateBlockProps = (index: number, newProps: any) => {
+    setBlocks(prevBlocks => {
+      const newBlocks = [...prevBlocks]
+      const oldBlock = newBlocks[index]
+
+      // Merge old props with new props
+      newBlocks[index] = {
+        ...oldBlock,
+        props: {
+          ...oldBlock.props,
+          ...newProps,
+        },
+      }
+      return newBlocks
+    })
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -120,7 +137,12 @@ export default function WebsiteEditorPage() {
           <div key={block.id} className="relative group border-2 border-transparent hover:border-blue-500 rounded-lg">
 
             {/* This renders the correct block component */}
-            {block.type === 'hero' && <HeroBlock {...block.props} />}
+            {block.type === 'hero' && (
+              <HeroBlock
+                {...block.props}
+                onUpdate={(newProps) => updateBlockProps(index, newProps)}
+              />
+            )}
             {block.type === 'features' && <FeatureBlock {...block.props} />}
 
             {/* --- These are the "Up/Down/Delete" controls --- */}
