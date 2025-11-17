@@ -18,33 +18,37 @@ export default function WebsiteEditorPage() {
   const [loading, setLoading] = useState(true)
 
   // --- STATE ---
-  // This is our new state: a single array of blocks
-  const [blocks, setBlocks] = useState<Block[]>([
-    { 
-      id: '1', 
-      type: 'hero', 
-      props: { 
-        headline: 'Fresh Artisan Bread, Baked Daily', 
-        subheadline: 'Experience the tradition of handmade pastries' 
-      } 
-    },
-    { 
-      id: '2', 
-      type: 'features', 
-      props: { 
-        title: 'Our Services', 
-        features: [
-          { name: 'Catering', description: 'Events & parties.' },
-          { name: 'Daily Bread', description: 'Freshly baked sourdough.' },
-          { name: 'Coffee', description: 'Locally roasted beans.' }
-        ] 
-      } 
-    },
-  ])
+  // The blocks state now starts empty
+  const [blocks, setBlocks] = useState<Block[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     checkAuth()
   }, [])
+
+  // --- DATA FETCHING ---
+  useEffect(() => {
+    // Fetch the AI-generated content when userId is available
+    if (!userId) return
+
+    async function fetchContent() {
+      try {
+        const response = await fetch('/api/website/generate-content')
+        if (!response.ok) {
+          throw new Error('Failed to fetch content')
+        }
+        const data = await response.json()
+        setBlocks(data)
+      } catch (error) {
+        console.error(error)
+        // TODO: Add proper error handling (e.g., load default blocks)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchContent()
+  }, [userId]) // Run when userId is available
 
   const checkAuth = async () => {
     try {
@@ -57,10 +61,10 @@ export default function WebsiteEditorPage() {
       }
 
       setUserId(session.user.id)
+      setLoading(false)
     } catch (error) {
       console.error('Auth error:', error)
       router.push('/login')
-    } finally {
       setLoading(false)
     }
   }
@@ -107,12 +111,14 @@ export default function WebsiteEditorPage() {
     })
   }
 
-  if (loading) {
+  if (loading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex justify-center items-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-xl text-gray-600">
+            {loading ? 'Loading...' : 'Generating your personalized website...'}
+          </p>
         </div>
       </div>
     )
