@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Website, WebsitePage, WebsiteSection, HeroSection, FeatureSection, TextSection, ImageGallerySection } from '@/libs/website-builder/src/types'
 import { ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import Renderer from '@/libs/website-builder/src/Renderer'
 
 interface WebsiteEditorProps {
   userId: string
@@ -192,23 +193,48 @@ export default function WebsiteEditor({ userId, className = '' }: WebsiteEditorP
           </div>
         </aside>
 
-        {/* Main Form Editor */}
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
-          {selectedPage ? (
-            <PageEditor
-              page={selectedPage}
-              website={website}
-              onUpdate={(updatedPage) => {
-                updateWebsite(prev => ({
-                  ...prev,
-                  pages: prev.pages.map(p => p.slug === selectedPage.slug ? updatedPage : p)
-                }))
-              }}
-            />
-          ) : (
-            <div className="text-gray-500">Select a page to edit</div>
-          )}
-        </main>
+        {/* Split View: Form Editor and Preview */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Form Editor */}
+          <main className="w-1/2 border-r overflow-y-auto p-6 bg-white">
+            {selectedPage ? (
+              <PageEditor
+                page={selectedPage}
+                website={website}
+                onUpdate={(updatedPage) => {
+                  updateWebsite(prev => ({
+                    ...prev,
+                    pages: prev.pages.map(p => p.slug === selectedPage.slug ? updatedPage : p)
+                  }))
+                }}
+              />
+            ) : (
+              <div className="text-gray-500">Select a page to edit</div>
+            )}
+          </main>
+
+          {/* Live Preview */}
+          <aside className="w-1/2 overflow-y-auto bg-gray-50">
+            {selectedPage && website ? (
+              <div className="p-4">
+                <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+                  <PagePreview
+                    page={selectedPage}
+                    website={website}
+                    onUpdate={(updatedPage) => {
+                      updateWebsite(prev => ({
+                        ...prev,
+                        pages: prev.pages.map(p => p.slug === selectedPage.slug ? updatedPage : p)
+                      }))
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 text-gray-500 text-center">Preview will appear here</div>
+            )}
+          </aside>
+        </div>
       </div>
     </div>
   )
@@ -218,6 +244,111 @@ interface PageEditorProps {
   page: WebsitePage
   website: Website
   onUpdate: (page: WebsitePage) => void
+}
+
+interface PagePreviewProps {
+  page: WebsitePage
+  website: Website
+  onUpdate: (page: WebsitePage) => void
+}
+
+function PagePreview({ page, website, onUpdate }: PagePreviewProps) {
+  const updatePage = (updater: (prev: WebsitePage) => WebsitePage) => {
+    onUpdate(updater(page))
+  }
+
+  // Render sections with editable hero
+  const renderSection = (section: WebsiteSection) => {
+    if (section.type === 'hero') {
+      const heroSection = section as HeroSection
+      return (
+        <EditableHero
+          key={section.id}
+          section={heroSection}
+          theme={website.theme}
+          onUpdate={(updated) => {
+            updatePage(prev => ({
+              ...prev,
+              sections: prev.sections.map(s => s.id === section.id ? updated : s)
+            }))
+          }}
+        />
+      )
+    }
+    // For other sections, we'll use the regular Renderer
+    // But for now, just return null to avoid importing all components
+    return null
+  }
+
+  return (
+    <div className="min-h-screen">
+      {page.sections.map(renderSection)}
+      {page.sections.length === 0 && (
+        <div className="mx-auto max-w-3xl px-6 py-12 text-center">
+          <p className="text-gray-500">This page has no sections yet.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface EditableHeroProps {
+  section: HeroSection
+  theme: any
+  onUpdate: (section: HeroSection) => void
+}
+
+function EditableHero({ section, theme, onUpdate }: EditableHeroProps) {
+  const { headline, subheadline, ctaButton, backgroundImageUrl, backgroundVideoUrl } = section
+  const bgStyle = backgroundImageUrl
+    ? { backgroundImage: `url(${backgroundImageUrl})` }
+    : undefined
+
+  return (
+    <section
+      className="relative w-full overflow-hidden"
+      style={{ backgroundColor: theme.colorPalette.background }}
+    >
+      {backgroundVideoUrl ? (
+        <video className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline>
+          <source src={backgroundVideoUrl} />
+        </video>
+      ) : null}
+      <div
+        className={`relative mx-auto max-w-5xl px-6 py-24 text-center`}
+        style={bgStyle}
+      >
+        <h1
+          className="text-4xl font-bold hover:outline-blue-500 hover:outline-2 hover:outline-dashed"
+          style={{ color: theme.colorPalette.text, fontFamily: theme.font.heading }}
+          contentEditable={true}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => {
+            const newHeadline = e.currentTarget.textContent || ''
+            if (newHeadline !== headline) {
+              onUpdate({ ...section, headline: newHeadline })
+            }
+          }}
+        >
+          {headline}
+        </h1>
+        {subheadline ? (
+          <p className="mt-4 text-lg" style={{ color: theme.colorPalette.text, opacity: 0.8, fontFamily: theme.font.body }}>
+            {subheadline}
+          </p>
+        ) : null}
+        {ctaButton ? (
+          <a
+            href={ctaButton.href}
+            className="mt-8 inline-block rounded px-5 py-3 font-medium"
+            style={{ backgroundColor: theme.colorPalette.primary, color: '#ffffff' }}
+          >
+            {ctaButton.label}
+          </a>
+        ) : null}
+      </div>
+    </section>
+  )
 }
 
 function PageEditor({ page, website, onUpdate }: PageEditorProps) {
@@ -296,18 +427,7 @@ function SectionForm({ section, index, onUpdate, onDelete }: SectionFormProps) {
         const s = section as HeroSection
         return (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Headline *
-              </label>
-              <input
-                type="text"
-                required
-                value={s.headline}
-                onChange={(e) => onUpdate({ ...s, headline: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
+            {/* Headline input removed - now editable in preview */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Sub-headline
