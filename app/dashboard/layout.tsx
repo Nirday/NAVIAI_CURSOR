@@ -12,10 +12,13 @@ export default async function DashboardLayout({
   // Get cookies for server-side session
   const cookieStore = await cookies()
   
-  // Get the current URL from headers to check if we're on an onboarding route
+  // Get the current pathname from headers to check if we're on an onboarding route
+  // Middleware sets x-pathname header for reliable route detection
   const headersList = await headers()
-  const url = headersList.get('x-url') || headersList.get('referer') || ''
-  const isOnboardingRoute = url.includes('/dashboard/onboarding')
+  const pathname = headersList.get('x-pathname') || ''
+  
+  // Check if we're on an onboarding route
+  const isOnboardingRoute = pathname.includes('/dashboard/onboarding')
 
   // Create Supabase client for server-side auth
   const supabase = createServerClient(
@@ -50,21 +53,21 @@ export default async function DashboardLayout({
   }
 
   // 2. CHECK FOR A BUSINESS PROFILE (THE "GATEKEEPER" LOGIC)
-  // Skip profile check for onboarding routes - users need to access onboarding to create a profile
-  if (!isOnboardingRoute) {
-    const { data: profile, error } = await supabase
-      .from('business_profiles')
-      .select('id') // Just check for existence
-      .eq('user_id', session.user.id)
-      .single()
+  // First check if we're already on an onboarding route - if so, skip the profile check
+  // This prevents redirect loops when users are already on the onboarding page
+  const { data: profile, error } = await supabase
+    .from('business_profiles')
+    .select('id') // Just check for existence
+    .eq('user_id', session.user.id)
+    .single()
 
-    // 3. REDIRECT IF ONBOARDING IS INCOMPLETE
-    // We check if a profile exists. If not, we MUST redirect to onboarding.
-    // Note: error.code === 'PGRST116' means no rows found, which is expected for new users
-    if (error || !profile) {
-      // This is the core fix: force user to onboarding
-      redirect('/dashboard/onboarding/start')
-    }
+  // 3. REDIRECT IF ONBOARDING IS INCOMPLETE
+  // We check if a profile exists. If not, we MUST redirect to onboarding.
+  // Note: error.code === 'PGRST116' means no rows found, which is expected for new users
+  // BUT: Only redirect if we're NOT already on an onboarding route (to prevent loops)
+  if ((error || !profile) && !isOnboardingRoute) {
+    // This is the core fix: force user to onboarding
+    redirect('/dashboard/onboarding/start')
   }
 
   // --- If they have a session AND a profile, they can see the dashboard ---
