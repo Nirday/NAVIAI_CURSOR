@@ -50,7 +50,8 @@ export default function LoginPage() {
     const { data: { session } } = await supabaseClient.auth.getSession()
     if (session) {
       // User is already logged in, redirect to dashboard
-      router.push('/dashboard')
+      // Use window.location for full page reload to ensure middleware runs
+      window.location.href = '/dashboard'
     }
   }
 
@@ -71,7 +72,8 @@ export default function LoginPage() {
 
       if (data.session) {
         // Success - redirect to dashboard
-        router.push('/dashboard')
+        // Use window.location for full page reload to ensure middleware runs
+        window.location.href = '/dashboard'
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in')
@@ -97,7 +99,8 @@ export default function LoginPage() {
 
       if (data.session) {
         // Success - redirect to dashboard
-        router.push('/dashboard')
+        // Use window.location for full page reload to ensure middleware runs
+        window.location.href = '/dashboard'
       } else {
         // Email confirmation required
         setError('Please check your email to confirm your account, then sign in.')

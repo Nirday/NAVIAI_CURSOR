@@ -16,9 +16,25 @@ export default async function DashboardLayout({
   // Middleware sets x-pathname header for reliable route detection
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
+  const referer = headersList.get('referer') || ''
   
-  // Check if we're on an onboarding route
-  const isOnboardingRoute = pathname.includes('/dashboard/onboarding')
+  // Extract pathname from referer as fallback
+  let pathnameFromReferer = ''
+  if (referer) {
+    try {
+      const url = new URL(referer)
+      pathnameFromReferer = url.pathname
+    } catch {
+      // If referer is not a full URL, check if it contains the path
+      if (referer.includes('/dashboard/onboarding')) {
+        pathnameFromReferer = referer
+      }
+    }
+  }
+  
+  // Check if we're on an onboarding route (use pathname from middleware, fallback to referer)
+  const isOnboardingRoute = pathname.includes('/dashboard/onboarding') || 
+                            pathnameFromReferer.includes('/dashboard/onboarding')
 
   // Create Supabase client for server-side auth
   const supabase = createServerClient(
