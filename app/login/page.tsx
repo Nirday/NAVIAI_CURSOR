@@ -190,12 +190,16 @@ export default function LoginPage() {
             <div className="space-y-2">
               <button
                 type="button"
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
                   console.log('Demo user button clicked')
+                  alert('Button clicked! Check console for details.')
                   setLoading(true)
                   setError(null)
                   try {
                     console.log('Attempting sign in with demo credentials...')
+                    console.log('Supabase client:', supabaseClient)
                     const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
                       email: 'demo@naviai.com',
                       password: 'demo123'
@@ -205,21 +209,25 @@ export default function LoginPage() {
 
                     if (signInError) {
                       console.error('Sign in error:', signInError)
+                      alert('Sign in error: ' + signInError.message)
                       throw signInError
                     }
 
                     if (data?.session) {
                       console.log('Sign in successful, redirecting to dashboard...')
+                      alert('Sign in successful! Redirecting...')
                       // Success - redirect to dashboard
                       // Use window.location for full page reload to ensure middleware runs
                       window.location.href = '/dashboard'
                     } else {
                       console.error('No session returned:', data)
+                      alert('No session created. Check console.')
                       setError('Sign in failed: No session created')
                       setLoading(false)
                     }
                   } catch (err: any) {
                     console.error('Sign in exception:', err)
+                    alert('Exception: ' + (err.message || 'Unknown error'))
                     setError(err.message || 'Failed to sign in')
                     setLoading(false)
                   }
