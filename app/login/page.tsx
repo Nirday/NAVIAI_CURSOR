@@ -213,10 +213,33 @@ export default function LoginPage() {
                     }
 
                     if (data?.session) {
-                      console.log('Sign in successful, redirecting to dashboard...')
-                      // Success - redirect immediately without any blocking operations
-                      // Use window.location.replace for immediate redirect
-                      window.location.replace('/dashboard')
+                      console.log('Sign in successful, session:', data.session)
+                      // Verify session is accessible
+                      const verifySession = await supabaseClient.auth.getSession()
+                      console.log('Verified session after sign in:', verifySession)
+                      
+                      // Force redirect using multiple methods
+                      console.log('Attempting redirect...')
+                      console.log('Current location:', window.location.href)
+                      
+                      // Method 1: Direct assignment (most reliable)
+                      window.location.href = '/dashboard'
+                      
+                      // Method 2: Replace (if href doesn't work)
+                      setTimeout(() => {
+                        if (window.location.pathname !== '/dashboard') {
+                          console.log('Href failed, trying replace...')
+                          window.location.replace('/dashboard')
+                        }
+                      }, 100)
+                      
+                      // Method 3: Router as last resort
+                      setTimeout(() => {
+                        if (window.location.pathname !== '/dashboard') {
+                          console.log('Replace failed, trying router...')
+                          router.push('/dashboard')
+                        }
+                      }, 200)
                     } else {
                       console.error('No session returned:', data)
                       setError('Sign in failed: No session created')
