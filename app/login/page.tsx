@@ -194,12 +194,10 @@ export default function LoginPage() {
                   e.preventDefault()
                   e.stopPropagation()
                   console.log('Demo user button clicked')
-                  alert('Button clicked! Check console for details.')
                   setLoading(true)
                   setError(null)
                   try {
                     console.log('Attempting sign in with demo credentials...')
-                    console.log('Supabase client:', supabaseClient)
                     const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
                       email: 'demo@naviai.com',
                       password: 'demo123'
@@ -209,33 +207,23 @@ export default function LoginPage() {
 
                     if (signInError) {
                       console.error('Sign in error:', signInError)
-                      alert('Sign in error: ' + signInError.message)
-                      throw signInError
+                      setError(signInError.message || 'Failed to sign in')
+                      setLoading(false)
+                      return
                     }
 
                     if (data?.session) {
                       console.log('Sign in successful, redirecting to dashboard...')
-                      console.log('Session data:', data.session)
-                      // Success - redirect to dashboard immediately
-                      // Remove alert first as it can block navigation
-                      // Use window.location.replace for immediate redirect (can't go back)
+                      // Success - redirect immediately without any blocking operations
+                      // Use window.location.replace for immediate redirect
                       window.location.replace('/dashboard')
-                      // If replace doesn't work, fallback to href
-                      setTimeout(() => {
-                        if (window.location.pathname !== '/dashboard') {
-                          console.log('Replace failed, trying href...')
-                          window.location.href = '/dashboard'
-                        }
-                      }, 50)
                     } else {
                       console.error('No session returned:', data)
-                      alert('No session created. Check console.')
                       setError('Sign in failed: No session created')
                       setLoading(false)
                     }
                   } catch (err: any) {
                     console.error('Sign in exception:', err)
-                    alert('Exception: ' + (err.message || 'Unknown error'))
                     setError(err.message || 'Failed to sign in')
                     setLoading(false)
                   }
