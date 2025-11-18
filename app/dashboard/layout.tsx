@@ -1,11 +1,67 @@
 import React from 'react'
 import DashboardSidebar from '@/apps/dashboard/components/DashboardSidebar'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Get cookies for server-side session
+  const cookieStore = await cookies()
+
+  // Create Supabase client for server-side auth
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
+      },
+    }
+  )
+
+  // 1. Get the user's session
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // If no session, redirect to login
+  if (!session) {
+    redirect('/login')
+  }
+
+  // 2. CHECK FOR A BUSINESS PROFILE (THE "GATEKEEPER" LOGIC)
+  const { data: profile, error } = await supabase
+    .from('business_profiles')
+    .select('id') // Just check for existence
+    .eq('user_id', session.user.id)
+    .single()
+
+  // 3. REDIRECT IF ONBOARDING IS INCOMPLETE
+  // We check if a profile exists. If not, we MUST redirect to onboarding.
+  // Note: error.code === 'PGRST116' means no rows found, which is expected for new users
+  if (error || !profile) {
+    // This is the core fix: force user to onboarding
+    // TODO: Change this path if your onboarding starts somewhere else
+    redirect('/dashboard/onboarding/start')
+  }
+
+  // --- If they have a session AND a profile, they can see the dashboard ---
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Persistent sidebar component */}
