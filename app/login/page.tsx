@@ -191,13 +191,27 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={async () => {
-                  setEmail('demo@naviai.com')
-                  setPassword('demo123')
-                  // Auto-submit after a brief delay
-                  setTimeout(() => {
-                    const form = document.querySelector('form') as HTMLFormElement
-                    if (form) form.requestSubmit()
-                  }, 100)
+                  setLoading(true)
+                  setError(null)
+                  try {
+                    const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                      email: 'demo@naviai.com',
+                      password: 'demo123'
+                    })
+
+                    if (signInError) {
+                      throw signInError
+                    }
+
+                    if (data.session) {
+                      // Success - redirect to dashboard
+                      // Use window.location for full page reload to ensure middleware runs
+                      window.location.href = '/dashboard'
+                    }
+                  } catch (err: any) {
+                    setError(err.message || 'Failed to sign in')
+                    setLoading(false)
+                  }
                 }}
                 className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
               >
@@ -206,12 +220,27 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={async () => {
-                  setEmail('admin@naviai.com')
-                  setPassword('admin123')
-                  setTimeout(() => {
-                    const form = document.querySelector('form') as HTMLFormElement
-                    if (form) form.requestSubmit()
-                  }, 100)
+                  setLoading(true)
+                  setError(null)
+                  try {
+                    const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                      email: 'admin@naviai.com',
+                      password: 'admin123'
+                    })
+
+                    if (signInError) {
+                      throw signInError
+                    }
+
+                    if (data.session) {
+                      // Success - redirect to dashboard
+                      // Use window.location for full page reload to ensure middleware runs
+                      window.location.href = '/dashboard'
+                    }
+                  } catch (err: any) {
+                    setError(err.message || 'Failed to sign in')
+                    setLoading(false)
+                  }
                 }}
                 className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
               >
