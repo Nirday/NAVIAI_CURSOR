@@ -26,8 +26,12 @@ export default function LoginPage() {
 
   const supabaseClient = supabase
   const [isActuallyMockMode, setIsActuallyMockMode] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // Set mounted to true to prevent hydration mismatches
+    setMounted(true)
+    
     // Check if we're actually using mock mode by testing the client
     const checkMockMode = async () => {
       try {
@@ -185,6 +189,8 @@ export default function LoginPage() {
 
         {/* Quick Login for Development/Testing */}
         {/* Always show quick login buttons for development */}
+        {/* Only render after mount to prevent hydration errors */}
+        {mounted && (
         <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Mock Mode)</p>
             <div className="space-y-2">
@@ -290,6 +296,7 @@ export default function LoginPage() {
               Password: demo123 / admin123
             </p>
           </div>
+        )}
 
         {/* Note for production when not in mock mode */}
         {!isMockMode && !isActuallyMockMode && (
