@@ -4,14 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-// Check if we're using mock data (client-side check)
-// This checks the actual supabase client being used
-const isMockMode = typeof window !== 'undefined' && (
-  process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
-  (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === '') ||
-  (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === '')
-)
-
 /**
  * Login Page
  * Allows users to sign in or sign up
@@ -25,26 +17,25 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
 
   const supabaseClient = supabase
-  const [isActuallyMockMode, setIsActuallyMockMode] = useState(false)
+  const [isMockMode, setIsMockMode] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     // Set mounted to true to prevent hydration mismatches
     setMounted(true)
     
-    // Check if we're actually using mock mode by testing the client
-    const checkMockMode = async () => {
-      try {
-        // Try to call a mock-specific method or check if auth.getSession works differently
-        // For now, we'll check if the client has the mock structure
-        const testSession = await supabaseClient.auth.getSession()
-        // If it's mock, it will return immediately without network call
-        // We can't easily detect this, so we rely on env var check
-        setIsActuallyMockMode(isMockMode)
-      } catch {
-        setIsActuallyMockMode(false)
+    // Check if we're using mock data (client-side only, after mount)
+    // This prevents hydration errors by only checking on client
+    const checkMockMode = () => {
+      if (typeof window !== 'undefined') {
+        const mockMode = 
+          process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
+          (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === '') ||
+          (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === '')
+        setIsMockMode(mockMode)
       }
     }
+    
     checkMockMode()
     // Check if user is already authenticated
     checkAuth()
@@ -118,7 +109,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8" suppressHydrationWarning>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           {isSignUp ? 'Create Account' : 'Sign In'}
         </h1>
@@ -299,7 +290,7 @@ export default function LoginPage() {
         )}
 
         {/* Note for production when not in mock mode */}
-        {!isMockMode && !isActuallyMockMode && (
+        {mounted && !isMockMode && (
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 text-center mb-2">
               Using real Supabase authentication. Create an account or sign in with your credentials.
