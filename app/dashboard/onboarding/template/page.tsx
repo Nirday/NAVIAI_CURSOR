@@ -31,8 +31,9 @@ const templates = [
 
 // --- Server Action to Handle Selection ---
 // This function will run when a user clicks "Select"
-async function selectTemplate(templateId: string) {
+async function selectTemplate(formData: FormData) {
   'use server'
+  const templateId = formData.get('templateId') as string
   console.log('User selected template:', templateId)
   // TODO: Add logic here to save the user's choice (e.g., in Supabase)
 
@@ -81,7 +82,8 @@ export default function TemplateSelectorPage() {
               </ul>
             </div>
 
-            <form action={() => selectTemplate(template.id)} className="p-6 bg-gray-50 border-t border-gray-200">
+            <form action={selectTemplate} className="p-6 bg-gray-50 border-t border-gray-200">
+              <input type="hidden" name="templateId" value={template.id} />
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
                 Select {template.title}
               </button>
