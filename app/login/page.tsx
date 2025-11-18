@@ -215,10 +215,18 @@ export default function LoginPage() {
 
                     if (data?.session) {
                       console.log('Sign in successful, redirecting to dashboard...')
-                      alert('Sign in successful! Redirecting...')
-                      // Success - redirect to dashboard
-                      // Use window.location for full page reload to ensure middleware runs
-                      window.location.href = '/dashboard'
+                      console.log('Session data:', data.session)
+                      // Success - redirect to dashboard immediately
+                      // Remove alert first as it can block navigation
+                      // Use window.location.replace for immediate redirect (can't go back)
+                      window.location.replace('/dashboard')
+                      // If replace doesn't work, fallback to href
+                      setTimeout(() => {
+                        if (window.location.pathname !== '/dashboard') {
+                          console.log('Replace failed, trying href...')
+                          window.location.href = '/dashboard'
+                        }
+                      }, 50)
                     } else {
                       console.error('No session returned:', data)
                       alert('No session created. Check console.')
