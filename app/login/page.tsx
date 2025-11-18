@@ -184,38 +184,50 @@ export default function LoginPage() {
         </div>
 
         {/* Quick Login for Development/Testing */}
-        {(isMockMode || isActuallyMockMode) && (
-          <div className="mt-6 pt-6 border-t border-gray-200">
+        {/* Always show quick login buttons for development */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Mock Mode)</p>
             <div className="space-y-2">
               <button
                 type="button"
                 onClick={async () => {
+                  console.log('Demo user button clicked')
                   setLoading(true)
                   setError(null)
                   try {
+                    console.log('Attempting sign in with demo credentials...')
                     const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
                       email: 'demo@naviai.com',
                       password: 'demo123'
                     })
 
+                    console.log('Sign in response:', { data, error: signInError })
+
                     if (signInError) {
+                      console.error('Sign in error:', signInError)
                       throw signInError
                     }
 
-                    if (data.session) {
+                    if (data?.session) {
+                      console.log('Sign in successful, redirecting to dashboard...')
                       // Success - redirect to dashboard
                       // Use window.location for full page reload to ensure middleware runs
                       window.location.href = '/dashboard'
+                    } else {
+                      console.error('No session returned:', data)
+                      setError('Sign in failed: No session created')
+                      setLoading(false)
                     }
                   } catch (err: any) {
+                    console.error('Sign in exception:', err)
                     setError(err.message || 'Failed to sign in')
                     setLoading(false)
                   }
                 }}
-                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
+                disabled={loading}
+                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Demo User (demo@naviai.com)
+                {loading ? 'Signing in...' : 'Demo User (demo@naviai.com)'}
               </button>
               <button
                 type="button"
@@ -251,7 +263,6 @@ export default function LoginPage() {
               Password: demo123 / admin123
             </p>
           </div>
-        )}
 
         {/* Note for production when not in mock mode */}
         {!isMockMode && !isActuallyMockMode && (
