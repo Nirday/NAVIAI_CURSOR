@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createBrowserClient } from '@supabase/ssr'
 
 /**
  * Login Page
@@ -16,7 +16,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const supabaseClient = supabase
+  // Create Supabase client with cookie support for SSR compatibility
+  const supabaseClient = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key'
+  )
   const [isMockMode, setIsMockMode] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -66,21 +70,9 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        // Wait a moment for session to be fully set in cookies
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        // Verify session is accessible
-        const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
-        
-        if (verifiedSession) {
-          // Success - redirect to dashboard with full page reload
-          window.location.href = '/dashboard'
-        } else {
-          // Session not available yet, try again after a short delay
-          setTimeout(() => {
-            window.location.href = '/dashboard'
-          }, 500)
-        }
+        // Session is created and synced to cookies by createBrowserClient
+        // Redirect to dashboard with full page reload
+        window.location.href = '/dashboard'
       } else {
         setError('Sign in failed: No session created')
         setLoading(false)
@@ -107,21 +99,9 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        // Wait a moment for session to be fully set in cookies
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        // Verify session is accessible
-        const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
-        
-        if (verifiedSession) {
-          // Success - redirect to dashboard with full page reload
-          window.location.href = '/dashboard'
-        } else {
-          // Session not available yet, try again after a short delay
-          setTimeout(() => {
-            window.location.href = '/dashboard'
-          }, 500)
-        }
+        // Session is created and synced to cookies by createBrowserClient
+        // Redirect to dashboard with full page reload
+        window.location.href = '/dashboard'
       } else {
         // Email confirmation required
         setError('Please check your email to confirm your account, then sign in.')
@@ -242,21 +222,9 @@ export default function LoginPage() {
                     }
 
                     if (data?.session) {
-                      // Wait a moment for session to be fully set in cookies
-                      await new Promise(resolve => setTimeout(resolve, 100))
-                      
-                      // Verify session is accessible
-                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
-                      
-                      if (verifiedSession) {
-                        // Success - redirect to dashboard with full page reload
-                        window.location.href = '/dashboard'
-                      } else {
-                        // Session not available yet, try again after a short delay
-                        setTimeout(() => {
-                          window.location.href = '/dashboard'
-                        }, 500)
-                      }
+                      // Session is created and synced to cookies by createBrowserClient
+                      // Redirect to dashboard with full page reload
+                      window.location.href = '/dashboard'
                     } else {
                       setError('Sign in failed: No session created')
                       setLoading(false)
@@ -288,21 +256,9 @@ export default function LoginPage() {
                     }
 
                     if (data.session) {
-                      // Wait a moment for session to be fully set in cookies
-                      await new Promise(resolve => setTimeout(resolve, 100))
-                      
-                      // Verify session is accessible
-                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
-                      
-                      if (verifiedSession) {
-                        // Success - redirect to dashboard with full page reload
-                        window.location.href = '/dashboard'
-                      } else {
-                        // Session not available yet, try again after a short delay
-                        setTimeout(() => {
-                          window.location.href = '/dashboard'
-                        }, 500)
-                      }
+                      // Session is created and synced to cookies by createBrowserClient
+                      // Redirect to dashboard with full page reload
+                      window.location.href = '/dashboard'
                     } else {
                       setError('Sign in failed: No session created')
                       setLoading(false)
