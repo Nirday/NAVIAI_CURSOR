@@ -56,18 +56,25 @@ export async function POST(req: NextRequest) {
     if (user) {
       // Check if email is confirmed
       if (!user.email_confirmed_at) {
-        // Auto-confirm the email using admin API
-        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-          user.id,
-          {
-            email_confirm: true
-          }
-        )
+        // For demo users, delete and recreate with email confirmed
+        // This is more reliable than trying to update
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(user.id)
+        } catch (deleteError) {
+          // Ignore delete errors, user might not exist
+          console.log('Note: Could not delete existing user, will try to create anyway')
+        }
+        
+        // Create user with email confirmed
+        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: demoUser.email,
+          password: demoUser.password,
+          email_confirm: true,
+        })
 
-        if (updateError) {
-          console.error('Error confirming email:', updateError)
+        if (createError) {
           return NextResponse.json(
-            { error: 'Failed to confirm email. Please try again.' },
+            { error: createError.message || 'Failed to recreate demo user with confirmed email' },
             { status: 500 }
           )
         }
