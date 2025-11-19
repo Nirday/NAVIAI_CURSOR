@@ -66,13 +66,27 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        // Success - redirect to dashboard
-        // Use window.location for full page reload to ensure middleware runs
-        window.location.href = '/dashboard'
+        // Wait a moment for session to be fully set in cookies
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Verify session is accessible
+        const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
+        
+        if (verifiedSession) {
+          // Success - redirect to dashboard with full page reload
+          window.location.href = '/dashboard'
+        } else {
+          // Session not available yet, try again after a short delay
+          setTimeout(() => {
+            window.location.href = '/dashboard'
+          }, 500)
+        }
+      } else {
+        setError('Sign in failed: No session created')
+        setLoading(false)
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in')
-    } finally {
       setLoading(false)
     }
   }
@@ -93,16 +107,28 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        // Success - redirect to dashboard
-        // Use window.location for full page reload to ensure middleware runs
-        window.location.href = '/dashboard'
+        // Wait a moment for session to be fully set in cookies
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Verify session is accessible
+        const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
+        
+        if (verifiedSession) {
+          // Success - redirect to dashboard with full page reload
+          window.location.href = '/dashboard'
+        } else {
+          // Session not available yet, try again after a short delay
+          setTimeout(() => {
+            window.location.href = '/dashboard'
+          }, 500)
+        }
       } else {
         // Email confirmation required
         setError('Please check your email to confirm your account, then sign in.')
+        setLoading(false)
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
-    } finally {
       setLoading(false)
     }
   }
@@ -216,35 +242,22 @@ export default function LoginPage() {
                     }
 
                     if (data?.session) {
-                      console.log('Sign in successful, session:', data.session)
+                      // Wait a moment for session to be fully set in cookies
+                      await new Promise(resolve => setTimeout(resolve, 100))
+                      
                       // Verify session is accessible
-                      const verifySession = await supabaseClient.auth.getSession()
-                      console.log('Verified session after sign in:', verifySession)
+                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
                       
-                      // Force redirect using multiple methods
-                      console.log('Attempting redirect...')
-                      console.log('Current location:', window.location.href)
-                      
-                      // Method 1: Direct assignment (most reliable)
-                      window.location.href = '/dashboard'
-                      
-                      // Method 2: Replace (if href doesn't work)
-                      setTimeout(() => {
-                        if (window.location.pathname !== '/dashboard') {
-                          console.log('Href failed, trying replace...')
-                          window.location.replace('/dashboard')
-                        }
-                      }, 100)
-                      
-                      // Method 3: Router as last resort
-                      setTimeout(() => {
-                        if (window.location.pathname !== '/dashboard') {
-                          console.log('Replace failed, trying router...')
-                          router.push('/dashboard')
-                        }
-                      }, 200)
+                      if (verifiedSession) {
+                        // Success - redirect to dashboard with full page reload
+                        window.location.href = '/dashboard'
+                      } else {
+                        // Session not available yet, try again after a short delay
+                        setTimeout(() => {
+                          window.location.href = '/dashboard'
+                        }, 500)
+                      }
                     } else {
-                      console.error('No session returned:', data)
                       setError('Sign in failed: No session created')
                       setLoading(false)
                     }
@@ -275,18 +288,34 @@ export default function LoginPage() {
                     }
 
                     if (data.session) {
-                      // Success - redirect to dashboard
-                      // Use window.location for full page reload to ensure middleware runs
-                      window.location.href = '/dashboard'
+                      // Wait a moment for session to be fully set in cookies
+                      await new Promise(resolve => setTimeout(resolve, 100))
+                      
+                      // Verify session is accessible
+                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
+                      
+                      if (verifiedSession) {
+                        // Success - redirect to dashboard with full page reload
+                        window.location.href = '/dashboard'
+                      } else {
+                        // Session not available yet, try again after a short delay
+                        setTimeout(() => {
+                          window.location.href = '/dashboard'
+                        }, 500)
+                      }
+                    } else {
+                      setError('Sign in failed: No session created')
+                      setLoading(false)
                     }
                   } catch (err: any) {
                     setError(err.message || 'Failed to sign in')
                     setLoading(false)
                   }
                 }}
-                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
+                disabled={loading}
+                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Admin User (admin@naviai.com)
+                {loading ? 'Signing in...' : 'Admin User (admin@naviai.com)'}
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-2 text-center">
