@@ -206,27 +206,51 @@ export default function LoginPage() {
                   setLoading(true)
                   setError(null)
                   try {
-                    console.log('Attempting sign in with demo credentials...')
-                    const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                      email: 'demo@naviai.com',
-                      password: 'demo123'
+                    console.log('Attempting demo login via API...')
+                    // Use the demo login API which handles email confirmation
+                    const res = await fetch('/api/auth/demo-login', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        email: 'demo@naviai.com',
+                        password: 'demo123'
+                      })
                     })
 
-                    console.log('Sign in response:', { data, error: signInError })
+                    const result = await res.json()
+                    console.log('Demo login response:', result)
 
-                    if (signInError) {
-                      console.error('Sign in error:', signInError)
-                      setError(signInError.message || 'Failed to sign in')
+                    if (!res.ok) {
+                      setError(result.error || 'Failed to confirm email')
                       setLoading(false)
                       return
                     }
 
-                    if (data?.session) {
-                      // Session is created and synced to cookies by createBrowserClient
-                      // Redirect to dashboard with full page reload
-                      window.location.href = '/dashboard'
+                    if (result.success && result.emailConfirmed) {
+                      // Email is now confirmed, sign in on the client side
+                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                        email: 'demo@naviai.com',
+                        password: 'demo123'
+                      })
+
+                      if (signInError) {
+                        setError(signInError.message || 'Failed to sign in after confirmation')
+                        setLoading(false)
+                        return
+                      }
+
+                      if (signInData?.session) {
+                        // Session is created and synced to cookies by createBrowserClient
+                        // Redirect to dashboard with full page reload
+                        window.location.href = '/dashboard'
+                      } else {
+                        setError('Sign in failed: No session created')
+                        setLoading(false)
+                      }
                     } else {
-                      setError('Sign in failed: No session created')
+                      setError('Failed to confirm email')
                       setLoading(false)
                     }
                   } catch (err: any) {
@@ -246,21 +270,49 @@ export default function LoginPage() {
                   setLoading(true)
                   setError(null)
                   try {
-                    const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                      email: 'admin@naviai.com',
-                      password: 'admin123'
+                    // Use the demo login API which handles email confirmation
+                    const res = await fetch('/api/auth/demo-login', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        email: 'admin@naviai.com',
+                        password: 'admin123'
+                      })
                     })
 
-                    if (signInError) {
-                      throw signInError
+                    const result = await res.json()
+
+                    if (!res.ok) {
+                      setError(result.error || 'Failed to confirm email')
+                      setLoading(false)
+                      return
                     }
 
-                    if (data.session) {
-                      // Session is created and synced to cookies by createBrowserClient
-                      // Redirect to dashboard with full page reload
-                      window.location.href = '/dashboard'
+                    if (result.success && result.emailConfirmed) {
+                      // Email is now confirmed, sign in on the client side
+                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                        email: 'admin@naviai.com',
+                        password: 'admin123'
+                      })
+
+                      if (signInError) {
+                        setError(signInError.message || 'Failed to sign in after confirmation')
+                        setLoading(false)
+                        return
+                      }
+
+                      if (signInData?.session) {
+                        // Session is created and synced to cookies by createBrowserClient
+                        // Redirect to dashboard with full page reload
+                        window.location.href = '/dashboard'
+                      } else {
+                        setError('Sign in failed: No session created')
+                        setLoading(false)
+                      }
                     } else {
-                      setError('Sign in failed: No session created')
+                      setError('Failed to confirm email')
                       setLoading(false)
                     }
                   } catch (err: any) {
