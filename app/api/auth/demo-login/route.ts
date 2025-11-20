@@ -49,57 +49,80 @@ export async function POST(req: NextRequest) {
       }
     )
 
-    // Find the user by email using admin API
-    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
-    const user = usersData?.users?.find((u: any) => u.email === demoUser.email)
-
-    if (user) {
-      // Check if email is confirmed
-      if (!user.email_confirmed_at) {
-        // For demo users, delete and recreate with email confirmed
-        // This is more reliable than trying to update
-        try {
-          await supabaseAdmin.auth.admin.deleteUser(user.id)
-        } catch (deleteError) {
-          // Ignore delete errors, user might not exist
-          console.log('Note: Could not delete existing user, will try to create anyway')
-        }
-        
-        // Create user with email confirmed
-        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email: demoUser.email,
-          password: demoUser.password,
-          email_confirm: true,
-        })
-
-        if (createError) {
-          return NextResponse.json(
-            { error: createError.message || 'Failed to recreate demo user with confirmed email' },
-            { status: 500 }
-          )
-        }
-      }
-    } else {
-      // User doesn't exist, create them with email confirmed
-      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: demoUser.email,
-        password: demoUser.password,
-        email_confirm: true, // Auto-confirm for demo users
-      })
-
-      if (createError) {
-        return NextResponse.json(
-          { error: createError.message || 'Failed to create demo user' },
-          { status: 500 }
-        )
-      }
-    }
-
-    // Now try to sign in (email should be confirmed now)
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+    // Try to sign in first
+    let { data, error: signInError } = await supabase.auth.signInWithPassword({
       email: demoUser.email,
       password: demoUser.password
     })
+
+    // If email not confirmed error, try to confirm it using REST API
+    if (signInError && (signInError.message?.includes('Email not confirmed') || signInError.message?.includes('email_not_confirmed'))) {
+      try {
+        // Find the user by email using admin API
+        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
+        const user = usersData?.users?.find((u: any) => u.email === demoUser.email)
+        
+        if (user && !user.email_confirmed_at) {
+          // Use Supabase REST API directly to update user
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+          const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+          
+          if (supabaseUrl && serviceRoleKey) {
+            // Update user via REST API
+            const updateResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users/${user.id}`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${serviceRoleKey}`,
+                'Content-Type': 'application/json',
+                'apikey': serviceRoleKey
+              },
+              body: JSON.stringify({
+                email_confirm: true
+              })
+            })
+
+            if (!updateResponse.ok) {
+              const errorText = await updateResponse.text()
+              console.error('Failed to confirm email via REST API:', errorText)
+            } else {
+              // Retry sign in after confirmation
+              const retryResult = await supabase.auth.signInWithPassword({
+                email: demoUser.email,
+                password: demoUser.password
+              })
+              if (!retryResult.error && retryResult.data?.session) {
+                data = retryResult.data
+                signInError = null
+              }
+            }
+          }
+        } else if (!user) {
+          // User doesn't exist, try to sign up (might auto-confirm depending on Supabase settings)
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: demoUser.email,
+            password: demoUser.password,
+          })
+
+          if (signUpData?.session) {
+            data = signUpData
+            signInError = null
+          } else if (!signUpError) {
+            // Try sign in again after signup
+            const retryResult = await supabase.auth.signInWithPassword({
+              email: demoUser.email,
+              password: demoUser.password
+            })
+            if (!retryResult.error && retryResult.data?.session) {
+              data = retryResult.data
+              signInError = null
+            }
+          }
+        }
+      } catch (adminError: any) {
+        console.error('Error handling email confirmation:', adminError)
+        // Fall through to return the original error
+      }
+    }
 
     if (signInError) {
       return NextResponse.json(
