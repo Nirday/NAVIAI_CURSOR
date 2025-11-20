@@ -103,8 +103,12 @@ export async function POST(req: NextRequest) {
             password: demoUser.password,
           })
 
-          if (signUpData?.session) {
-            data = signUpData
+          if (signUpData?.session && signUpData?.user) {
+            // Only assign if both session and user are present
+            data = {
+              user: signUpData.user,
+              session: signUpData.session
+            }
             signInError = null
           } else if (!signUpError) {
             // Try sign in again after signup
