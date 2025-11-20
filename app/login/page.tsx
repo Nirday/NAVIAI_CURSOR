@@ -228,29 +228,32 @@ export default function LoginPage() {
                       return
                     }
 
-                    if (result.success && result.emailConfirmed) {
-                      // Email is now confirmed, sign in on the client side
-                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                        email: 'demo@naviai.com',
-                        password: 'demo123'
+                    if (result.success && result.emailConfirmed && result.session) {
+                      // Set the session from API response
+                      const { error: setSessionError } = await supabaseClient.auth.setSession({
+                        access_token: result.session.access_token,
+                        refresh_token: result.session.refresh_token,
                       })
 
-                      if (signInError) {
-                        setError(signInError.message || 'Failed to sign in after confirmation')
-                        setLoading(false)
-                        return
+                      if (setSessionError) {
+                        // If setSession fails, try regular sign in as fallback
+                        const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                          email: 'demo@naviai.com',
+                          password: 'demo123'
+                        })
+
+                        if (signInError || !signInData?.session) {
+                          setError(signInError?.message || 'Failed to set session')
+                          setLoading(false)
+                          return
+                        }
                       }
 
-                      if (signInData?.session) {
-                        // Session is created and synced to cookies by createBrowserClient
-                        // Redirect to dashboard with full page reload
-                        window.location.href = '/dashboard'
-                      } else {
-                        setError('Sign in failed: No session created')
-                        setLoading(false)
-                      }
+                      // Wait a moment for cookies to sync, then redirect
+                      await new Promise(resolve => setTimeout(resolve, 200))
+                      window.location.href = '/dashboard'
                     } else {
-                      setError('Failed to confirm email')
+                      setError('Failed to confirm email or no session returned')
                       setLoading(false)
                     }
                   } catch (err: any) {
@@ -290,29 +293,32 @@ export default function LoginPage() {
                       return
                     }
 
-                    if (result.success && result.emailConfirmed) {
-                      // Email is now confirmed, sign in on the client side
-                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                        email: 'admin@naviai.com',
-                        password: 'admin123'
+                    if (result.success && result.emailConfirmed && result.session) {
+                      // Set the session from API response
+                      const { error: setSessionError } = await supabaseClient.auth.setSession({
+                        access_token: result.session.access_token,
+                        refresh_token: result.session.refresh_token,
                       })
 
-                      if (signInError) {
-                        setError(signInError.message || 'Failed to sign in after confirmation')
-                        setLoading(false)
-                        return
+                      if (setSessionError) {
+                        // If setSession fails, try regular sign in as fallback
+                        const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                          email: 'admin@naviai.com',
+                          password: 'admin123'
+                        })
+
+                        if (signInError || !signInData?.session) {
+                          setError(signInError?.message || 'Failed to set session')
+                          setLoading(false)
+                          return
+                        }
                       }
 
-                      if (signInData?.session) {
-                        // Session is created and synced to cookies by createBrowserClient
-                        // Redirect to dashboard with full page reload
-                        window.location.href = '/dashboard'
-                      } else {
-                        setError('Sign in failed: No session created')
-                        setLoading(false)
-                      }
+                      // Wait a moment for cookies to sync, then redirect
+                      await new Promise(resolve => setTimeout(resolve, 200))
+                      window.location.href = '/dashboard'
                     } else {
-                      setError('Failed to confirm email')
+                      setError('Failed to confirm email or no session returned')
                       setLoading(false)
                     }
                   } catch (err: any) {

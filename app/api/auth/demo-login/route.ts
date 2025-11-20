@@ -156,10 +156,28 @@ export async function POST(req: NextRequest) {
     // Get the updated session with cookies
     const { data: { session } } = await supabase.auth.getSession()
 
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Session not available after sign in' },
+        { status: 401 }
+      )
+    }
+
+    // Return session info so client can set it
     return NextResponse.json({
       success: true,
       emailConfirmed: true,
-      message: 'Email confirmed and ready to sign in'
+      session: {
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_at: session.expires_at,
+        expires_in: session.expires_in,
+        token_type: session.token_type,
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+        }
+      }
     })
   } catch (error: any) {
     console.error('Error in demo login:', error)
