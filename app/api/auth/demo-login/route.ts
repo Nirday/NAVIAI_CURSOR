@@ -49,88 +49,99 @@ export async function POST(req: NextRequest) {
       }
     )
 
-    // Try to sign in first
-    let { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: demoUser.email,
-      password: demoUser.password
-    })
+    // Step 1: Find or create the user
+    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
+    let user = usersData?.users?.find((u: any) => u.email === demoUser.email)
 
-    // If email not confirmed error, try to confirm it using REST API
-    if (signInError && (signInError.message?.includes('Email not confirmed') || signInError.message?.includes('email_not_confirmed'))) {
-      try {
-        // Find the user by email using admin API
-        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
-        const user = usersData?.users?.find((u: any) => u.email === demoUser.email)
-        
-        if (user && !user.email_confirmed_at) {
-          // Use Supabase REST API directly to update user
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-          const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-          
-          if (supabaseUrl && serviceRoleKey) {
-            // Update user via REST API
-            const updateResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users/${user.id}`, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${serviceRoleKey}`,
-                'Content-Type': 'application/json',
-                'apikey': serviceRoleKey
-              },
-              body: JSON.stringify({
-                email_confirm: true
-              })
-            })
+    // Step 2: If user exists but email not confirmed, confirm it via REST API
+    if (user && !user.email_confirmed_at) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      
+      if (supabaseUrl && serviceRoleKey) {
+        // Use correct REST API format to confirm email
+        const updateResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users/${user.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json',
+            'apikey': serviceRoleKey
+          },
+          body: JSON.stringify({
+            email_confirmed_at: new Date().toISOString()
+          })
+        })
 
-            if (!updateResponse.ok) {
-              const errorText = await updateResponse.text()
-              console.error('Failed to confirm email via REST API:', errorText)
-            } else {
-              // Retry sign in after confirmation
-              const retryResult = await supabase.auth.signInWithPassword({
-                email: demoUser.email,
-                password: demoUser.password
-              })
-              if (!retryResult.error && retryResult.data?.session) {
-                data = retryResult.data
-                signInError = null
-              }
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text()
+          console.error('Failed to confirm email via REST API:', errorText)
+          // Continue anyway - try to sign in
+        }
+      }
+    }
+
+    // Step 3: If user doesn't exist, create them via REST API with email confirmed
+    if (!user) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      
+      if (supabaseUrl && serviceRoleKey) {
+        const createResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json',
+            'apikey': serviceRoleKey
+          },
+          body: JSON.stringify({
+            email: demoUser.email,
+            password: demoUser.password,
+            email_confirm: true,
+            user_metadata: {
+              is_demo_user: true
             }
-          }
-        } else if (!user) {
-          // User doesn't exist, try to sign up (might auto-confirm depending on Supabase settings)
+          })
+        })
+
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text()
+          console.error('Failed to create user via REST API:', errorText)
+          // Fall back to regular signup
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: demoUser.email,
             password: demoUser.password,
           })
-
-          if (signUpData?.session && signUpData?.user) {
-            // Only assign if both session and user are present
-            data = {
-              user: signUpData.user,
-              session: signUpData.session
-            }
-            signInError = null
-          } else if (!signUpError) {
-            // Try sign in again after signup
-            const retryResult = await supabase.auth.signInWithPassword({
-              email: demoUser.email,
-              password: demoUser.password
-            })
-            if (!retryResult.error && retryResult.data?.session) {
-              data = retryResult.data
-              signInError = null
-            }
+          if (signUpError) {
+            return NextResponse.json(
+              { error: `Failed to create demo user: ${signUpError.message}` },
+              { status: 500 }
+            )
           }
         }
-      } catch (adminError: any) {
-        console.error('Error handling email confirmation:', adminError)
-        // Fall through to return the original error
+      } else {
+        // No service role key, try regular signup
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: demoUser.email,
+          password: demoUser.password,
+        })
+        if (signUpError) {
+          return NextResponse.json(
+            { error: `Failed to create demo user: ${signUpError.message}` },
+            { status: 500 }
+          )
+        }
       }
     }
 
+    // Step 4: Now sign in (email should be confirmed now)
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: demoUser.email,
+      password: demoUser.password
+    })
+
     if (signInError) {
       return NextResponse.json(
-        { error: signInError.message || 'Failed to sign in' },
+        { error: signInError.message || 'Failed to sign in. Please ensure email confirmation is disabled in Supabase settings for demo users.' },
         { status: 401 }
       )
     }
@@ -158,4 +169,3 @@ export async function POST(req: NextRequest) {
     )
   }
 }
-
