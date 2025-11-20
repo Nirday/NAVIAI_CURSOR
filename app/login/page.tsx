@@ -228,32 +228,42 @@ export default function LoginPage() {
                       return
                     }
 
-                    if (result.success && result.emailConfirmed && result.session) {
-                      // Set the session from API response
-                      const { error: setSessionError } = await supabaseClient.auth.setSession({
-                        access_token: result.session.access_token,
-                        refresh_token: result.session.refresh_token,
+                    if (result.success && result.emailConfirmed) {
+                      // Email is confirmed, now sign in on client side
+                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                        email: 'demo@naviai.com',
+                        password: 'demo123'
                       })
 
-                      if (setSessionError) {
-                        // If setSession fails, try regular sign in as fallback
-                        const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                          email: 'demo@naviai.com',
-                          password: 'demo123'
-                        })
-
-                        if (signInError || !signInData?.session) {
-                          setError(signInError?.message || 'Failed to set session')
-                          setLoading(false)
-                          return
-                        }
+                      if (signInError) {
+                        setError(signInError.message || 'Failed to sign in after email confirmation')
+                        setLoading(false)
+                        return
                       }
 
-                      // Wait a moment for cookies to sync, then redirect
-                      await new Promise(resolve => setTimeout(resolve, 200))
-                      window.location.href = '/dashboard'
+                      if (!signInData?.session) {
+                        setError('Sign in failed: No session created')
+                        setLoading(false)
+                        return
+                      }
+
+                      // Wait a moment for session to be fully set in cookies
+                      await new Promise(resolve => setTimeout(resolve, 300))
+                      
+                      // Verify session is accessible
+                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
+                      
+                      if (verifiedSession) {
+                        // Redirect to dashboard
+                        window.location.href = '/dashboard'
+                      } else {
+                        // Session not available yet, try redirect anyway
+                        setTimeout(() => {
+                          window.location.href = '/dashboard'
+                        }, 500)
+                      }
                     } else {
-                      setError('Failed to confirm email or no session returned')
+                      setError(result.error || 'Failed to confirm email')
                       setLoading(false)
                     }
                   } catch (err: any) {
@@ -293,32 +303,42 @@ export default function LoginPage() {
                       return
                     }
 
-                    if (result.success && result.emailConfirmed && result.session) {
-                      // Set the session from API response
-                      const { error: setSessionError } = await supabaseClient.auth.setSession({
-                        access_token: result.session.access_token,
-                        refresh_token: result.session.refresh_token,
+                    if (result.success && result.emailConfirmed) {
+                      // Email is confirmed, now sign in on client side
+                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                        email: 'admin@naviai.com',
+                        password: 'admin123'
                       })
 
-                      if (setSessionError) {
-                        // If setSession fails, try regular sign in as fallback
-                        const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                          email: 'admin@naviai.com',
-                          password: 'admin123'
-                        })
-
-                        if (signInError || !signInData?.session) {
-                          setError(signInError?.message || 'Failed to set session')
-                          setLoading(false)
-                          return
-                        }
+                      if (signInError) {
+                        setError(signInError.message || 'Failed to sign in after email confirmation')
+                        setLoading(false)
+                        return
                       }
 
-                      // Wait a moment for cookies to sync, then redirect
-                      await new Promise(resolve => setTimeout(resolve, 200))
-                      window.location.href = '/dashboard'
+                      if (!signInData?.session) {
+                        setError('Sign in failed: No session created')
+                        setLoading(false)
+                        return
+                      }
+
+                      // Wait a moment for session to be fully set in cookies
+                      await new Promise(resolve => setTimeout(resolve, 300))
+                      
+                      // Verify session is accessible
+                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
+                      
+                      if (verifiedSession) {
+                        // Redirect to dashboard
+                        window.location.href = '/dashboard'
+                      } else {
+                        // Session not available yet, try redirect anyway
+                        setTimeout(() => {
+                          window.location.href = '/dashboard'
+                        }, 500)
+                      }
                     } else {
-                      setError('Failed to confirm email or no session returned')
+                      setError(result.error || 'Failed to confirm email')
                       setLoading(false)
                     }
                   } catch (err: any) {
