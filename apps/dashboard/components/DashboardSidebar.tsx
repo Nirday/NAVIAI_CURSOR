@@ -53,7 +53,10 @@ export default function DashboardSidebar() {
       <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+            // Special handling for Chat - active on both /dashboard and /dashboard/chat
+            const isActive = item.href === '/dashboard' 
+              ? (pathname === '/dashboard' || pathname === '/dashboard/chat')
+              : (pathname === item.href || pathname?.startsWith(item.href + '/'))
             return (
               <li key={item.href}>
                 <Link

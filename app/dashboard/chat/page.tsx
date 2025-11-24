@@ -6,10 +6,10 @@ import ChatInterface from '@/apps/dashboard/components/ChatInterface'
 import { supabase } from '@/lib/supabase'
 
 /**
- * Dashboard Home Page
- * Shows the chat interface as the default landing page
+ * Chat Page
+ * Main chat interface for users to interact with Navi AI
  */
-export default function DashboardPage() {
+export default function ChatPage() {
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,7 +38,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading chat...</p>
         </div>
       </div>
     )
