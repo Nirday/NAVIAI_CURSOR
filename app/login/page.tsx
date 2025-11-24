@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
+import { supabase } from '@/lib/supabase'
 
 /**
- * Login Page
- * Allows users to sign in or sign up
+ * Login Page - Clean Implementation
+ * Supports both real Supabase and mock mode
+ * Includes demo credentials for easy testing
  */
 export default function LoginPage() {
   const router = useRouter()
@@ -15,360 +17,313 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Create Supabase client with cookie support for SSR compatibility
-  const supabaseClient = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key'
-  )
-  const [isMockMode, setIsMockMode] = useState(false)
   const [mounted, setMounted] = useState(false)
 
+  // Check if we're in mock mode
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
+                     !supabaseUrl || 
+                     !supabaseAnonKey || 
+                     supabaseUrl === 'http://localhost:54321' || 
+                     supabaseAnonKey === 'mock-key'
+  
+  // Use mock client in mock mode, otherwise use browser client with cookie support
+  // In mock mode, the supabase export from lib is already the mock client
+  // In real mode, we need createBrowserClient for cookie support
+  const supabaseClient = isMockMode 
+    ? supabase  // This is already the mock client when in mock mode
+    : createBrowserClient(
+        supabaseUrl,
+        supabaseAnonKey
+      )
+
+  // Demo credentials - always available for testing
+  const DEMO_CREDENTIALS = [
+    { email: 'demo@naviai.com', password: 'demo123', label: 'Demo User' },
+    { email: 'admin@naviai.com', password: 'admin123', label: 'Admin User' }
+  ]
+
   useEffect(() => {
-    // Set mounted to true to prevent hydration mismatches
     setMounted(true)
-    
-    // Check if we're using mock data (client-side only, after mount)
-    // This prevents hydration errors by only checking on client
-    const checkMockMode = () => {
-      if (typeof window !== 'undefined') {
-        const mockMode = 
-          process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
-          (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === '') ||
-          (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === '')
-        setIsMockMode(mockMode)
-      }
-    }
-    
-    checkMockMode()
-    // Check if user is already authenticated
     checkAuth()
   }, [])
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabaseClient.auth.getSession()
-    if (session) {
-      // User is already logged in, redirect to dashboard
-      // Use window.location for full page reload to ensure middleware runs
-      window.location.href = '/dashboard'
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession()
+      if (session) {
+        router.push('/dashboard')
+      }
+    } catch (err) {
+      console.error('Auth check error:', err)
     }
   }
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
     try {
-      const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      })
+      if (isSignUp) {
+        // Handle sign up
+        const { data, error: signUpError } = await supabaseClient.auth.signUp({
+          email,
+          password
+        })
 
-      if (signInError) {
-        throw signInError
-      }
+        if (signUpError) {
+          throw signUpError
+        }
 
-      if (data.session) {
-        // Session is created and synced to cookies by createBrowserClient
-        // Redirect to dashboard with full page reload
-        window.location.href = '/dashboard'
+        if (data.session) {
+          // Auto-confirmed, redirect to dashboard
+          router.push('/dashboard')
+        } else {
+          // Email confirmation required
+          setError('Please check your email to confirm your account, then sign in.')
+          setLoading(false)
+        }
       } else {
-        setError('Sign in failed: No session created')
-        setLoading(false)
+        // Handle sign in
+        const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        })
+
+        if (signInError) {
+          throw signInError
+        }
+
+        if (data.session) {
+          // Successfully signed in, redirect to dashboard
+          router.push('/dashboard')
+        } else {
+          setError('Sign in failed: No session created')
+          setLoading(false)
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in')
+      setError(err.message || `Failed to ${isSignUp ? 'sign up' : 'sign in'}`)
       setLoading(false)
     }
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
     setError(null)
     setLoading(true)
 
     try {
-      const { data, error: signUpError } = await supabaseClient.auth.signUp({
-        email,
-        password
-      })
+      // If in mock mode, use mock credentials directly
+      if (isMockMode) {
+        const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
+          email: demoEmail,
+          password: demoPassword
+        })
 
-      if (signUpError) {
-        throw signUpError
-      }
+        if (signInError) {
+          throw signInError
+        }
 
-      if (data.session) {
-        // Session is created and synced to cookies by createBrowserClient
-        // Redirect to dashboard with full page reload
-        window.location.href = '/dashboard'
+        if (data.session) {
+          // Small delay to ensure session is set
+          await new Promise(resolve => setTimeout(resolve, 100))
+          router.push('/dashboard')
+        } else {
+          setError('Demo login failed: No session created')
+          setLoading(false)
+        }
       } else {
-        // Email confirmation required
-        setError('Please check your email to confirm your account, then sign in.')
-        setLoading(false)
+        // For real Supabase, first ensure the demo user exists and is confirmed
+        try {
+          const demoRes = await fetch('/api/auth/demo-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: demoEmail, password: demoPassword })
+          })
+
+          const demoResult = await demoRes.json()
+
+          if (!demoRes.ok) {
+            throw new Error(demoResult.error || 'Failed to setup demo user')
+          }
+        } catch (apiError: any) {
+          // If API fails, try direct login anyway (user might already exist)
+          console.warn('Demo login API error:', apiError)
+        }
+
+        // Now sign in with the confirmed user
+        const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
+          email: demoEmail,
+          password: demoPassword
+        })
+
+        if (signInError) {
+          throw signInError
+        }
+
+        if (data.session) {
+          // Small delay to ensure session is set
+          await new Promise(resolve => setTimeout(resolve, 100))
+          router.push('/dashboard')
+        } else {
+          setError('Demo login failed: No session created')
+          setLoading(false)
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to sign up')
+      setError(err.message || 'Failed to sign in with demo credentials')
       setLoading(false)
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8" suppressHydrationWarning>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          {isSignUp ? 'Create Account' : 'Sign In'}
-        </h1>
-        <p className="text-gray-600 mb-6">
-          {isSignUp
-            ? 'Create an account to get started'
-            : 'Sign in to access your dashboard'}
-        </p>
-
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete={isSignUp ? "email" : "email"}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="you@example.com"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        {/* Main Login Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {isSignUp ? 'Create Account' : 'Welcome Back'}
+            </h1>
+            <p className="text-gray-600">
+              {isSignUp
+                ? 'Create an account to get started'
+                : 'Sign in to access your dashboard'}
+            </p>
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete={isSignUp ? "new-password" : "current-password"}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="••••••••"
-            />
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded-lg">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {loading
+                ? isSignUp
+                  ? 'Creating Account...'
+                  : 'Signing In...'
+                : isSignUp
+                ? 'Sign Up'
+                : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp)
+                setError(null)
+              }}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium transition"
+            >
+              {isSignUp
+                ? 'Already have an account? Sign in'
+                : "Don't have an account? Sign up"}
+            </button>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Sign Up' : 'Sign In')}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp)
-              setError(null)
-            }}
-            className="text-blue-600 hover:text-blue-800 text-sm"
-          >
-            {isSignUp
-              ? 'Already have an account? Sign in'
-              : "Don't have an account? Sign up"}
-          </button>
         </div>
 
-        {/* Quick Login for Development/Testing */}
-        {/* Always show quick login buttons for development */}
-        {/* Only render after mount to prevent hydration errors */}
-        {mounted && (
-        <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 mb-3 text-center">Quick Login (Mock Mode)</p>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={async (e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  console.log('Demo user button clicked')
-                  setLoading(true)
-                  setError(null)
-                  try {
-                    console.log('Attempting demo login via API...')
-                    // Use the demo login API which handles email confirmation
-                    const res = await fetch('/api/auth/demo-login', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        email: 'demo@naviai.com',
-                        password: 'demo123'
-                      })
-                    })
-
-                    const result = await res.json()
-                    console.log('Demo login response:', result)
-
-                    if (!res.ok) {
-                      setError(result.error || 'Failed to confirm email')
-                      setLoading(false)
-                      return
-                    }
-
-                    if (result.success && result.emailConfirmed) {
-                      // Email is confirmed, now sign in on client side
-                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                        email: 'demo@naviai.com',
-                        password: 'demo123'
-                      })
-
-                      if (signInError) {
-                        setError(signInError.message || 'Failed to sign in after email confirmation')
-                        setLoading(false)
-                        return
-                      }
-
-                      if (!signInData?.session) {
-                        setError('Sign in failed: No session created')
-                        setLoading(false)
-                        return
-                      }
-
-                      // Wait a moment for session to be fully set in cookies
-                      await new Promise(resolve => setTimeout(resolve, 300))
-                      
-                      // Verify session is accessible
-                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
-                      
-                      if (verifiedSession) {
-                        // Redirect to dashboard
-                        window.location.href = '/dashboard'
-                      } else {
-                        // Session not available yet, try redirect anyway
-                        setTimeout(() => {
-                          window.location.href = '/dashboard'
-                        }, 500)
-                      }
-                    } else {
-                      setError(result.error || 'Failed to confirm email')
-                      setLoading(false)
-                    }
-                  } catch (err: any) {
-                    console.error('Sign in exception:', err)
-                    setError(err.message || 'Failed to sign in')
-                    setLoading(false)
-                  }
-                }}
-                disabled={loading}
-                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Signing in...' : 'Demo User (demo@naviai.com)'}
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  setLoading(true)
-                  setError(null)
-                  try {
-                    // Use the demo login API which handles email confirmation
-                    const res = await fetch('/api/auth/demo-login', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        email: 'admin@naviai.com',
-                        password: 'admin123'
-                      })
-                    })
-
-                    const result = await res.json()
-
-                    if (!res.ok) {
-                      setError(result.error || 'Failed to confirm email')
-                      setLoading(false)
-                      return
-                    }
-
-                    if (result.success && result.emailConfirmed) {
-                      // Email is confirmed, now sign in on client side
-                      const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                        email: 'admin@naviai.com',
-                        password: 'admin123'
-                      })
-
-                      if (signInError) {
-                        setError(signInError.message || 'Failed to sign in after email confirmation')
-                        setLoading(false)
-                        return
-                      }
-
-                      if (!signInData?.session) {
-                        setError('Sign in failed: No session created')
-                        setLoading(false)
-                        return
-                      }
-
-                      // Wait a moment for session to be fully set in cookies
-                      await new Promise(resolve => setTimeout(resolve, 300))
-                      
-                      // Verify session is accessible
-                      const { data: { session: verifiedSession } } = await supabaseClient.auth.getSession()
-                      
-                      if (verifiedSession) {
-                        // Redirect to dashboard
-                        window.location.href = '/dashboard'
-                      } else {
-                        // Session not available yet, try redirect anyway
-                        setTimeout(() => {
-                          window.location.href = '/dashboard'
-                        }, 500)
-                      }
-                    } else {
-                      setError(result.error || 'Failed to confirm email')
-                      setLoading(false)
-                    }
-                  } catch (err: any) {
-                    setError(err.message || 'Failed to sign in')
-                    setLoading(false)
-                  }
-                }}
-                disabled={loading}
-                className="w-full px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Signing in...' : 'Admin User (admin@naviai.com)'}
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-2 text-center">
-              Password: demo123 / admin123
+        {/* Demo Credentials Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-blue-200">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">🚀 Try Demo Login</h2>
+            <p className="text-sm text-gray-600">
+              Use these pre-configured credentials to experience the platform
             </p>
           </div>
-        )}
 
-        {/* Note for production when not in mock mode */}
-        {mounted && !isMockMode && (
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center mb-2">
-              Using real Supabase authentication. Create an account or sign in with your credentials.
+          <div className="space-y-3">
+            {DEMO_CREDENTIALS.map((cred) => (
+              <div key={cred.email} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="font-semibold text-gray-900">{cred.label}</p>
+                    <p className="text-sm text-gray-600">{cred.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoLogin(cred.email, cred.password)}
+                    disabled={loading}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {loading ? 'Signing in...' : 'Login'}
+                  </button>
+                </div>
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    Password: <span className="font-mono font-semibold">{cred.password}</span>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <p className="text-xs text-blue-800 text-center">
+              <strong>Tip:</strong> Click the "Login" button next to any demo account above, or manually enter the credentials in the form above.
             </p>
-            <p className="text-xs text-gray-400 text-center mb-2">
-              To enable mock mode for testing, set <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_USE_MOCK_DATA=true</code> in Vercel environment variables.
-            </p>
-            <p className="text-xs text-blue-600 text-center">
-              Or use the "Sign up" option above to create a new account.
+          </div>
+        </div>
+
+        {/* Mode Indicator */}
+        {isMockMode && (
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              🔧 Running in <span className="font-semibold">Mock Mode</span> - Using local authentication
             </p>
           </div>
         )}
@@ -376,4 +331,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
