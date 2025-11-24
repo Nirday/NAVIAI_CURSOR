@@ -185,18 +185,18 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       // Pre-fill collected data from scraped data
       const updatedData = {
-        ...prev.collectedData,
-        businessName: scrapedData.businessName || prev.collectedData.businessName,
-        industry: scrapedData.industry || prev.collectedData.industry,
+        ...onboardingState.collectedData,
+        businessName: scrapedData.businessName || onboardingState.collectedData.businessName,
+        industry: scrapedData.industry || onboardingState.collectedData.industry,
         website: url,
         location: scrapedData.location ? {
-          city: scrapedData.location.city || prev.collectedData.location?.city,
-          state: scrapedData.location.state || prev.collectedData.location?.state,
-          country: scrapedData.location.country || prev.collectedData.location?.country || 'US'
-        } : prev.collectedData.location,
-        services: scrapedData.services?.map((s: any) => s.name) || prev.collectedData.services,
-        targetAudience: scrapedData.targetAudience || prev.collectedData.targetAudience,
-        brandVoice: scrapedData.brandVoice || prev.collectedData.brandVoice
+          city: scrapedData.location.city || onboardingState.collectedData.location?.city,
+          state: scrapedData.location.state || onboardingState.collectedData.location?.state,
+          country: scrapedData.location.country || onboardingState.collectedData.location?.country || 'US'
+        } : onboardingState.collectedData.location,
+        services: scrapedData.services?.map((s: any) => s.name) || onboardingState.collectedData.services,
+        targetAudience: scrapedData.targetAudience || onboardingState.collectedData.targetAudience,
+        brandVoice: scrapedData.brandVoice || onboardingState.collectedData.brandVoice
       }
 
       setOnboardingState(prev => ({ ...prev, collectedData: updatedData }))
