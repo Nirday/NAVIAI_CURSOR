@@ -46,19 +46,24 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true)
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      const { data: { session } } = await supabaseClient.auth.getSession()
-      if (session) {
-        router.push('/dashboard')
+    // Only check auth once on mount, don't run repeatedly
+    let isMounted = true
+    const checkAuthOnce = async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        if (session && isMounted) {
+          // Use window.location for full page reload to ensure middleware runs
+          window.location.href = '/dashboard'
+        }
+      } catch (err) {
+        console.error('Auth check error:', err)
       }
-    } catch (err) {
-      console.error('Auth check error:', err)
     }
-  }
+    checkAuthOnce()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,8 +83,9 @@ export default function LoginPage() {
         }
 
         if (data.session) {
-          // Auto-confirmed, redirect to dashboard
-          router.push('/dashboard')
+          // Auto-confirmed, wait a moment for session to sync, then redirect
+          await new Promise(resolve => setTimeout(resolve, 200))
+          window.location.href = '/dashboard'
         } else {
           // Email confirmation required
           setError('Please check your email to confirm your account, then sign in.')
@@ -97,8 +103,9 @@ export default function LoginPage() {
         }
 
         if (data.session) {
-          // Successfully signed in, redirect to dashboard
-          router.push('/dashboard')
+          // Successfully signed in, wait a moment for session to sync, then redirect
+          await new Promise(resolve => setTimeout(resolve, 200))
+          window.location.href = '/dashboard'
         } else {
           setError('Sign in failed: No session created')
           setLoading(false)
@@ -127,9 +134,9 @@ export default function LoginPage() {
         }
 
         if (data.session) {
-          // Small delay to ensure session is set
-          await new Promise(resolve => setTimeout(resolve, 100))
-          router.push('/dashboard')
+          // Wait a moment for session to sync, then redirect with full page reload
+          await new Promise(resolve => setTimeout(resolve, 200))
+          window.location.href = '/dashboard'
         } else {
           setError('Demo login failed: No session created')
           setLoading(false)
@@ -164,9 +171,9 @@ export default function LoginPage() {
         }
 
         if (data.session) {
-          // Small delay to ensure session is set
-          await new Promise(resolve => setTimeout(resolve, 100))
-          router.push('/dashboard')
+          // Wait a moment for session to sync, then redirect with full page reload
+          await new Promise(resolve => setTimeout(resolve, 200))
+          window.location.href = '/dashboard'
         } else {
           setError('Demo login failed: No session created')
           setLoading(false)

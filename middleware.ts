@@ -14,27 +14,46 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // Create Supabase client for session refresh
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value)
-            response.cookies.set(name, value, options)
-          })
-        },
-      },
-    }
-  )
+  // Check if we're in mock mode
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
+                     !supabaseUrl || 
+                     !supabaseAnonKey ||
+                     supabaseUrl === 'http://localhost:54321' ||
+                     supabaseAnonKey === 'mock-key'
 
-  // Refresh session if expired - this ensures cookies are synced
-  await supabase.auth.getUser()
+  // In mock mode, skip Supabase auth check (sessions are client-side only)
+  if (isMockMode) {
+    return response
+  }
+
+  // Create Supabase client for session refresh (only in real mode)
+  try {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              request.cookies.set(name, value)
+              response.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
+    // Refresh session if expired - this ensures cookies are synced
+    await supabase.auth.getUser()
+  } catch (error) {
+    // If Supabase client creation fails, continue anyway
+    console.warn('Middleware: Supabase client error (might be in mock mode):', error)
+  }
 
   return response
 }

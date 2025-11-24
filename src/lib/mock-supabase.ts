@@ -161,16 +161,40 @@ class MockSupabaseClient {
 const mockSupabaseClient = new MockSupabaseClient()
 mockSupabaseClient.initMockData()
 
-// Mock session storage
-let mockSession: any = null
+// Mock session storage - use localStorage for persistence across page reloads
+const MOCK_SESSION_KEY = 'navi-ai-mock-session'
+
+const getMockSession = (): any => {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem(MOCK_SESSION_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+const setMockSession = (session: any) => {
+  if (typeof window === 'undefined') return
+  try {
+    if (session) {
+      localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(session))
+    } else {
+      localStorage.removeItem(MOCK_SESSION_KEY)
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+}
 
 export const mockSupabase = {
   from: (table: string) => mockSupabaseClient.from(table),
   auth: {
     getSession: async () => {
+      const session = getMockSession()
       return {
         data: {
-          session: mockSession
+          session: session
         },
         error: null
       }
@@ -184,7 +208,7 @@ export const mockSupabase = {
       }
 
       if (mockCredentials[email as keyof typeof mockCredentials] === password) {
-        mockSession = {
+        const mockSession = {
           user: {
             id: 'mock-user-123',
             email: email,
@@ -193,6 +217,7 @@ export const mockSupabase = {
           access_token: 'mock-token',
           refresh_token: 'mock-refresh-token'
         }
+        setMockSession(mockSession)
         return {
           data: { session: mockSession, user: mockSession.user },
           error: null
@@ -206,7 +231,7 @@ export const mockSupabase = {
     },
     signUp: async ({ email, password }: { email: string; password: string }) => {
       // Auto-approve signups in mock mode
-      mockSession = {
+      const mockSession = {
         user: {
           id: 'mock-user-123',
           email: email,
@@ -215,13 +240,14 @@ export const mockSupabase = {
         access_token: 'mock-token',
         refresh_token: 'mock-refresh-token'
       }
+      setMockSession(mockSession)
       return {
         data: { session: mockSession, user: mockSession.user },
         error: null
       }
     },
     signOut: async () => {
-      mockSession = null
+      setMockSession(null)
       return { error: null }
     }
   }
