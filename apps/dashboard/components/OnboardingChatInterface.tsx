@@ -956,8 +956,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
 
       // Merge scraped data if available
-      const finalData = {
-        ...data,
+      const finalData: any = {
+        businessName: data.businessName || '',
+        industry: data.industry || '',
         // Always convert services to proper format
         services: convertServices(data.services),
         // Ensure location has all required fields
@@ -978,42 +979,61 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         contactInfo: {
           phone: '',
           email: '',
-          website: data.website
+          website: data.website || undefined
         },
         // Ensure brandVoice has default
         brandVoice: (data.brandVoice || 'professional') as 'friendly' | 'professional' | 'witty' | 'formal',
+        targetAudience: data.targetAudience || '',
         // Convert arrays to customAttributes format
         customAttributes: [
           ...(data.currentPresence || []).map(p => ({ label: 'Online Presence', value: p })),
           ...(data.goals || []).map(g => ({ label: 'Goal', value: g }))
         ],
-        ...(onboardingState.scrapedData && {
-          businessName: data.businessName || onboardingState.scrapedData.businessName,
-          industry: data.industry || onboardingState.scrapedData.industry,
+        // Add hours field (empty array is fine)
+        hours: [],
+        // Merge with scraped data if available
+        ...(onboardingState.scrapedData ? {
+          businessName: data.businessName || onboardingState.scrapedData.businessName || finalData.businessName,
+          industry: data.industry || onboardingState.scrapedData.industry || finalData.industry,
           location: {
-            city: data.location?.city || onboardingState.scrapedData.location?.city || '',
-            state: data.location?.state || onboardingState.scrapedData.location?.state || '',
-            country: data.location?.country || onboardingState.scrapedData.location?.country || 'US',
-            address: onboardingState.scrapedData.location?.address || '',
-            zipCode: onboardingState.scrapedData.location?.zipCode || ''
+            city: data.location?.city || onboardingState.scrapedData.location?.city || finalData.location.city,
+            state: data.location?.state || onboardingState.scrapedData.location?.state || finalData.location.state,
+            country: data.location?.country || onboardingState.scrapedData.location?.country || finalData.location.country,
+            address: onboardingState.scrapedData.location?.address || finalData.location.address,
+            zipCode: onboardingState.scrapedData.location?.zipCode || finalData.location.zipCode
           },
           contactInfo: {
-            email: onboardingState.scrapedData.contactInfo?.email || '',
-            phone: onboardingState.scrapedData.contactInfo?.phone || '',
-            website: data.website || onboardingState.scrapedData.contactInfo?.website
+            email: onboardingState.scrapedData.contactInfo?.email || finalData.contactInfo.email,
+            phone: onboardingState.scrapedData.contactInfo?.phone || finalData.contactInfo.phone,
+            website: data.website || onboardingState.scrapedData.contactInfo?.website || finalData.contactInfo.website
           },
           services: (() => {
             const servicesList = data.services || onboardingState.scrapedData.services?.map((s: any) => s.name) || []
             return convertServices(servicesList)
           })(),
-          targetAudience: data.targetAudience || onboardingState.scrapedData.targetAudience || '',
-          brandVoice: (data.brandVoice || onboardingState.scrapedData.brandVoice || 'professional') as 'friendly' | 'professional' | 'witty' | 'formal',
-          customAttributes: [
-            ...(data.currentPresence || []).map(p => ({ label: 'Online Presence', value: p })),
-            ...(data.goals || []).map(g => ({ label: 'Goal', value: g }))
-          ]
-        })
+          targetAudience: data.targetAudience || onboardingState.scrapedData.targetAudience || finalData.targetAudience,
+          brandVoice: (data.brandVoice || onboardingState.scrapedData.brandVoice || finalData.brandVoice) as 'friendly' | 'professional' | 'witty' | 'formal'
+        } : {})
       }
+
+      // Validate required fields before sending
+      if (!finalData.businessName || !finalData.businessName.trim()) {
+        throw new Error('Business name is required. Please go back and provide your business name.')
+      }
+      if (!finalData.industry || !finalData.industry.trim()) {
+        throw new Error('Industry is required. Please go back and provide your business type.')
+      }
+
+      // Log what we're sending for debugging
+      console.log('Saving profile with data:', {
+        userId,
+        hasBusinessName: !!finalData.businessName,
+        hasIndustry: !!finalData.industry,
+        brandVoice: finalData.brandVoice,
+        servicesCount: finalData.services?.length || 0,
+        location: finalData.location,
+        finalData
+      })
 
       const response = await fetch('/api/onboarding/complete', {
         method: 'POST',
@@ -1029,9 +1049,18 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         const errorMessage = errorData.error || `Failed to save profile (${response.status})`
-        console.error('Profile save error:', errorMessage, errorData)
+        console.error('Profile save error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage,
+          errorData,
+          sentData: finalData
+        })
         throw new Error(errorMessage)
       }
+
+      const result = await response.json()
+      console.log('Profile saved successfully:', result)
     } catch (error) {
       console.error('Error saving profile:', error)
       throw error
