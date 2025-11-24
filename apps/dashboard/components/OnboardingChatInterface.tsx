@@ -50,6 +50,7 @@ interface OnboardingState {
   isScraping?: boolean
   scrapingProgress?: string
   estimatedTimeLeft?: number
+  suggestedServices?: string[]
 }
 
 const ONBOARDING_QUESTIONS = {
@@ -203,6 +204,60 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     }
   }
 
+  // Get suggested services based on industry
+  const getSuggestedServices = (industry: string): string[] => {
+    const lowerIndustry = industry.toLowerCase().trim()
+    
+    // Common industry-to-services mappings
+    const serviceMap: Record<string, string[]> = {
+      'chiropractor': ['Spinal adjustments', 'Pain relief', 'Posture correction', 'Rehabilitation', 'Wellness consultations'],
+      'chiropractic': ['Spinal adjustments', 'Pain relief', 'Posture correction', 'Rehabilitation', 'Wellness consultations'],
+      'dentist': ['Teeth cleaning', 'Fillings', 'Root canals', 'Crowns', 'Teeth whitening', 'Dental exams'],
+      'dental': ['Teeth cleaning', 'Fillings', 'Root canals', 'Crowns', 'Teeth whitening', 'Dental exams'],
+      'restaurant': ['Dine-in service', 'Takeout', 'Catering', 'Private events', 'Delivery'],
+      'cafe': ['Coffee', 'Pastries', 'Breakfast', 'Lunch', 'WiFi', 'Meeting space'],
+      'plumber': ['Pipe repair', 'Drain cleaning', 'Water heater installation', 'Leak detection', 'Emergency service'],
+      'plumbing': ['Pipe repair', 'Drain cleaning', 'Water heater installation', 'Leak detection', 'Emergency service'],
+      'electrician': ['Electrical repairs', 'Panel upgrades', 'Lighting installation', 'Outlet installation', 'Safety inspections'],
+      'electric': ['Electrical repairs', 'Panel upgrades', 'Lighting installation', 'Outlet installation', 'Safety inspections'],
+      'lawyer': ['Legal consultation', 'Document review', 'Contract drafting', 'Court representation', 'Legal advice'],
+      'attorney': ['Legal consultation', 'Document review', 'Contract drafting', 'Court representation', 'Legal advice'],
+      'accountant': ['Tax preparation', 'Bookkeeping', 'Financial planning', 'Auditing', 'Payroll services'],
+      'accounting': ['Tax preparation', 'Bookkeeping', 'Financial planning', 'Auditing', 'Payroll services'],
+      'real estate': ['Home buying', 'Home selling', 'Property management', 'Real estate consultation', 'Market analysis'],
+      'realtor': ['Home buying', 'Home selling', 'Property management', 'Real estate consultation', 'Market analysis'],
+      'fitness': ['Personal training', 'Group classes', 'Nutrition counseling', 'Fitness assessments', 'Equipment access'],
+      'gym': ['Personal training', 'Group classes', 'Nutrition counseling', 'Fitness assessments', 'Equipment access'],
+      'salon': ['Haircuts', 'Hair coloring', 'Styling', 'Manicures', 'Pedicures', 'Facials'],
+      'hair salon': ['Haircuts', 'Hair coloring', 'Styling', 'Manicures', 'Pedicures', 'Facials'],
+      'auto repair': ['Oil changes', 'Brake service', 'Engine repair', 'Tire service', 'Diagnostics'],
+      'mechanic': ['Oil changes', 'Brake service', 'Engine repair', 'Tire service', 'Diagnostics'],
+      'photographer': ['Portrait photography', 'Event photography', 'Wedding photography', 'Product photography', 'Photo editing'],
+      'photography': ['Portrait photography', 'Event photography', 'Wedding photography', 'Product photography', 'Photo editing'],
+      'tutor': ['One-on-one tutoring', 'Test preparation', 'Homework help', 'Subject-specific lessons', 'Online tutoring'],
+      'tutoring': ['One-on-one tutoring', 'Test preparation', 'Homework help', 'Subject-specific lessons', 'Online tutoring'],
+      'coach': ['Personal coaching', 'Group coaching', 'Goal setting', 'Progress tracking', 'Accountability sessions'],
+      'life coach': ['Personal coaching', 'Group coaching', 'Goal setting', 'Progress tracking', 'Accountability sessions'],
+      'consultant': ['Business consulting', 'Strategy development', 'Process improvement', 'Training', 'Advisory services'],
+      'consulting': ['Business consulting', 'Strategy development', 'Process improvement', 'Training', 'Advisory services'],
+    }
+    
+    // Try exact match first
+    if (serviceMap[lowerIndustry]) {
+      return serviceMap[lowerIndustry]
+    }
+    
+    // Try partial match
+    for (const [key, services] of Object.entries(serviceMap)) {
+      if (lowerIndustry.includes(key) || key.includes(lowerIndustry)) {
+        return services
+      }
+    }
+    
+    // Default generic services if no match
+    return ['Consultation', 'Custom services', 'Professional advice']
+  }
+
   // Extract information from user response
   const extractInformation = (step: string, userMessage: string): Partial<OnboardingState['collectedData']> => {
     const lowerMessage = userMessage.toLowerCase().trim()
@@ -302,12 +357,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
       
       // Continue with remaining questions
-      const remainingFlow = ['services', 'targetAudience', 'location', 'currentPresence', 'goals', 'brandVoice']
+      const remainingFlow = ['services', 'confirmServices', 'targetAudience', 'location', 'currentPresence', 'goals', 'brandVoice']
       const currentIndex = remainingFlow.indexOf(currentStep)
       if (currentIndex >= 0 && currentIndex < remainingFlow.length - 1) {
         return remainingFlow[currentIndex + 1]
       }
       if (currentStep === 'brandVoice') return 'complete'
+      if (currentStep === 'confirmServices') return 'location'
     }
     
     // Normal flow without scraping
@@ -317,8 +373,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       'hasWebsite',
       'websiteUrl',
       'industry',
+      'confirmServices',
       'location',
-      'services',
       'targetAudience',
       'currentPresence',
       'goals',
@@ -326,7 +382,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       'complete'
     ]
     const currentIndex = flow.indexOf(currentStep)
-    return flow[currentIndex + 1] || 'complete'
+    if (currentIndex >= 0 && currentIndex < flow.length - 1) {
+      return flow[currentIndex + 1]
+    }
+    // Handle confirmServices -> location transition
+    if (currentStep === 'confirmServices') {
+      return 'location'
+    }
+    return 'complete'
   }
 
   // Format scraped data for display
@@ -586,6 +649,139 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         
         // Both provided - move to next step
         const nextStep = getNextStep('location', !!onboardingState.scrapedData)
+        setOnboardingState({
+          step: nextStep,
+          collectedData: updatedData,
+          scrapedData: onboardingState.scrapedData
+        })
+        
+        if (nextStep === 'complete') {
+          try {
+            await saveProfile(updatedData)
+            setIsComplete(true)
+            
+            const completeMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: ONBOARDING_QUESTIONS.complete.message,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, completeMsg])
+
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 1000)
+          } catch (error) {
+            const errorMsg: Message = {
+              id: `error_${Date.now()}`,
+              role: 'assistant',
+              content: "Had trouble saving that. Let's try again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Can you answer that again?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setOnboardingState({
+              step: 'brandVoice',
+              collectedData: updatedData,
+              scrapedData: onboardingState.scrapedData
+            })
+          }
+        } else {
+          const nextQuestion = ONBOARDING_QUESTIONS[nextStep as keyof typeof ONBOARDING_QUESTIONS]
+          if (nextQuestion) {
+            const assistantMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: nextQuestion.message,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, assistantMsg])
+          }
+        }
+        setIsLoading(false)
+        return
+      }
+
+      // Handle industry - auto-populate services and ask for confirmation
+      if (currentStep === 'industry') {
+        const industry = userMessage.trim()
+        const extracted = extractInformation('industry', userMessage)
+        const updatedData = {
+          ...onboardingState.collectedData,
+          ...extracted
+        }
+        
+        // Get suggested services based on industry
+        const suggestedServices = getSuggestedServices(industry)
+        
+        // Store suggested services in state for confirmation
+        setOnboardingState({
+          step: 'confirmServices',
+          collectedData: updatedData,
+          suggestedServices: suggestedServices,
+          scrapedData: onboardingState.scrapedData
+        })
+        
+        // Show suggested services and ask for confirmation
+        const servicesList = suggestedServices.map((s, i) => `${i + 1}. ${s}`).join('\n')
+        const assistantMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: `Based on your business type (${industry}), here are some services we think you might offer:\n\n${servicesList}\n\nAre these correct? You can say "yes" to confirm, or tell me what to add or remove.`,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, assistantMsg])
+        setIsLoading(false)
+        return
+      }
+
+      // Handle services confirmation/editing
+      if (currentStep === 'confirmServices') {
+        const lowerMessage = userMessage.toLowerCase().trim()
+        let finalServices: string[] = []
+        
+        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage === 'looks good' || lowerMessage === 'that\'s right') {
+          // User confirmed - use suggested services
+          finalServices = onboardingState.suggestedServices || []
+        } else {
+          // User wants to modify - parse their response
+          // Check for "add" or "remove" keywords
+          if (lowerMessage.includes('add') || lowerMessage.includes('include')) {
+            // Extract services to add
+            const addMatch = userMessage.match(/(?:add|include)[:\s]+(.+)/i)
+            if (addMatch) {
+              const servicesToAdd = addMatch[1].split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
+              finalServices = [...(onboardingState.suggestedServices || []), ...servicesToAdd]
+            } else {
+              // Just add what they said
+              const newServices = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
+              finalServices = [...(onboardingState.suggestedServices || []), ...newServices]
+            }
+          } else if (lowerMessage.includes('remove') || lowerMessage.includes('delete') || lowerMessage.includes('don\'t')) {
+            // Extract services to remove
+            const removeMatch = userMessage.match(/(?:remove|delete|don't)[:\s]+(.+)/i)
+            if (removeMatch) {
+              const servicesToRemove = removeMatch[1].split(/[,;]|and/).map(s => s.trim().toLowerCase())
+              finalServices = (onboardingState.suggestedServices || []).filter(s => 
+                !servicesToRemove.some(r => s.toLowerCase().includes(r) || r.includes(s.toLowerCase()))
+              )
+            } else {
+              // Keep suggested services if unclear
+              finalServices = onboardingState.suggestedServices || []
+            }
+          } else {
+            // User provided a new list - replace suggested services
+            finalServices = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
+          }
+        }
+        
+        // Update collected data with final services
+        const updatedData = {
+          ...onboardingState.collectedData,
+          services: finalServices
+        }
+        
+        // Move to next step (after services confirmation, go to location)
+        const nextStep = getNextStep('confirmServices', !!onboardingState.scrapedData)
         setOnboardingState({
           step: nextStep,
           collectedData: updatedData,
