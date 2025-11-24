@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import ChatInterface from '@/apps/dashboard/components/ChatInterface'
+import OnboardingChatInterface from '@/apps/dashboard/components/OnboardingChatInterface'
 import { supabase } from '@/lib/supabase'
 
 /**
  * Onboarding Start Page
  * This is where new users without a business profile are directed
- * They can use the chat interface to complete onboarding
+ * Uses specialized onboarding chat that proactively asks questions
  */
 export default function OnboardingStartPage() {
   const router = useRouter()
@@ -38,15 +38,15 @@ export default function OnboardingStartPage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="bg-white border-b border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome to Navi AI!</h1>
-        <p className="text-gray-600 mt-2">
-          Let's get started by setting up your business profile. You can chat with me below to begin.
+    <div className="h-full flex flex-col bg-white">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-8 border-b border-blue-800">
+        <h1 className="text-3xl font-bold mb-2">Welcome to Navi AI!</h1>
+        <p className="text-blue-100 text-lg">
+          Let's get to know your business. I'll ask you a few quick questions to set everything up.
         </p>
       </div>
       <div className="flex-1 overflow-hidden">
-        <ChatInterface userId={userId} />
+        <OnboardingChatInterface userId={userId} />
       </div>
     </div>
   )
