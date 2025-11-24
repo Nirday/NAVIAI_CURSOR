@@ -137,26 +137,16 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
   // Scrape website with progress updates
   const scrapeWebsite = async (url: string) => {
-    setOnboardingState(prev => ({ ...prev, isScraping: true, scrapingProgress: 'Connecting to website...', estimatedTimeLeft: 30 }))
+    setOnboardingState(prev => ({ ...prev, isScraping: true, scrapingProgress: 'Analyzing your website...', estimatedTimeLeft: 5 }))
     
-    // Simulate progress updates
-    const progressSteps = [
-      { progress: 'Connecting to website...', time: 5 },
-      { progress: 'Downloading website content...', time: 10 },
-      { progress: 'Analyzing business information...', time: 10 },
-      { progress: 'Extracting details...', time: 5 }
-    ]
-
-    let totalTime = 0
-    for (const step of progressSteps) {
+    // Quick progress update (no artificial delay)
+    setTimeout(() => {
       setOnboardingState(prev => ({ 
         ...prev, 
-        scrapingProgress: step.progress,
-        estimatedTimeLeft: 30 - totalTime
+        scrapingProgress: 'Extracting business information...',
+        estimatedTimeLeft: 3
       }))
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate delay
-      totalTime += step.time
-    }
+    }, 300)
 
     try {
       const response = await fetch('/api/onboarding/scrape-website', {
@@ -438,7 +428,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         const scrapingMsg: Message = {
           id: `assistant_${Date.now()}`,
           role: 'assistant',
-          content: `Checking out your website now. Give me about 30 seconds.`,
+          content: `Checking out your website now...`,
           timestamp: new Date()
         }
         setMessages(prev => [...prev, scrapingMsg])
@@ -543,7 +533,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
           setTimeout(() => {
             router.push('/dashboard')
-          }, 2000)
+          }, 1000)
         } catch (error) {
           const errorMsg: Message = {
             id: `error_${Date.now()}`,

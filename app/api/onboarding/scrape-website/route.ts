@@ -79,11 +79,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // In mock mode, return sample data
+    // In mock mode, return sample data (no delay for faster testing)
     if (isMockMode) {
-      // Simulate scraping delay
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
       const mockData = getMockScrapedData(url)
       
       return NextResponse.json({
