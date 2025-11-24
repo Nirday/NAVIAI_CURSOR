@@ -55,50 +55,50 @@ interface OnboardingState {
 
 const ONBOARDING_QUESTIONS = {
   welcome: {
-    message: "Hi, I'm Navi. I'll help you get set up. What's your business name?",
+    message: "Hey! I'm Navi. Excited to help you get set up. What's the name of your business?",
     field: 'businessName'
   },
   hasWebsite: {
-    message: "Do you have a website? If you do, I can grab most of the info from there.",
+    message: "Nice! Do you already have a website? If so, I can pull a lot of this info from there and save you some time.",
     field: 'hasWebsite'
   },
   websiteUrl: {
-    message: "What's the website address?",
+    message: "Perfect! What's the website? Just paste the URL.",
     field: 'website'
   },
   industry: {
-    message: "What kind of business is it?",
+    message: "Got it. What kind of business are you running?",
     field: 'industry'
   },
   location: {
-    message: "Where are you located? City and state works.",
+    message: "Where are you based? Just the city and state is fine.",
     field: 'location'
   },
   services: {
-    message: "What do you sell or what services do you provide?",
+    message: "What services do you offer? Or if you sell products, what do you sell?",
     field: 'services'
   },
   targetAudience: {
-    message: "Who are you trying to reach? Who's your ideal customer?",
+    message: "Who's your ideal customer? Like, who are you really trying to reach?",
     field: 'targetAudience'
   },
   currentPresence: {
-    message: "Are you on social media at all?",
+    message: "Are you on any social media platforms already?",
     field: 'currentPresence'
   },
   goals: {
-    message: "What are you looking to accomplish? More customers, better visibility, that kind of thing?",
+    message: "What are you hoping to achieve here? More customers? Better online presence? Something else?",
     field: 'goals'
   },
   brandVoice: {
-    message: "How would you describe your brand? More casual or more professional?",
+    message: "Last one - how would you describe your brand's vibe? More laid back and friendly, or more polished and professional?",
     field: 'brandVoice'
   },
   confirmScraped: {
-    message: "Here's what I pulled from your website. Does this look right, or should I change anything?"
+    message: "Here's what I found on your site. Does this look right to you, or should I tweak anything?"
   },
   complete: {
-    message: "Got it. Setting everything up now."
+    message: "Awesome! I'm setting everything up for you now. This'll just take a second."
   }
 }
 
@@ -394,7 +394,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
   // Format scraped data for display
   const formatScrapedData = (data: ScrapedData): string => {
-    let formatted = "Here's what I found on your website:\n\n"
+    let formatted = "Here's what I pulled from your site:\n\n"
     
     if (data.businessName) formatted += `**Name:** ${data.businessName}\n`
     if (data.industry) formatted += `**Type:** ${data.industry}\n`
@@ -516,7 +516,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         const scrapingMsg: Message = {
           id: `assistant_${Date.now()}`,
           role: 'assistant',
-          content: `Checking out your website now...`,
+          content: `Taking a look at your website now...`,
           timestamp: new Date()
         }
         setMessages(prev => [...prev, scrapingMsg])
@@ -540,7 +540,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const errorMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: `Couldn't access your website (${error.message}). No big deal, we'll just fill this out manually. ${ONBOARDING_QUESTIONS.industry.message}`,
+            content: `Hmm, couldn't access your website (${error.message}). No worries though - we'll just fill this out together. ${ONBOARDING_QUESTIONS.industry.message}`,
             timestamp: new Date()
           }
           setMessages(prev => [...prev, errorMsg])
@@ -609,7 +609,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const assistantMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "I need both city and state. Can you provide both? For example: 'San Francisco, CA'",
+            content: "I'd love to know both your city and state. Could you share that? Something like 'San Francisco, CA' works great.",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, assistantMsg])
@@ -624,7 +624,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const assistantMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: `Got the state (${updatedLocation.state}). What city are you in?`,
+            content: `Cool, ${updatedLocation.state}. Which city?`,
             timestamp: new Date()
           }
           setMessages(prev => [...prev, assistantMsg])
@@ -639,7 +639,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const assistantMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: `Got the city (${updatedLocation.city}). What state are you in?`,
+            content: `Nice, ${updatedLocation.city}. What state is that in?`,
             timestamp: new Date()
           }
           setMessages(prev => [...prev, assistantMsg])
@@ -675,7 +675,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             const errorMsg: Message = {
               id: `error_${Date.now()}`,
               role: 'assistant',
-              content: "Had trouble saving that. Let's try again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Can you answer that again?",
+              content: "Oops, hit a snag there. Let me ask that again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, errorMsg])
@@ -726,7 +726,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         const assistantMsg: Message = {
           id: `assistant_${Date.now()}`,
           role: 'assistant',
-          content: `Based on your business type (${industry}), here are some services we think you might offer:\n\n${servicesList}\n\nAre these correct? You can say "yes" to confirm, or tell me what to add or remove.`,
+          content: `Since you're a ${industry}, I'm guessing you might offer things like:\n\n${servicesList}\n\nDoes that sound right? Just say "yes" if it looks good, or let me know what to add or take off.`,
           timestamp: new Date()
         }
         setMessages(prev => [...prev, assistantMsg])
@@ -808,7 +808,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             const errorMsg: Message = {
               id: `error_${Date.now()}`,
               role: 'assistant',
-              content: "Had trouble saving that. Let's try again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Can you answer that again?",
+              content: "Oops, hit a snag there. Let me ask that again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, errorMsg])
@@ -905,7 +905,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const errorMsg: Message = {
             id: `error_${Date.now()}`,
             role: 'assistant',
-            content: "Had trouble saving that. Let's try again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Can you answer that again?",
+            content: "Oops, hit a snag there. Let me ask that again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, errorMsg])
@@ -933,7 +933,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       const errorMsg: Message = {
         id: `error_${Date.now()}`,
         role: 'assistant',
-        content: "Something went wrong there. Let's try again: " + ONBOARDING_QUESTIONS[onboardingState.step as keyof typeof ONBOARDING_QUESTIONS]?.message || "Can you answer that again?",
+        content: "Hmm, something went sideways there. Let me ask that again: " + ONBOARDING_QUESTIONS[onboardingState.step as keyof typeof ONBOARDING_QUESTIONS]?.message || "Mind giving that another shot?",
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMsg])

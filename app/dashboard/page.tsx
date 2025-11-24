@@ -78,9 +78,9 @@ export default function DashboardPage() {
     return (
       <div className="h-full flex flex-col bg-white">
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-8 border-b border-blue-800">
-          <h1 className="text-3xl font-bold mb-2">Welcome to Navi AI!</h1>
+          <h1 className="text-3xl font-bold mb-2">Hey there! 👋</h1>
           <p className="text-blue-100 text-lg">
-            Let's get to know your business. I'll ask you a few quick questions to set everything up.
+            I'm Navi, and I'm here to help you get set up. We'll just chat for a bit so I can learn about your business.
           </p>
         </div>
         <div className="flex-1 overflow-hidden">
