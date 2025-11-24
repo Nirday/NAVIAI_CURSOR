@@ -379,6 +379,31 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       const currentStep = onboardingState.step
       const lowerMessage = userMessage.toLowerCase().trim()
 
+      // Handle welcome step - user provides business name
+      if (currentStep === 'welcome') {
+        const extracted = extractInformation('businessName', userMessage)
+        const updatedData = {
+          ...onboardingState.collectedData,
+          ...extracted
+        }
+        const nextStep = 'hasWebsite'
+        
+        setOnboardingState({
+          step: nextStep,
+          collectedData: updatedData
+        })
+
+        const assistantMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: ONBOARDING_QUESTIONS.hasWebsite.message,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, assistantMsg])
+        setIsLoading(false)
+        return
+      }
+
       // Handle "has website" question
       if (currentStep === 'hasWebsite') {
         if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'yeah' || lowerMessage === 'sure') {
