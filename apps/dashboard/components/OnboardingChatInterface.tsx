@@ -493,6 +493,151 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
+      // Handle location - validate both city and state are provided
+      if (currentStep === 'location') {
+        const locationParts = userMessage.split(',').map(s => s.trim())
+        const currentLocation = onboardingState.collectedData.location || {}
+        
+        // Determine what was provided in this message
+        let providedCity = locationParts[0] || ''
+        let providedState = locationParts[1] || ''
+        
+        // If only one value provided, intelligently assign it
+        if (locationParts.length === 1 && locationParts[0]) {
+          const singleValue = locationParts[0]
+          const looksLikeStateAbbr = singleValue.length <= 3 && /^[A-Z]{2,3}$/i.test(singleValue)
+          
+          // If we already have city but not state, this is likely the state
+          if (currentLocation.city && !currentLocation.state) {
+            providedState = singleValue
+            providedCity = '' // Don't overwrite existing city
+          }
+          // If we already have state but not city, this is likely the city
+          else if (currentLocation.state && !currentLocation.city) {
+            providedCity = singleValue
+            providedState = '' // Don't overwrite existing state
+          }
+          // If we have neither, check if it looks like a state abbreviation
+          else if (!currentLocation.city && !currentLocation.state) {
+            if (looksLikeStateAbbr) {
+              providedState = singleValue
+            } else {
+              providedCity = singleValue // Most likely a city
+            }
+          }
+        }
+        
+        // Merge with existing data - only update if new value provided
+        const updatedLocation = {
+          ...currentLocation,
+          city: providedCity || currentLocation.city || '',
+          state: providedState || currentLocation.state || '',
+          country: locationParts[2] || currentLocation.country || 'US'
+        }
+        
+        const updatedData = {
+          ...onboardingState.collectedData,
+          location: updatedLocation
+        }
+        
+        // Check if we have both city and state
+        if (!updatedLocation.city && !updatedLocation.state) {
+          // Neither provided - ask for both
+          const assistantMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "I need both city and state. Can you provide both? For example: 'San Francisco, CA'",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, assistantMsg])
+          setIsLoading(false)
+          return
+        } else if (!updatedLocation.city) {
+          // Only state provided - ask for city
+          setOnboardingState({
+            step: 'location',
+            collectedData: updatedData
+          })
+          const assistantMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Got the state (${updatedLocation.state}). What city are you in?`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, assistantMsg])
+          setIsLoading(false)
+          return
+        } else if (!updatedLocation.state) {
+          // Only city provided - ask for state
+          setOnboardingState({
+            step: 'location',
+            collectedData: updatedData
+          })
+          const assistantMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Got the city (${updatedLocation.city}). What state are you in?`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, assistantMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        // Both provided - move to next step
+        const nextStep = getNextStep('location', !!onboardingState.scrapedData)
+        setOnboardingState({
+          step: nextStep,
+          collectedData: updatedData,
+          scrapedData: onboardingState.scrapedData
+        })
+        
+        if (nextStep === 'complete') {
+          try {
+            await saveProfile(updatedData)
+            setIsComplete(true)
+            
+            const completeMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: ONBOARDING_QUESTIONS.complete.message,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, completeMsg])
+
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 1000)
+          } catch (error) {
+            const errorMsg: Message = {
+              id: `error_${Date.now()}`,
+              role: 'assistant',
+              content: "Had trouble saving that. Let's try again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Can you answer that again?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setOnboardingState({
+              step: 'brandVoice',
+              collectedData: updatedData,
+              scrapedData: onboardingState.scrapedData
+            })
+          }
+        } else {
+          const nextQuestion = ONBOARDING_QUESTIONS[nextStep as keyof typeof ONBOARDING_QUESTIONS]
+          if (nextQuestion) {
+            const assistantMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: nextQuestion.message,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, assistantMsg])
+          }
+        }
+        setIsLoading(false)
+        return
+      }
+
       // Handle confirmation of scraped data
       if (currentStep === 'confirmScraped') {
         if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage === 'looks good') {
@@ -560,15 +705,16 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             router.push('/dashboard')
           }, 1000)
         } catch (error) {
+          // Go back to brandVoice step (the last question before complete)
           const errorMsg: Message = {
             id: `error_${Date.now()}`,
             role: 'assistant',
-            content: "Had trouble saving that. Let's try again: " + ONBOARDING_QUESTIONS[onboardingState.step as keyof typeof ONBOARDING_QUESTIONS]?.message || "Can you answer that again?",
+            content: "Had trouble saving that. Let's try again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Can you answer that again?",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, errorMsg])
           setOnboardingState({
-            step: onboardingState.step,
+            step: 'brandVoice',
             collectedData: onboardingState.collectedData,
             scrapedData: onboardingState.scrapedData
           })
