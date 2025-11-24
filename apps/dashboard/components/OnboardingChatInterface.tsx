@@ -900,18 +900,20 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setTimeout(() => {
             router.push('/dashboard')
           }, 1000)
-        } catch (error) {
+        } catch (error: any) {
           // Go back to brandVoice step (the last question before complete)
+          const errorMessage = error?.message || 'Failed to save profile'
+          console.error('Error saving profile at completion:', error)
           const errorMsg: Message = {
             id: `error_${Date.now()}`,
             role: 'assistant',
-            content: "Oops, hit a snag there. Let me ask that again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?",
+            content: `Oops, hit a snag: ${errorMessage}. Let me ask that again: ${ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?"}`,
             timestamp: new Date()
           }
           setMessages(prev => [...prev, errorMsg])
           setOnboardingState({
             step: 'brandVoice',
-            collectedData: onboardingState.collectedData,
+            collectedData: updatedData, // Keep the updated data including brandVoice
             scrapedData: onboardingState.scrapedData
           })
         }
@@ -945,9 +947,46 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   // Save profile to backend
   const saveProfile = async (data: OnboardingState['collectedData']) => {
     try {
+      // Convert services from string[] to proper format
+      const convertServices = (services: string[] | undefined) => {
+        if (!services || services.length === 0) return []
+        return services.map((s: any) => 
+          typeof s === 'string' ? { name: s, description: '' } : s
+        )
+      }
+
       // Merge scraped data if available
       const finalData = {
         ...data,
+        // Always convert services to proper format
+        services: convertServices(data.services),
+        // Ensure location has all required fields
+        location: data.location ? {
+          city: data.location.city || '',
+          state: data.location.state || '',
+          country: data.location.country || 'US',
+          address: '',
+          zipCode: ''
+        } : {
+          city: '',
+          state: '',
+          country: 'US',
+          address: '',
+          zipCode: ''
+        },
+        // Ensure contactInfo structure
+        contactInfo: {
+          phone: '',
+          email: '',
+          website: data.website
+        },
+        // Ensure brandVoice has default
+        brandVoice: (data.brandVoice || 'professional') as 'friendly' | 'professional' | 'witty' | 'formal',
+        // Convert arrays to customAttributes format
+        customAttributes: [
+          ...(data.currentPresence || []).map(p => ({ label: 'Online Presence', value: p })),
+          ...(data.goals || []).map(g => ({ label: 'Goal', value: g }))
+        ],
         ...(onboardingState.scrapedData && {
           businessName: data.businessName || onboardingState.scrapedData.businessName,
           industry: data.industry || onboardingState.scrapedData.industry,
@@ -965,9 +1004,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           },
           services: (() => {
             const servicesList = data.services || onboardingState.scrapedData.services?.map((s: any) => s.name) || []
-            return servicesList.map((s: any) => 
-              typeof s === 'string' ? { name: s, description: '' } : s
-            )
+            return convertServices(servicesList)
           })(),
           targetAudience: data.targetAudience || onboardingState.scrapedData.targetAudience || '',
           brandVoice: (data.brandVoice || onboardingState.scrapedData.brandVoice || 'professional') as 'friendly' | 'professional' | 'witty' | 'formal',
@@ -990,7 +1027,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save profile')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || `Failed to save profile (${response.status})`
+        console.error('Profile save error:', errorMessage, errorData)
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Error saving profile:', error)
