@@ -955,8 +955,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         )
       }
 
-      // Merge scraped data if available
-      const finalData: any = {
+      // Build base data structure
+      const baseData = {
         businessName: data.businessName || '',
         industry: data.industry || '',
         // Always convert services to proper format
@@ -990,31 +990,34 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           ...(data.goals || []).map(g => ({ label: 'Goal', value: g }))
         ],
         // Add hours field (empty array is fine)
-        hours: [],
-        // Merge with scraped data if available
-        ...(onboardingState.scrapedData ? {
-          businessName: data.businessName || onboardingState.scrapedData.businessName || finalData.businessName,
-          industry: data.industry || onboardingState.scrapedData.industry || finalData.industry,
-          location: {
-            city: data.location?.city || onboardingState.scrapedData.location?.city || finalData.location.city,
-            state: data.location?.state || onboardingState.scrapedData.location?.state || finalData.location.state,
-            country: data.location?.country || onboardingState.scrapedData.location?.country || finalData.location.country,
-            address: onboardingState.scrapedData.location?.address || finalData.location.address,
-            zipCode: onboardingState.scrapedData.location?.zipCode || finalData.location.zipCode
-          },
-          contactInfo: {
-            email: onboardingState.scrapedData.contactInfo?.email || finalData.contactInfo.email,
-            phone: onboardingState.scrapedData.contactInfo?.phone || finalData.contactInfo.phone,
-            website: data.website || onboardingState.scrapedData.contactInfo?.website || finalData.contactInfo.website
-          },
-          services: (() => {
-            const servicesList = data.services || onboardingState.scrapedData.services?.map((s: any) => s.name) || []
-            return convertServices(servicesList)
-          })(),
-          targetAudience: data.targetAudience || onboardingState.scrapedData.targetAudience || finalData.targetAudience,
-          brandVoice: (data.brandVoice || onboardingState.scrapedData.brandVoice || finalData.brandVoice) as 'friendly' | 'professional' | 'witty' | 'formal'
-        } : {})
+        hours: []
       }
+
+      // Merge with scraped data if available
+      const finalData: any = onboardingState.scrapedData ? {
+        businessName: data.businessName || onboardingState.scrapedData.businessName || baseData.businessName,
+        industry: data.industry || onboardingState.scrapedData.industry || baseData.industry,
+        location: {
+          city: data.location?.city || onboardingState.scrapedData.location?.city || baseData.location.city,
+          state: data.location?.state || onboardingState.scrapedData.location?.state || baseData.location.state,
+          country: data.location?.country || onboardingState.scrapedData.location?.country || baseData.location.country,
+          address: onboardingState.scrapedData.location?.address || baseData.location.address,
+          zipCode: onboardingState.scrapedData.location?.zipCode || baseData.location.zipCode
+        },
+        contactInfo: {
+          email: onboardingState.scrapedData.contactInfo?.email || baseData.contactInfo.email,
+          phone: onboardingState.scrapedData.contactInfo?.phone || baseData.contactInfo.phone,
+          website: data.website || onboardingState.scrapedData.contactInfo?.website || baseData.contactInfo.website
+        },
+        services: (() => {
+          const servicesList = data.services || onboardingState.scrapedData.services?.map((s: any) => s.name) || []
+          return convertServices(servicesList)
+        })(),
+        targetAudience: data.targetAudience || onboardingState.scrapedData.targetAudience || baseData.targetAudience,
+        brandVoice: (data.brandVoice || onboardingState.scrapedData.brandVoice || baseData.brandVoice) as 'friendly' | 'professional' | 'witty' | 'formal',
+        customAttributes: baseData.customAttributes,
+        hours: baseData.hours
+      } : baseData
 
       // Validate required fields before sending
       if (!finalData.businessName || !finalData.businessName.trim()) {
