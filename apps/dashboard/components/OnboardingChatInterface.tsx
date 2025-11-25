@@ -256,18 +256,18 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             setOnboardingState({
               ...onboardingState,
               phase: 'storefront',
-              subStep: 'email',
+              subStep: 'hours',
               data: updatedData,
               needsVerification: null
             })
             
-            const emailMsg: Message = {
+            const hoursMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "Perfect. And what's the best Email address for clients to reach you?",
+              content: "And what are your standard Opening Hours?",
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, emailMsg])
+            setMessages(prev => [...prev, hoursMsg])
             setIsLoading(false)
             return
           } else if (needsVerification.field === 'email') {
