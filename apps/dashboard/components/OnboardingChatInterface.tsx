@@ -763,17 +763,17 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setOnboardingState({
             ...onboardingState,
             phase: 'storefront',
-            subStep: 'phone',
+            subStep: 'phone_email',
             data: updatedData
           })
           
-          const phoneMsg: Message = {
+          const contactMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "What's the best Phone Number for clients to call?",
+            content: "What is the best phone number and email address for clients to reach you?",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, phoneMsg])
+          setMessages(prev => [...prev, contactMsg])
           setIsLoading(false)
           return
         }
