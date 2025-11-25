@@ -384,37 +384,104 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         
         if (subStep === 'location') {
+          const locationInput = userMessage.trim()
+          
+          // For Brick & Mortar and Appointment Pro, check if we have both city and state
+          if (archetype === 'BrickAndMortar' || archetype === 'AppointmentPro') {
+            // Check if it looks like just a city (no comma, no state abbreviation)
+            const hasComma = locationInput.includes(',')
+            const hasStateAbbr = /,\s*[A-Z]{2}\b/i.test(locationInput)
+            
+            if (!hasComma || !hasStateAbbr) {
+              // Ask for state
+              const currentLocation = data.identity?.address_or_area || ''
+              const updatedData = {
+                ...data,
+                identity: {
+                  ...data.identity,
+                  address_or_area: locationInput
+                } as BusinessProfileData['identity']
+              }
+              
+              setOnboardingState({
+                ...onboardingState,
+                phase: 'storefront',
+                subStep: 'location_state',
+                data: updatedData
+              })
+              
+              const stateMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `Got the city (${locationInput}). What state is that in?`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, stateMsg])
+              setIsLoading(false)
+              return
+            }
+          }
+          
           const updatedData = {
             ...data,
             identity: {
               ...data.identity,
-              address_or_area: userMessage.trim()
+              address_or_area: locationInput
             } as BusinessProfileData['identity']
           }
           
           setOnboardingState({
             ...onboardingState,
             phase: 'storefront',
-            subStep: 'hours_phone',
+            subStep: 'phone',
             data: updatedData
           })
           
-          const hoursMsg: Message = {
+          const phoneMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "Also, what are your standard Opening Hours and the best Phone Number for clients to call?",
+            content: "What's the best Phone Number for clients to call?",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, hoursMsg])
+          setMessages(prev => [...prev, phoneMsg])
           setIsLoading(false)
           return
         }
         
-        if (subStep === 'hours_phone') {
-          // Try to extract phone number (look for 10+ digit pattern)
-          const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
-          const phone = phoneMatch ? phoneMatch[0] : userMessage.trim()
-          const hours = phoneMatch ? userMessage.replace(phoneMatch[0], '').trim() : userMessage.trim()
+        if (subStep === 'location_state') {
+          // Combine city and state
+          const city = data.identity?.address_or_area || ''
+          const state = userMessage.trim()
+          const fullLocation = `${city}, ${state}`
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              address_or_area: fullLocation
+            } as BusinessProfileData['identity']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'phone',
+            data: updatedData
+          })
+          
+          const phoneMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "What's the best Phone Number for clients to call?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, phoneMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'phone') {
+          const phone = userMessage.trim()
           
           const validation = validateCriticalField('phone', phone)
           if (!validation.isValid) {
@@ -441,8 +508,48 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             ...data,
             identity: {
               ...data.identity,
-              phone: phone,
-              hours: hours || ''
+              phone: phone
+            } as BusinessProfileData['identity']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'hours',
+            data: updatedData
+          })
+          
+          const hoursMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "And what are your standard Opening Hours?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, hoursMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'hours') {
+          const hours = userMessage.trim()
+          
+          if (!hours || hours.length < 3) {
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Could you provide your opening hours? For example, 'Monday-Friday 9am-5pm' or 'Open daily 8am-6pm'.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              hours: hours
             } as BusinessProfileData['identity']
           }
           
