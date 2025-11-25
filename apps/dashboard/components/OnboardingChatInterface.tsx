@@ -1,7 +1,7 @@
 /**
  * Onboarding Chat Interface Component
- * Proactively asks targeted questions to gather SMB business information
- * Includes website scraping with progress indicator
+ * Conversational SMB Profile Creator
+ * Replaces forms with a friendly, podcast-style interview
  */
 
 'use client'
@@ -21,85 +21,47 @@ interface Message {
   timestamp: Date
 }
 
-interface ScrapedData {
-  businessName?: string
-  industry?: string
-  location?: { address?: string; city?: string; state?: string; zipCode?: string; country?: string }
-  contactInfo?: { phone?: string; email?: string; website?: string }
-  services?: { name: string; description: string; price?: string }[]
-  hours?: { day: string; open: string; close: string }[]
-  brandVoice?: string
-  targetAudience?: string
-  customAttributes?: { label: string; value: string }[]
+type Archetype = 'BrickAndMortar' | 'ServiceOnWheels' | 'AppointmentPro' | null
+
+interface BusinessProfileData {
+  archetype: Archetype
+  identity: {
+    business_name: string
+    address_or_area: string
+    phone: string
+    email: string
+    website: string
+    hours: string
+  }
+  offering: {
+    core_services: string[]
+    target_audience: string
+    vibe_mission: string
+  }
+  credibility: {
+    owner_name: string
+    owner_bio: string
+    credentials: string[]
+    years_in_business: string
+  }
+  logistics: {
+    payment_methods: string[]
+    insurance_accepted: boolean
+    booking_policy: string
+    specific_policy: string
+  }
 }
 
 interface OnboardingState {
-  step: string
-  collectedData: {
-    businessName?: string
-    industry?: string
-    location?: { city?: string; state?: string; country?: string }
-    website?: string
-    services?: string[]
-    targetAudience?: string
-    currentPresence?: string[]
-    goals?: string[]
-    brandVoice?: string
-  }
-  scrapedData?: ScrapedData
-  isScraping?: boolean
-  scrapingProgress?: string
-  estimatedTimeLeft?: number
-  suggestedServices?: string[]
-}
-
-const ONBOARDING_QUESTIONS = {
-  welcome: {
-    message: "Hey! I'm Navi. Excited to help you get set up. What's the name of your business?",
-    field: 'businessName'
-  },
-  hasWebsite: {
-    message: "Nice! Do you already have a website? If so, I can pull a lot of this info from there and save you some time.",
-    field: 'hasWebsite'
-  },
-  websiteUrl: {
-    message: "Perfect! What's the website? Just paste the URL.",
-    field: 'website'
-  },
-  industry: {
-    message: "Got it. What kind of business are you running?",
-    field: 'industry'
-  },
-  location: {
-    message: "Where are you based? Just the city and state is fine.",
-    field: 'location'
-  },
-  services: {
-    message: "What services do you offer? Or if you sell products, what do you sell?",
-    field: 'services'
-  },
-  targetAudience: {
-    message: "Who's your ideal customer? Like, who are you really trying to reach?",
-    field: 'targetAudience'
-  },
-  currentPresence: {
-    message: "Are you on any social media platforms already?",
-    field: 'currentPresence'
-  },
-  goals: {
-    message: "What are you hoping to achieve here? More customers? Better online presence? Something else?",
-    field: 'goals'
-  },
-  brandVoice: {
-    message: "Last one - how would you describe your brand's vibe? More laid back and friendly, or more polished and professional?",
-    field: 'brandVoice'
-  },
-  confirmScraped: {
-    message: "Here's what I found on your site. Does this look right to you, or should I tweak anything?"
-  },
-  complete: {
-    message: "Awesome! I'm setting everything up for you now. This'll just take a second."
-  }
+  phase: 'discovery' | 'storefront' | 'menu' | 'locals' | 'counter' | 'proofread' | 'complete'
+  subStep: string
+  archetype: Archetype
+  data: Partial<BusinessProfileData>
+  needsVerification: {
+    field?: string
+    value?: string
+    suggestion?: string
+  } | null
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -108,8 +70,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
-    step: 'welcome',
-    collectedData: {}
+    phase: 'discovery',
+    subStep: 'business_type',
+    archetype: null,
+    data: {},
+    needsVerification: null
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -120,7 +85,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       const welcomeMsg: Message = {
         id: 'welcome',
         role: 'assistant',
-        content: ONBOARDING_QUESTIONS.welcome.message,
+        content: "Hey there! To get started, just tell me in a few words—what kind of business do you run?",
         timestamp: new Date()
       }
       setMessages([welcomeMsg])
@@ -136,291 +101,93 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     scrollToBottom()
   }, [messages])
 
-  // Scrape website with progress updates
-  const scrapeWebsite = async (url: string) => {
-    setOnboardingState(prev => ({ ...prev, isScraping: true, scrapingProgress: 'Analyzing your website...', estimatedTimeLeft: 5 }))
+  // Detect archetype from business type
+  const detectArchetype = (businessType: string): Archetype => {
+    const lower = businessType.toLowerCase()
     
-    // Quick progress update (no artificial delay)
-    setTimeout(() => {
-      setOnboardingState(prev => ({ 
-        ...prev, 
-        scrapingProgress: 'Extracting business information...',
-        estimatedTimeLeft: 3
-      }))
-    }, 300)
-
-    try {
-      const response = await fetch('/api/onboarding/scrape-website', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to scrape website')
-      }
-
-      const result = await response.json()
-      const scrapedData = result.data
-
-      setOnboardingState(prev => ({ 
-        ...prev, 
-        isScraping: false,
-        scrapedData,
-        scrapingProgress: undefined,
-        estimatedTimeLeft: undefined
-      }))
-
-      // Pre-fill collected data from scraped data
-      const updatedData = {
-        ...onboardingState.collectedData,
-        businessName: scrapedData.businessName || onboardingState.collectedData.businessName,
-        industry: scrapedData.industry || onboardingState.collectedData.industry,
-        website: url,
-        location: scrapedData.location ? {
-          city: scrapedData.location.city || onboardingState.collectedData.location?.city,
-          state: scrapedData.location.state || onboardingState.collectedData.location?.state,
-          country: scrapedData.location.country || onboardingState.collectedData.location?.country || 'US'
-        } : onboardingState.collectedData.location,
-        services: scrapedData.services?.map((s: any) => s.name) || onboardingState.collectedData.services,
-        targetAudience: scrapedData.targetAudience || onboardingState.collectedData.targetAudience,
-        brandVoice: scrapedData.brandVoice || onboardingState.collectedData.brandVoice
-      }
-
-      setOnboardingState(prev => ({ ...prev, collectedData: updatedData }))
-
-      return scrapedData
-    } catch (error: any) {
-      setOnboardingState(prev => ({ 
-        ...prev, 
-        isScraping: false,
-        scrapingProgress: undefined,
-        estimatedTimeLeft: undefined
-      }))
-      throw error
+    // Service on Wheels indicators
+    if (lower.includes('mobile') || lower.includes('on wheels') || lower.includes('travel') || 
+        lower.includes('plumber') || lower.includes('electrician') || lower.includes('hvac') ||
+        lower.includes('landscap') || lower.includes('detail') || lower.includes('delivery') ||
+        lower.includes('truck') || lower.includes('van')) {
+      return 'ServiceOnWheels'
     }
+    
+    // Appointment Pro indicators
+    if (lower.includes('salon') || lower.includes('spa') || lower.includes('therapist') ||
+        lower.includes('counselor') || lower.includes('tutor') || lower.includes('coach') ||
+        lower.includes('lawyer') || lower.includes('attorney') || lower.includes('consultant') ||
+        lower.includes('doctor') || lower.includes('dentist') || lower.includes('chiropractor') ||
+        lower.includes('appointment') || lower.includes('booking') || lower.includes('session')) {
+      return 'AppointmentPro'
+    }
+    
+    // Default to Brick & Mortar
+    return 'BrickAndMortar'
   }
 
-  // Get suggested services based on industry
-  const getSuggestedServices = (industry: string): string[] => {
-    const lowerIndustry = industry.toLowerCase().trim()
-    
-    // Common industry-to-services mappings
-    const serviceMap: Record<string, string[]> = {
-      'chiropractor': ['Spinal adjustments', 'Pain relief', 'Posture correction', 'Rehabilitation', 'Wellness consultations'],
-      'chiropractic': ['Spinal adjustments', 'Pain relief', 'Posture correction', 'Rehabilitation', 'Wellness consultations'],
-      'dentist': ['Teeth cleaning', 'Fillings', 'Root canals', 'Crowns', 'Teeth whitening', 'Dental exams'],
-      'dental': ['Teeth cleaning', 'Fillings', 'Root canals', 'Crowns', 'Teeth whitening', 'Dental exams'],
-      'restaurant': ['Dine-in service', 'Takeout', 'Catering', 'Private events', 'Delivery'],
-      'cafe': ['Coffee', 'Pastries', 'Breakfast', 'Lunch', 'WiFi', 'Meeting space'],
-      'plumber': ['Pipe repair', 'Drain cleaning', 'Water heater installation', 'Leak detection', 'Emergency service'],
-      'plumbing': ['Pipe repair', 'Drain cleaning', 'Water heater installation', 'Leak detection', 'Emergency service'],
-      'electrician': ['Electrical repairs', 'Panel upgrades', 'Lighting installation', 'Outlet installation', 'Safety inspections'],
-      'electric': ['Electrical repairs', 'Panel upgrades', 'Lighting installation', 'Outlet installation', 'Safety inspections'],
-      'lawyer': ['Legal consultation', 'Document review', 'Contract drafting', 'Court representation', 'Legal advice'],
-      'attorney': ['Legal consultation', 'Document review', 'Contract drafting', 'Court representation', 'Legal advice'],
-      'accountant': ['Tax preparation', 'Bookkeeping', 'Financial planning', 'Auditing', 'Payroll services'],
-      'accounting': ['Tax preparation', 'Bookkeeping', 'Financial planning', 'Auditing', 'Payroll services'],
-      'real estate': ['Home buying', 'Home selling', 'Property management', 'Real estate consultation', 'Market analysis'],
-      'realtor': ['Home buying', 'Home selling', 'Property management', 'Real estate consultation', 'Market analysis'],
-      'fitness': ['Personal training', 'Group classes', 'Nutrition counseling', 'Fitness assessments', 'Equipment access'],
-      'gym': ['Personal training', 'Group classes', 'Nutrition counseling', 'Fitness assessments', 'Equipment access'],
-      'salon': ['Haircuts', 'Hair coloring', 'Styling', 'Manicures', 'Pedicures', 'Facials'],
-      'hair salon': ['Haircuts', 'Hair coloring', 'Styling', 'Manicures', 'Pedicures', 'Facials'],
-      'auto repair': ['Oil changes', 'Brake service', 'Engine repair', 'Tire service', 'Diagnostics'],
-      'mechanic': ['Oil changes', 'Brake service', 'Engine repair', 'Tire service', 'Diagnostics'],
-      'photographer': ['Portrait photography', 'Event photography', 'Wedding photography', 'Product photography', 'Photo editing'],
-      'photography': ['Portrait photography', 'Event photography', 'Wedding photography', 'Product photography', 'Photo editing'],
-      'tutor': ['One-on-one tutoring', 'Test preparation', 'Homework help', 'Subject-specific lessons', 'Online tutoring'],
-      'tutoring': ['One-on-one tutoring', 'Test preparation', 'Homework help', 'Subject-specific lessons', 'Online tutoring'],
-      'coach': ['Personal coaching', 'Group coaching', 'Goal setting', 'Progress tracking', 'Accountability sessions'],
-      'life coach': ['Personal coaching', 'Group coaching', 'Goal setting', 'Progress tracking', 'Accountability sessions'],
-      'consultant': ['Business consulting', 'Strategy development', 'Process improvement', 'Training', 'Advisory services'],
-      'consulting': ['Business consulting', 'Strategy development', 'Process improvement', 'Training', 'Advisory services'],
-    }
-    
-    // Try exact match first
-    if (serviceMap[lowerIndustry]) {
-      return serviceMap[lowerIndustry]
-    }
-    
-    // Try partial match
-    for (const [key, services] of Object.entries(serviceMap)) {
-      if (lowerIndustry.includes(key) || key.includes(lowerIndustry)) {
-        return services
+  // Eagle Eye validation - check for typos in critical fields
+  const validateCriticalField = (field: string, value: string): { isValid: boolean; suggestion?: string } => {
+    if (field === 'email') {
+      // Check for common email typos
+      if (value.includes('gmai.com') || value.includes('gmail.co')) {
+        return { isValid: false, suggestion: value.replace(/gmai\.com|gmail\.co/g, 'gmail.com') }
+      }
+      if (value.includes('yahoo.co')) {
+        return { isValid: false, suggestion: value.replace(/yahoo\.co/g, 'yahoo.com') }
+      }
+      if (!value.includes('@') || !value.includes('.')) {
+        return { isValid: false, suggestion: undefined }
       }
     }
     
-    // Default generic services if no match
-    return ['Consultation', 'Custom services', 'Professional advice']
+    if (field === 'phone') {
+      // Remove non-digits
+      const digits = value.replace(/\D/g, '')
+      if (digits.length < 10 || digits.length > 15) {
+        return { isValid: false, suggestion: undefined }
+      }
+    }
+    
+    if (field === 'business_name') {
+      // Check for obvious typos (double spaces, etc.)
+      if (value.includes('  ') || value.trim().length < 2) {
+        return { isValid: false, suggestion: value.replace(/\s+/g, ' ').trim() }
+      }
+    }
+    
+    return { isValid: true }
   }
 
-  // Extract information from user response
-  const extractInformation = (step: string, userMessage: string): Partial<OnboardingState['collectedData']> => {
-    const lowerMessage = userMessage.toLowerCase().trim()
-
-    switch (step) {
-      case 'businessName':
-        return { businessName: userMessage.trim() }
-
-      case 'hasWebsite':
-        // This is handled separately in handleSend
-        return {}
-
-      case 'website':
-        return { website: userMessage.trim() }
-
-      case 'industry':
-        return { industry: userMessage.trim() }
-
-      case 'location':
-        const locationParts = userMessage.split(',').map(s => s.trim())
-        return {
-          location: {
-            city: locationParts[0] || '',
-            state: locationParts[1] || '',
-            country: locationParts[2] || 'US'
-          }
-        }
-
-      case 'services':
-        const services = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
-        return { services }
-
-      case 'targetAudience':
-        return { targetAudience: userMessage.trim() }
-
-      case 'currentPresence':
-        const presence: string[] = []
-        if (lowerMessage.includes('facebook')) presence.push('Facebook')
-        if (lowerMessage.includes('instagram')) presence.push('Instagram')
-        if (lowerMessage.includes('linkedin')) presence.push('LinkedIn')
-        if (lowerMessage.includes('twitter') || lowerMessage.includes('x.com')) presence.push('Twitter')
-        if (lowerMessage.includes('tiktok')) presence.push('TikTok')
-        if (lowerMessage.includes('google') || lowerMessage.includes('gmb') || lowerMessage.includes('business profile')) presence.push('Google Business')
-        if (lowerMessage === 'no' || lowerMessage === "don't" || lowerMessage === "don't have" || lowerMessage === 'none') {
-          return { currentPresence: [] }
-        }
-        return { currentPresence: presence.length > 0 ? presence : [userMessage.trim()] }
-
-      case 'goals':
-        const goals = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
-        return { goals }
-
-      case 'brandVoice':
-        if (lowerMessage.includes('friendly') || lowerMessage.includes('casual') || lowerMessage.includes('warm')) {
-          return { brandVoice: 'friendly' }
-        }
-        if (lowerMessage.includes('professional') || lowerMessage.includes('formal') || lowerMessage.includes('serious')) {
-          return { brandVoice: 'professional' }
-        }
-        if (lowerMessage.includes('witty') || lowerMessage.includes('humor') || lowerMessage.includes('funny')) {
-          return { brandVoice: 'witty' }
-        }
-        if (lowerMessage.includes('formal') || lowerMessage.includes('corporate')) {
-          return { brandVoice: 'formal' }
-        }
-        return { brandVoice: 'professional' }
-
-      default:
-        return {}
+  // Format proofread summary
+  const formatProofreadSummary = (data: Partial<BusinessProfileData>): string => {
+    let summary = "Okay, I think I have everything! Before I lock this in, I want to make sure I didn't make any typos.\n\n"
+    summary += "Please review this summary carefully:\n\n"
+    
+    if (data.identity?.business_name) {
+      summary += `**Business:** ${data.identity.business_name}\n`
     }
-  }
-
-  // Get next step in onboarding flow
-  const getNextStep = (currentStep: string, hasScrapedData: boolean): string => {
-    // If we have scraped data, skip questions that were already answered
-    if (hasScrapedData && onboardingState.scrapedData) {
-      const scraped = onboardingState.scrapedData
-      const flow = ['welcome', 'businessName', 'hasWebsite']
-      
-      // Add website URL step if they said yes
-      if (currentStep === 'hasWebsite') {
-        return 'websiteUrl'
+    if (data.identity?.phone) {
+      summary += `**Contact:** ${data.identity.phone}`
+      if (data.identity?.email) {
+        summary += ` | ${data.identity.email}`
       }
-      
-      // After scraping, go to confirmation
-      if (currentStep === 'websiteUrl') {
-        return 'confirmScraped'
-      }
-      
-      // After confirmation, skip to unanswered questions
-      if (currentStep === 'confirmScraped') {
-        // Check what's missing
-        if (!scraped.services || scraped.services.length === 0) return 'services'
-        if (!scraped.targetAudience) return 'targetAudience'
-        if (!scraped.location?.city && !scraped.location?.state) return 'location'
-        return 'currentPresence'
-      }
-      
-      // Continue with remaining questions
-      const remainingFlow = ['services', 'confirmServices', 'targetAudience', 'location', 'currentPresence', 'goals', 'brandVoice']
-      const currentIndex = remainingFlow.indexOf(currentStep)
-      if (currentIndex >= 0 && currentIndex < remainingFlow.length - 1) {
-        return remainingFlow[currentIndex + 1]
-      }
-      if (currentStep === 'brandVoice') return 'complete'
-      if (currentStep === 'confirmServices') return 'location'
+      summary += "\n"
+    }
+    if (data.identity?.address_or_area) {
+      summary += `**Location:** ${data.identity.address_or_area}\n`
+    }
+    if (data.offering?.core_services && data.offering.core_services.length > 0) {
+      summary += `**Services:** ${data.offering.core_services.join(', ')}\n`
+    }
+    if (data.credibility?.owner_name) {
+      summary += `**Owner:** ${data.credibility.owner_name}\n`
     }
     
-    // Normal flow without scraping
-    const flow = [
-      'welcome',
-      'businessName',
-      'hasWebsite',
-      'websiteUrl',
-      'industry',
-      'confirmServices',
-      'location',
-      'targetAudience',
-      'currentPresence',
-      'goals',
-      'brandVoice',
-      'complete'
-    ]
-    const currentIndex = flow.indexOf(currentStep)
-    if (currentIndex >= 0 && currentIndex < flow.length - 1) {
-      return flow[currentIndex + 1]
-    }
-    // Handle confirmServices -> location transition
-    if (currentStep === 'confirmServices') {
-      return 'location'
-    }
-    return 'complete'
-  }
-
-  // Format scraped data for display
-  const formatScrapedData = (data: ScrapedData): string => {
-    let formatted = "Here's what I pulled from your site:\n\n"
+    summary += "\nDoes the spelling of your Business Name, Phone Number, and Email look 100% perfect?\n"
+    summary += "If you see any double letters or typos, just let me know and I'll fix it right now."
     
-    if (data.businessName) formatted += `**Name:** ${data.businessName}\n`
-    if (data.industry) formatted += `**Type:** ${data.industry}\n`
-    if (data.location) {
-      const loc = data.location
-      const locationParts = [loc.address, loc.city, loc.state, loc.zipCode].filter(Boolean)
-      if (locationParts.length > 0) {
-        formatted += `**Location:** ${locationParts.join(', ')}\n`
-      }
-    }
-    if (data.contactInfo) {
-      const contact = data.contactInfo
-      if (contact.phone) formatted += `**Phone:** ${contact.phone}\n`
-      if (contact.email) formatted += `**Email:** ${contact.email}\n`
-    }
-    if (data.services && data.services.length > 0) {
-      formatted += `**Services:** ${data.services.map(s => s.name).join(', ')}\n`
-    }
-    if (data.targetAudience) formatted += `**Target Customers:** ${data.targetAudience}\n`
-    if (data.brandVoice) formatted += `**Brand Style:** ${data.brandVoice}\n`
-    if (data.hours && data.hours.length > 0) {
-      formatted += `**Hours:** ${data.hours.map(h => `${h.day}: ${h.open} - ${h.close}`).join(', ')}\n`
-    }
-    
-    formatted += "\n\nDoes this look right? Say yes if it's good, or tell me what to change."
-    return formatted
+    return summary
   }
 
   // Handle user message
@@ -439,503 +206,691 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     setIsLoading(true)
 
     try {
-      const currentStep = onboardingState.step
+      const { phase, subStep, archetype, data, needsVerification } = onboardingState
       const lowerMessage = userMessage.toLowerCase().trim()
 
-      // Handle welcome step - user provides business name
-      if (currentStep === 'welcome') {
-        const extracted = extractInformation('businessName', userMessage)
-        const updatedData = {
-          ...onboardingState.collectedData,
-          ...extracted
-        }
-        const nextStep = 'hasWebsite'
-        
-        setOnboardingState({
-          step: nextStep,
-          collectedData: updatedData
-        })
-
-        const assistantMsg: Message = {
-          id: `assistant_${Date.now()}`,
-          role: 'assistant',
-          content: ONBOARDING_QUESTIONS.hasWebsite.message,
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, assistantMsg])
-        setIsLoading(false)
-        return
-      }
-
-      // Handle "has website" question
-      if (currentStep === 'hasWebsite') {
-        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'yeah' || lowerMessage === 'sure') {
-          const nextStep = 'websiteUrl'
-          setOnboardingState(prev => ({ ...prev, step: nextStep }))
-          
-          const assistantMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: ONBOARDING_QUESTIONS.websiteUrl.message,
-            timestamp: new Date()
+      // Handle verification requests
+      if (needsVerification) {
+        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('right')) {
+          // User confirmed - use the suggested value
+          const updatedData = { ...data }
+          if (needsVerification.field === 'email' && needsVerification.suggestion) {
+            updatedData.identity = { ...updatedData.identity, email: needsVerification.suggestion } as BusinessProfileData['identity']
+          } else if (needsVerification.field === 'phone' && needsVerification.suggestion) {
+            updatedData.identity = { ...updatedData.identity, phone: needsVerification.suggestion } as BusinessProfileData['identity']
+          } else if (needsVerification.field === 'business_name' && needsVerification.suggestion) {
+            updatedData.identity = { ...updatedData.identity, business_name: needsVerification.suggestion } as BusinessProfileData['identity']
           }
-          setMessages(prev => [...prev, assistantMsg])
-          setIsLoading(false)
-          return
-        } else {
-          // No website, skip to industry
-          const extracted = extractInformation('businessName', onboardingState.collectedData.businessName || '')
-          const updatedData = { ...onboardingState.collectedData, ...extracted }
-          const nextStep = 'industry'
           
+          // Continue with next question based on current phase/subStep
           setOnboardingState({
-            step: nextStep,
-            collectedData: updatedData
+            ...onboardingState,
+            data: updatedData,
+            needsVerification: null
           })
-
-          const assistantMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: ONBOARDING_QUESTIONS.industry.message,
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, assistantMsg])
-          setIsLoading(false)
-          return
-        }
-      }
-
-      // Handle website URL and scraping
-      if (currentStep === 'websiteUrl') {
-        const url = userMessage.trim()
-        // Extract URL if user provided it in text
-        const urlMatch = url.match(/(https?:\/\/[^\s]+)/)
-        const websiteUrl = urlMatch ? urlMatch[0] : url
-
-          // Show scraping message
-        const scrapingMsg: Message = {
-          id: `assistant_${Date.now()}`,
-          role: 'assistant',
-          content: `Taking a look at your website now...`,
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, scrapingMsg])
-
-        try {
-          const scrapedData = await scrapeWebsite(websiteUrl)
           
-          // Show scraped data for confirmation
-          const confirmMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: formatScrapedData(scrapedData),
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, confirmMsg])
+          // Continue to next step based on what field was verified
+          const updatedData = { ...data }
+          const verifiedValue = needsVerification.suggestion || userMessage.trim()
           
-          setOnboardingState(prev => ({ ...prev, step: 'confirmScraped' }))
-          setIsLoading(false)
-          return
-        } catch (error: any) {
-          const errorMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: `Hmm, couldn't access your website (${error.message}). No worries though - we'll just fill this out together. ${ONBOARDING_QUESTIONS.industry.message}`,
-            timestamp: new Date()
+          if (needsVerification.field === 'email') {
+            updatedData.identity = { ...updatedData.identity, email: verifiedValue } as BusinessProfileData['identity']
+          } else if (needsVerification.field === 'phone') {
+            updatedData.identity = { ...updatedData.identity, phone: verifiedValue } as BusinessProfileData['identity']
+          } else if (needsVerification.field === 'business_name') {
+            updatedData.identity = { ...updatedData.identity, business_name: verifiedValue } as BusinessProfileData['identity']
           }
-          setMessages(prev => [...prev, errorMsg])
           
-          const extracted = extractInformation('website', websiteUrl)
-          const updatedData = { ...onboardingState.collectedData, ...extracted }
-          setOnboardingState({
-            step: 'industry',
-            collectedData: updatedData
-          })
-          setIsLoading(false)
-          return
-        }
-      }
-
-      // Handle location - validate both city and state are provided
-      if (currentStep === 'location') {
-        const locationParts = userMessage.split(',').map(s => s.trim())
-        const currentLocation = onboardingState.collectedData.location || {}
-        
-        // Determine what was provided in this message
-        let providedCity = locationParts[0] || ''
-        let providedState = locationParts[1] || ''
-        
-        // If only one value provided, intelligently assign it
-        if (locationParts.length === 1 && locationParts[0]) {
-          const singleValue = locationParts[0]
-          const looksLikeStateAbbr = singleValue.length <= 3 && /^[A-Z]{2,3}$/i.test(singleValue)
-          
-          // If we already have city but not state, this is likely the state
-          if (currentLocation.city && !currentLocation.state) {
-            providedState = singleValue
-            providedCity = '' // Don't overwrite existing city
-          }
-          // If we already have state but not city, this is likely the city
-          else if (currentLocation.state && !currentLocation.city) {
-            providedCity = singleValue
-            providedState = '' // Don't overwrite existing state
-          }
-          // If we have neither, check if it looks like a state abbreviation
-          else if (!currentLocation.city && !currentLocation.state) {
-            if (looksLikeStateAbbr) {
-              providedState = singleValue
+          // Continue to next step
+          if (needsVerification.field === 'business_name') {
+            let nextQuestion = ''
+            if (archetype === 'BrickAndMortar') {
+              nextQuestion = "And where is the shop located? (Address)"
+            } else if (archetype === 'ServiceOnWheels') {
+              nextQuestion = "And what cities or areas do you travel to?"
             } else {
-              providedCity = singleValue // Most likely a city
+              nextQuestion = "And where is your studio/office located?"
             }
-          }
-        }
-        
-        // Merge with existing data - only update if new value provided
-        const updatedLocation = {
-          ...currentLocation,
-          city: providedCity || currentLocation.city || '',
-          state: providedState || currentLocation.state || '',
-          country: locationParts[2] || currentLocation.country || 'US'
-        }
-        
-        const updatedData = {
-          ...onboardingState.collectedData,
-          location: updatedLocation
-        }
-        
-        // Check if we have both city and state
-        if (!updatedLocation.city && !updatedLocation.state) {
-          // Neither provided - ask for both
-          const assistantMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: "I'd love to know both your city and state. Could you share that? Something like 'San Francisco, CA' works great.",
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, assistantMsg])
-          setIsLoading(false)
-          return
-        } else if (!updatedLocation.city) {
-          // Only state provided - ask for city
-          setOnboardingState({
-            step: 'location',
-            collectedData: updatedData
-          })
-          const assistantMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: `Cool, ${updatedLocation.state}. Which city?`,
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, assistantMsg])
-          setIsLoading(false)
-          return
-        } else if (!updatedLocation.state) {
-          // Only city provided - ask for state
-          setOnboardingState({
-            step: 'location',
-            collectedData: updatedData
-          })
-          const assistantMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: `Nice, ${updatedLocation.city}. What state is that in?`,
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, assistantMsg])
-          setIsLoading(false)
-          return
-        }
-        
-        // Both provided - move to next step
-        const nextStep = getNextStep('location', !!onboardingState.scrapedData)
-        setOnboardingState({
-          step: nextStep,
-          collectedData: updatedData,
-          scrapedData: onboardingState.scrapedData
-        })
-        
-        if (nextStep === 'complete') {
-          try {
-            await saveProfile(updatedData)
-            setIsComplete(true)
             
-            const completeMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: ONBOARDING_QUESTIONS.complete.message,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, completeMsg])
-
-            setTimeout(() => {
-              router.push('/dashboard')
-            }, 1000)
-          } catch (error) {
-            const errorMsg: Message = {
-              id: `error_${Date.now()}`,
-              role: 'assistant',
-              content: "Oops, hit a snag there. Let me ask that again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, errorMsg])
             setOnboardingState({
-              step: 'brandVoice',
-              collectedData: updatedData,
-              scrapedData: onboardingState.scrapedData
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'location',
+              data: updatedData,
+              needsVerification: null
             })
-          }
-        } else {
-          const nextQuestion = ONBOARDING_QUESTIONS[nextStep as keyof typeof ONBOARDING_QUESTIONS]
-          if (nextQuestion) {
-            const assistantMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: nextQuestion.message,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, assistantMsg])
-          }
-        }
-        setIsLoading(false)
-        return
-      }
-
-      // Handle industry - auto-populate services and ask for confirmation
-      if (currentStep === 'industry') {
-        const industry = userMessage.trim()
-        const extracted = extractInformation('industry', userMessage)
-        const updatedData = {
-          ...onboardingState.collectedData,
-          ...extracted
-        }
-        
-        // Get suggested services based on industry
-        const suggestedServices = getSuggestedServices(industry)
-        
-        // Store suggested services in state for confirmation
-        setOnboardingState({
-          step: 'confirmServices',
-          collectedData: updatedData,
-          suggestedServices: suggestedServices,
-          scrapedData: onboardingState.scrapedData
-        })
-        
-        // Show suggested services and ask for confirmation
-        const servicesList = suggestedServices.map((s, i) => `${i + 1}. ${s}`).join('\n')
-        const assistantMsg: Message = {
-          id: `assistant_${Date.now()}`,
-          role: 'assistant',
-          content: `Since you're a ${industry}, I'm guessing you might offer things like:\n\n${servicesList}\n\nDoes that sound right? Just say "yes" if it looks good, or let me know what to add or take off.`,
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, assistantMsg])
-        setIsLoading(false)
-        return
-      }
-
-      // Handle services confirmation/editing
-      if (currentStep === 'confirmServices') {
-        const lowerMessage = userMessage.toLowerCase().trim()
-        let finalServices: string[] = []
-        
-        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage === 'looks good' || lowerMessage === 'that\'s right') {
-          // User confirmed - use suggested services
-          finalServices = onboardingState.suggestedServices || []
-        } else {
-          // User wants to modify - parse their response
-          // Check for "add" or "remove" keywords
-          if (lowerMessage.includes('add') || lowerMessage.includes('include')) {
-            // Extract services to add
-            const addMatch = userMessage.match(/(?:add|include)[:\s]+(.+)/i)
-            if (addMatch) {
-              const servicesToAdd = addMatch[1].split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
-              finalServices = [...(onboardingState.suggestedServices || []), ...servicesToAdd]
-            } else {
-              // Just add what they said
-              const newServices = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
-              finalServices = [...(onboardingState.suggestedServices || []), ...newServices]
-            }
-          } else if (lowerMessage.includes('remove') || lowerMessage.includes('delete') || lowerMessage.includes('don\'t')) {
-            // Extract services to remove
-            const removeMatch = userMessage.match(/(?:remove|delete|don't)[:\s]+(.+)/i)
-            if (removeMatch) {
-              const servicesToRemove = removeMatch[1].split(/[,;]|and/).map(s => s.trim().toLowerCase())
-              finalServices = (onboardingState.suggestedServices || []).filter(s => 
-                !servicesToRemove.some(r => s.toLowerCase().includes(r) || r.includes(s.toLowerCase()))
-              )
-            } else {
-              // Keep suggested services if unclear
-              finalServices = onboardingState.suggestedServices || []
-            }
-          } else {
-            // User provided a new list - replace suggested services
-            finalServices = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0)
-          }
-        }
-        
-        // Update collected data with final services
-        const updatedData = {
-          ...onboardingState.collectedData,
-          services: finalServices
-        }
-        
-        // Move to next step (after services confirmation, go to location)
-        const nextStep = getNextStep('confirmServices', !!onboardingState.scrapedData)
-        setOnboardingState({
-          step: nextStep,
-          collectedData: updatedData,
-          scrapedData: onboardingState.scrapedData
-        })
-        
-        if (nextStep === 'complete') {
-          try {
-            await saveProfile(updatedData)
-            setIsComplete(true)
             
-            const completeMsg: Message = {
+            const locationMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: ONBOARDING_QUESTIONS.complete.message,
+              content: nextQuestion,
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, completeMsg])
-
-            setTimeout(() => {
-              router.push('/dashboard')
-            }, 1000)
-          } catch (error) {
-            const errorMsg: Message = {
-              id: `error_${Date.now()}`,
-              role: 'assistant',
-              content: "Oops, hit a snag there. Let me ask that again: " + ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, errorMsg])
+            setMessages(prev => [...prev, locationMsg])
+            setIsLoading(false)
+            return
+          } else if (needsVerification.field === 'phone') {
             setOnboardingState({
-              step: 'brandVoice',
-              collectedData: updatedData,
-              scrapedData: onboardingState.scrapedData
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'email',
+              data: updatedData,
+              needsVerification: null
             })
-          }
-        } else {
-          const nextQuestion = ONBOARDING_QUESTIONS[nextStep as keyof typeof ONBOARDING_QUESTIONS]
-          if (nextQuestion) {
-            const assistantMsg: Message = {
+            
+            const emailMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: nextQuestion.message,
+              content: "Perfect. And what's the best Email address for clients to reach you?",
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, assistantMsg])
-          }
-        }
-        setIsLoading(false)
-        return
-      }
-
-      // Handle confirmation of scraped data
-      if (currentStep === 'confirmScraped') {
-        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage === 'looks good') {
-          // Data confirmed, continue with remaining questions
-          const nextStep = getNextStep('confirmScraped', true)
-          const nextQuestion = ONBOARDING_QUESTIONS[nextStep as keyof typeof ONBOARDING_QUESTIONS]
-          
-          if (nextQuestion && nextStep !== 'complete') {
-            const assistantMsg: Message = {
+            setMessages(prev => [...prev, emailMsg])
+            setIsLoading(false)
+            return
+          } else if (needsVerification.field === 'email') {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'menu',
+              subStep: 'services',
+              data: updatedData,
+              needsVerification: null
+            })
+            
+            const servicesMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: nextQuestion.message,
+              content: "Perfect. Now let's talk about what you actually do. When a customer contacts you, what are the top 3-5 Services or Products they are asking for?",
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, assistantMsg])
-            setOnboardingState(prev => ({ ...prev, step: nextStep }))
+            setMessages(prev => [...prev, servicesMsg])
             setIsLoading(false)
             return
           }
         } else {
-          // User wants to correct something - ask what to change
-          const correctionMsg: Message = {
+          // User wants to correct it themselves
+          const updatedData = { ...data }
+          if (needsVerification.field === 'email') {
+            updatedData.identity = { ...updatedData.identity, email: userMessage.trim() } as BusinessProfileData['identity']
+          } else if (needsVerification.field === 'phone') {
+            updatedData.identity = { ...updatedData.identity, phone: userMessage.trim() } as BusinessProfileData['identity']
+          } else if (needsVerification.field === 'business_name') {
+            updatedData.identity = { ...updatedData.identity, business_name: userMessage.trim() } as BusinessProfileData['identity']
+          }
+          
+          // Continue to next step (same logic as above)
+          if (needsVerification.field === 'business_name') {
+            let nextQuestion = ''
+            if (archetype === 'BrickAndMortar') {
+              nextQuestion = "And where is the shop located? (Address)"
+            } else if (archetype === 'ServiceOnWheels') {
+              nextQuestion = "And what cities or areas do you travel to?"
+            } else {
+              nextQuestion = "And where is your studio/office located?"
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'location',
+              data: updatedData,
+              needsVerification: null
+            })
+            
+            const locationMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: nextQuestion,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, locationMsg])
+            setIsLoading(false)
+            return
+          } else if (needsVerification.field === 'phone') {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'email',
+              data: updatedData,
+              needsVerification: null
+            })
+            
+            const emailMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Perfect. And what's the best Email address for clients to reach you?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, emailMsg])
+            setIsLoading(false)
+            return
+          } else if (needsVerification.field === 'email') {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'menu',
+              subStep: 'services',
+              data: updatedData,
+              needsVerification: null
+            })
+            
+            const servicesMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Perfect. Now let's talk about what you actually do. When a customer contacts you, what are the top 3-5 Services or Products they are asking for?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, servicesMsg])
+            setIsLoading(false)
+            return
+          }
+        }
+      }
+
+      // Phase 0: Discovery - Detect archetype
+      if (phase === 'discovery' && subStep === 'business_type') {
+        const detectedArchetype = detectArchetype(userMessage)
+        const archetypeNames = {
+          'BrickAndMortar': 'Brick & Mortar',
+          'ServiceOnWheels': 'Service on Wheels',
+          'AppointmentPro': 'Appointment Pro'
+        }
+        
+        setOnboardingState({
+          phase: 'storefront',
+          subStep: 'business_name',
+          archetype: detectedArchetype,
+          data: { ...data, archetype: detectedArchetype },
+          needsVerification: null
+        })
+
+        const archetypeMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: `Got it! That sounds like a ${archetypeNames[detectedArchetype]} business. Let's get the basics down so people can find you. What is the official Business Name? (Please double-check the spelling/spacing so I get it right!)`,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, archetypeMsg])
+        setIsLoading(false)
+        return
+      }
+
+      // Phase 1: Storefront
+      if (phase === 'storefront') {
+        if (subStep === 'business_name') {
+          const validation = validateCriticalField('business_name', userMessage)
+          if (!validation.isValid && validation.suggestion) {
+            setOnboardingState({
+              ...onboardingState,
+              needsVerification: {
+                field: 'business_name',
+                value: userMessage,
+                suggestion: validation.suggestion
+              }
+            })
+            const verifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Just to be safe, did you mean "${validation.suggestion}"? I want to make sure I get the spelling perfect.`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, verifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              business_name: validation.suggestion || userMessage.trim(),
+              phone: '',
+              email: '',
+              website: '',
+              hours: '',
+              address_or_area: ''
+            } as BusinessProfileData['identity']
+          }
+          
+          let nextQuestion = ''
+          if (archetype === 'BrickAndMortar') {
+            nextQuestion = "And where is the shop located? (Address)"
+          } else if (archetype === 'ServiceOnWheels') {
+            nextQuestion = "And what cities or areas do you travel to?"
+          } else {
+            nextQuestion = "And where is your studio/office located?"
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'location',
+            data: updatedData
+          })
+          
+          const locationMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "What needs to be changed? Just tell me what's wrong and what it should be.",
+            content: nextQuestion,
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, correctionMsg])
+          setMessages(prev => [...prev, locationMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'location') {
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              address_or_area: userMessage.trim()
+            } as BusinessProfileData['identity']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'hours_phone',
+            data: updatedData
+          })
+          
+          const hoursMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Also, what are your standard Opening Hours and the best Phone Number for clients to call?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, hoursMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'hours_phone') {
+          // Try to extract phone number (look for 10+ digit pattern)
+          const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
+          const phone = phoneMatch ? phoneMatch[0] : userMessage.trim()
+          const hours = phoneMatch ? userMessage.replace(phoneMatch[0], '').trim() : userMessage.trim()
+          
+          const validation = validateCriticalField('phone', phone)
+          if (!validation.isValid) {
+            setOnboardingState({
+              ...onboardingState,
+              needsVerification: {
+                field: 'phone',
+                value: phone,
+                suggestion: undefined
+              }
+            })
+            const verifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "That phone number looks a bit off. Could you double-check it? I want to make sure clients can reach you.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, verifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              phone: phone,
+              hours: hours || ''
+            } as BusinessProfileData['identity']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'email',
+            data: updatedData
+          })
+          
+          const emailMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Perfect. And what's the best Email address for clients to reach you?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, emailMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'email') {
+          const validation = validateCriticalField('email', userMessage)
+          if (!validation.isValid) {
+            if (validation.suggestion) {
+              setOnboardingState({
+                ...onboardingState,
+                needsVerification: {
+                  field: 'email',
+                  value: userMessage,
+                  suggestion: validation.suggestion
+                }
+              })
+              const verifyMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `Just to be safe, did you mean ${validation.suggestion}? I want to make sure clients can reach you.`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, verifyMsg])
+              setIsLoading(false)
+              return
+            } else {
+              const errorMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "That email doesn't look quite right. Could you double-check it?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, errorMsg])
+              setIsLoading(false)
+              return
+            }
+          }
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              email: userMessage.trim()
+            } as BusinessProfileData['identity']
+          }
+          
+          // Move to Phase 2: Menu
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'menu',
+            subStep: 'services',
+            data: updatedData
+          })
+          
+          const servicesMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Perfect. Now let's talk about what you actually do. When a customer contacts you, what are the top 3-5 Services or Products they are asking for?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, servicesMsg])
           setIsLoading(false)
           return
         }
       }
 
-      // Extract information from user response
-      const extracted = extractInformation(currentStep, userMessage)
-      const updatedData = {
-        ...onboardingState.collectedData,
-        ...extracted
-      }
-
-      const nextStep = getNextStep(currentStep, !!onboardingState.scrapedData)
-
-      // Update state
-      setOnboardingState({
-        step: nextStep,
-        collectedData: updatedData,
-        scrapedData: onboardingState.scrapedData
-      })
-
-      // If we're completing, save the profile
-      if (nextStep === 'complete') {
-        try {
-          await saveProfile(updatedData)
-          setIsComplete(true)
+      // Phase 2: Menu
+      if (phase === 'menu') {
+        if (subStep === 'services') {
+          const services = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0).slice(0, 5)
           
-          const completeMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: ONBOARDING_QUESTIONS.complete.message,
-            timestamp: new Date()
+          const updatedData = {
+            ...data,
+            offering: {
+              ...data.offering,
+              core_services: services
+            } as BusinessProfileData['offering']
           }
-          setMessages(prev => [...prev, completeMsg])
-
-          setTimeout(() => {
-            router.push('/dashboard')
-          }, 1000)
-        } catch (error: any) {
-          // Go back to brandVoice step (the last question before complete)
-          const errorMessage = error?.message || 'Failed to save profile'
-          console.error('Error saving profile at completion:', error)
-          const errorMsg: Message = {
-            id: `error_${Date.now()}`,
-            role: 'assistant',
-            content: `Oops, hit a snag: ${errorMessage}. Let me ask that again: ${ONBOARDING_QUESTIONS.brandVoice?.message || "Mind answering that one more time?"}`,
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, errorMsg])
+          
           setOnboardingState({
-            step: 'brandVoice',
-            collectedData: updatedData, // Keep the updated data including brandVoice
-            scrapedData: onboardingState.scrapedData
+            ...onboardingState,
+            phase: 'menu',
+            subStep: 'vibe',
+            data: updatedData
           })
-        }
-      } else {
-        // Ask next question
-        const nextQuestion = ONBOARDING_QUESTIONS[nextStep as keyof typeof ONBOARDING_QUESTIONS]
-        if (nextQuestion) {
-          const assistantMsg: Message = {
+          
+          const vibeMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: nextQuestion.message,
+            content: "And briefly, how would you describe the Vibe or the specific type of customer you love working with? (e.g., 'High-end luxury', 'Family-friendly and affordable', 'Emergency response').",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, assistantMsg])
+          setMessages(prev => [...prev, vibeMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'vibe') {
+          const updatedData = {
+            ...data,
+            offering: {
+              ...data.offering,
+              target_audience: userMessage.trim(),
+              vibe_mission: userMessage.trim()
+            } as BusinessProfileData['offering']
+          }
+          
+          // Move to Phase 3: Locals
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'locals',
+            subStep: 'owner_name',
+            data: updatedData
+          })
+          
+          const ownerMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "In a local business, faces matter. Who is the Owner or Lead Expert here? (Please check the spelling of the name closely).",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, ownerMsg])
+          setIsLoading(false)
+          return
         }
       }
+
+      // Phase 3: Locals
+      if (phase === 'locals') {
+        if (subStep === 'owner_name') {
+          const validation = validateCriticalField('business_name', userMessage)
+          const ownerName = validation.suggestion || userMessage.trim()
+          
+          const updatedData = {
+            ...data,
+            credibility: {
+              ...data.credibility,
+              owner_name: ownerName,
+              owner_bio: '',
+              credentials: [],
+              years_in_business: ''
+            } as BusinessProfileData['credibility']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'locals',
+            subStep: 'credentials',
+            data: updatedData
+          })
+          
+          const credMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Are there specific Licenses, Certifications, or Degrees we should highlight? Or maybe just how long you've been serving the community?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, credMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'credentials') {
+          // Extract credentials and years
+          const credentials: string[] = []
+          const yearsMatch = userMessage.match(/(\d+)\s*(years?|yrs?)/i)
+          const years = yearsMatch ? yearsMatch[0] : ''
+          
+          // Look for common credential keywords
+          if (userMessage.toLowerCase().includes('license') || userMessage.toLowerCase().includes('licensed')) {
+            credentials.push('Licensed')
+          }
+          if (userMessage.toLowerCase().includes('certified') || userMessage.toLowerCase().includes('certification')) {
+            credentials.push('Certified')
+          }
+          if (userMessage.toLowerCase().includes('degree') || userMessage.toLowerCase().includes('bachelor') || userMessage.toLowerCase().includes('master')) {
+            credentials.push('Degreed')
+          }
+          
+          const updatedData = {
+            ...data,
+            credibility: {
+              ...data.credibility,
+              credentials: credentials.length > 0 ? credentials : [userMessage.trim()],
+              years_in_business: years
+            } as BusinessProfileData['credibility']
+          }
+          
+          // Move to Phase 4: Counter
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'counter',
+            subStep: 'payment',
+            data: updatedData
+          })
+          
+          const paymentMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Last few details. How does payment work? Do you take Insurance, Credit Cards, Cash, or Venmo?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, paymentMsg])
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // Phase 4: Counter
+      if (phase === 'counter') {
+        if (subStep === 'payment') {
+          const paymentMethods: string[] = []
+          const lower = userMessage.toLowerCase()
+          if (lower.includes('insurance')) paymentMethods.push('Insurance')
+          if (lower.includes('credit') || lower.includes('card')) paymentMethods.push('Credit Cards')
+          if (lower.includes('cash')) paymentMethods.push('Cash')
+          if (lower.includes('venmo') || lower.includes('zelle') || lower.includes('paypal')) paymentMethods.push('Venmo/Zelle/PayPal')
+          
+          const insuranceAccepted = lower.includes('insurance')
+          
+          const updatedData = {
+            ...data,
+            logistics: {
+              ...data.logistics,
+              payment_methods: paymentMethods.length > 0 ? paymentMethods : [userMessage.trim()],
+              insurance_accepted: insuranceAccepted,
+              booking_policy: '',
+              specific_policy: ''
+            } as BusinessProfileData['logistics']
+          }
+          
+          let nextQuestion = ''
+          if (archetype === 'BrickAndMortar') {
+            nextQuestion = "Do people need reservations or can they just walk in?"
+          } else if (archetype === 'ServiceOnWheels') {
+            nextQuestion = "Do you charge a trip fee or estimate fee?"
+          } else {
+            nextQuestion = "Do you require a deposit to book, and do you have a specific cancellation policy?"
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'counter',
+            subStep: 'policy',
+            data: updatedData
+          })
+          
+          const policyMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: nextQuestion,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, policyMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'policy') {
+          const updatedData = {
+            ...data,
+            logistics: {
+              ...data.logistics,
+              booking_policy: archetype === 'BrickAndMortar' ? userMessage.trim() : '',
+              specific_policy: userMessage.trim()
+            } as BusinessProfileData['logistics']
+          }
+          
+          // Move to Phase 5: Proofread
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'review',
+            data: updatedData
+          })
+          
+          const summary = formatProofreadSummary(updatedData)
+          const proofreadMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: summary,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, proofreadMsg])
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // Phase 5: Proofread
+      if (phase === 'proofread' && subStep === 'review') {
+        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('looks good') || lowerMessage.includes('perfect')) {
+          // User confirmed - save the profile
+          try {
+            await saveProfile(data as BusinessProfileData)
+            setIsComplete(true)
+            
+            const completeMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Awesome! I'm setting everything up for you now. This'll just take a second.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, completeMsg])
+
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 1000)
+          } catch (error: any) {
+            const errorMsg: Message = {
+              id: `error_${Date.now()}`,
+              role: 'assistant',
+              content: `Oops, hit a snag: ${error?.message || 'Failed to save profile'}. Let me try that again.`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+          }
+        } else {
+          // User wants to make corrections
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Sure thing! What should I change? Just tell me what's off and what it should be instead.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+        }
+        setIsLoading(false)
+        return
+      }
+
     } catch (error) {
       console.error('Error processing onboarding:', error)
       const errorMsg: Message = {
         id: `error_${Date.now()}`,
         role: 'assistant',
-        content: "Hmm, something went sideways there. Let me ask that again: " + ONBOARDING_QUESTIONS[onboardingState.step as keyof typeof ONBOARDING_QUESTIONS]?.message || "Mind giving that another shot?",
+        content: "Hmm, something went sideways there. Let me ask that again.",
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMsg])
@@ -944,99 +899,37 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     }
   }
 
-  // Save profile to backend
-  const saveProfile = async (data: OnboardingState['collectedData']) => {
-    try {
-      // Convert services from string[] to proper format
-      const convertServices = (services: string[] | undefined) => {
-        if (!services || services.length === 0) return []
-        return services.map((s: any) => 
-          typeof s === 'string' ? { name: s, description: '' } : s
-        )
-      }
 
-      // Build base data structure
-      const baseData = {
-        businessName: data.businessName || '',
-        industry: data.industry || '',
-        // Always convert services to proper format
-        services: convertServices(data.services),
-        // Ensure location has all required fields
-        location: data.location ? {
-          city: data.location.city || '',
-          state: data.location.state || '',
-          country: data.location.country || 'US',
-          address: '',
-          zipCode: ''
-        } : {
+  // Save profile to backend
+  const saveProfile = async (data: BusinessProfileData) => {
+    try {
+      // Convert to the format expected by the API
+      const profileData = {
+        businessName: data.identity.business_name,
+        industry: data.offering.core_services.join(', '), // Use services as industry for now
+        location: {
+          address: data.identity.address_or_area,
           city: '',
           state: '',
-          country: 'US',
-          address: '',
-          zipCode: ''
+          zipCode: '',
+          country: 'US'
         },
-        // Ensure contactInfo structure
         contactInfo: {
-          phone: '',
-          email: '',
-          website: data.website || undefined
+          phone: data.identity.phone,
+          email: data.identity.email,
+          website: data.identity.website
         },
-        // Ensure brandVoice has default
-        brandVoice: (data.brandVoice || 'professional') as 'friendly' | 'professional' | 'witty' | 'formal',
-        targetAudience: data.targetAudience || '',
-        // Convert arrays to customAttributes format
+        services: data.offering.core_services.map(s => ({ name: s, description: '' })),
+        hours: [],
+        brandVoice: 'professional' as const,
+        targetAudience: data.offering.target_audience,
         customAttributes: [
-          ...(data.currentPresence || []).map(p => ({ label: 'Online Presence', value: p })),
-          ...(data.goals || []).map(g => ({ label: 'Goal', value: g }))
-        ],
-        // Add hours field (empty array is fine)
-        hours: []
+          { label: 'Archetype', value: data.archetype || '' },
+          { label: 'Owner', value: data.credibility.owner_name },
+          { label: 'Payment Methods', value: data.logistics.payment_methods.join(', ') },
+          { label: 'Booking Policy', value: data.logistics.booking_policy || data.logistics.specific_policy }
+        ]
       }
-
-      // Merge with scraped data if available
-      const finalData: any = onboardingState.scrapedData ? {
-        businessName: data.businessName || onboardingState.scrapedData.businessName || baseData.businessName,
-        industry: data.industry || onboardingState.scrapedData.industry || baseData.industry,
-        location: {
-          city: data.location?.city || onboardingState.scrapedData.location?.city || baseData.location.city,
-          state: data.location?.state || onboardingState.scrapedData.location?.state || baseData.location.state,
-          country: data.location?.country || onboardingState.scrapedData.location?.country || baseData.location.country,
-          address: onboardingState.scrapedData.location?.address || baseData.location.address,
-          zipCode: onboardingState.scrapedData.location?.zipCode || baseData.location.zipCode
-        },
-        contactInfo: {
-          email: onboardingState.scrapedData.contactInfo?.email || baseData.contactInfo.email,
-          phone: onboardingState.scrapedData.contactInfo?.phone || baseData.contactInfo.phone,
-          website: data.website || onboardingState.scrapedData.contactInfo?.website || baseData.contactInfo.website
-        },
-        services: (() => {
-          const servicesList = data.services || onboardingState.scrapedData.services?.map((s: any) => s.name) || []
-          return convertServices(servicesList)
-        })(),
-        targetAudience: data.targetAudience || onboardingState.scrapedData.targetAudience || baseData.targetAudience,
-        brandVoice: (data.brandVoice || onboardingState.scrapedData.brandVoice || baseData.brandVoice) as 'friendly' | 'professional' | 'witty' | 'formal',
-        customAttributes: baseData.customAttributes,
-        hours: baseData.hours
-      } : baseData
-
-      // Validate required fields before sending
-      if (!finalData.businessName || !finalData.businessName.trim()) {
-        throw new Error('Business name is required. Please go back and provide your business name.')
-      }
-      if (!finalData.industry || !finalData.industry.trim()) {
-        throw new Error('Industry is required. Please go back and provide your business type.')
-      }
-
-      // Log what we're sending for debugging
-      console.log('Saving profile with data:', {
-        userId,
-        hasBusinessName: !!finalData.businessName,
-        hasIndustry: !!finalData.industry,
-        brandVoice: finalData.brandVoice,
-        servicesCount: finalData.services?.length || 0,
-        location: finalData.location,
-        finalData
-      })
 
       const response = await fetch('/api/onboarding/complete', {
         method: 'POST',
@@ -1045,25 +938,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         },
         body: JSON.stringify({
           userId,
-          profileData: finalData
+          profileData
         }),
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || `Failed to save profile (${response.status})`
-        console.error('Profile save error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorMessage,
-          errorData,
-          sentData: finalData
-        })
-        throw new Error(errorMessage)
+        throw new Error(errorData.error || `Failed to save profile (${response.status})`)
       }
-
-      const result = await response.json()
-      console.log('Profile saved successfully:', result)
     } catch (error) {
       console.error('Error saving profile:', error)
       throw error
@@ -1075,23 +957,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     handleSend(inputValue)
   }
 
-  // Calculate total questions (varies based on whether they have a website)
-  const totalQuestions = onboardingState.scrapedData ? 6 : 9
-  const completedQuestions = (() => {
-    const data = onboardingState.collectedData
-    let count = 0
-    if (data.businessName) count++
-    if (data.industry) count++
-    if (data.location?.city || data.location?.state) count++
-    if (data.services && data.services.length > 0) count++
-    if (data.targetAudience) count++
-    if (data.currentPresence !== undefined) count++
-    if (data.goals && data.goals.length > 0) count++
-    if (data.brandVoice) count++
-    if (data.website || onboardingState.scrapedData) count++
-    return count
-  })()
-
   return (
     <div className={`onboarding-chat flex flex-col h-full bg-gray-50 ${className}`}>
       {/* Messages Container */}
@@ -1101,114 +966,49 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             key={message.id}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div className={`max-w-2xl ${message.role === 'user' ? 'ml-auto' : 'mr-auto'}`}>
-              <div
-                className={`
-                  px-5 py-3 rounded-2xl
-                  ${message.role === 'user' 
-                    ? 'bg-blue-600 text-white rounded-br-sm' 
-                    : 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm shadow-sm'
-                  }
-                `}
-              >
-                <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
-                  {message.content}
-                </p>
-                <div className={`text-xs mt-2 ${
-                  message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                }`}>
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </div>
+            <div
+              className={`max-w-2xl rounded-lg px-4 py-3 ${
+                message.role === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-800 shadow-sm border border-gray-200'
+              }`}
+            >
+              <p className="text-base whitespace-pre-wrap">{message.content}</p>
+              <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
             </div>
           </div>
         ))}
-        
-        {/* Scraping progress indicator */}
-        {onboardingState.isScraping && (
+        {isLoading && (
           <div className="flex justify-start">
-            <div className="max-w-2xl">
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-900">{onboardingState.scrapingProgress}</p>
-                    {onboardingState.estimatedTimeLeft && (
-                      <p className="text-xs text-blue-600 mt-1">Estimated time left: ~{onboardingState.estimatedTimeLeft} seconds</p>
-                    )}
-                  </div>
-                </div>
-                <div className="w-full bg-blue-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
-                    style={{ width: `${100 - (onboardingState.estimatedTimeLeft || 0) / 30 * 100}%` }}
-                  ></div>
-                </div>
-              </div>
+            <div className="bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200">
+              <p className="text-gray-600">Navi AI is thinking...</p>
             </div>
           </div>
         )}
-        
-        {/* Typing indicator */}
-        {isLoading && !onboardingState.isScraping && (
-          <div className="flex justify-start">
-            <div className="max-w-2xl">
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-5 py-3 shadow-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span className="text-sm text-gray-500 ml-2">Navi AI is thinking...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Progress indicator */}
-      {!isComplete && (
-        <div className="px-4 sm:px-6 py-2 bg-blue-50 border-t border-blue-100">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-center justify-between text-xs text-blue-700">
-              <span>Setting up your profile...</span>
-              <span>{completedQuestions}/{totalQuestions}</span>
-            </div>
-            <div className="mt-1 w-full bg-blue-200 rounded-full h-1.5">
-              <div 
-                className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                style={{ width: `${(completedQuestions / totalQuestions) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white p-4 sm:p-6">
-        <div className="max-w-2xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex space-x-3">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={isComplete ? "Profile complete! Redirecting..." : onboardingState.isScraping ? "Scraping in progress..." : "Type your answer..."}
-              disabled={isLoading || isComplete || onboardingState.isScraping}
-              className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-            <button
-              type="submit"
-              disabled={!inputValue.trim() || isLoading || isComplete || onboardingState.isScraping}
-              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              Send
-            </button>
-          </form>
-        </div>
+      <div className="border-t border-gray-200 bg-white px-4 sm:px-6 py-4">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Type your answer..."
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isLoading || isComplete}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || isComplete || !inputValue.trim()}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Send
+          </button>
+        </form>
       </div>
     </div>
   )
