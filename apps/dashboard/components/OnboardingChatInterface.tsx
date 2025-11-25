@@ -85,7 +85,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       const welcomeMsg: Message = {
         id: 'welcome',
         role: 'assistant',
-        content: "Hey there! To get started, just tell me in a few words—what kind of business do you run?",
+        content: "To kick things off, in a few words—what exactly does your business do?",
         timestamp: new Date()
       }
       setMessages([welcomeMsg])
@@ -161,31 +161,25 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
   // Format proofread summary
   const formatProofreadSummary = (data: Partial<BusinessProfileData>): string => {
-    let summary = "Okay, I think I have everything! Before I lock this in, I want to make sure I didn't make any typos.\n\n"
-    summary += "Please review this summary carefully:\n\n"
+    let summary = "Okay, look at this closely. Is EVERYTHING spelled right?\n\n"
     
     if (data.identity?.business_name) {
-      summary += `**Business:** ${data.identity.business_name}\n`
-    }
-    if (data.identity?.phone) {
-      summary += `**Contact:** ${data.identity.phone}`
-      if (data.identity?.email) {
-        summary += ` | ${data.identity.email}`
-      }
-      summary += "\n"
+      summary += `**Name:** ${data.identity.business_name}\n`
     }
     if (data.identity?.address_or_area) {
-      summary += `**Location:** ${data.identity.address_or_area}\n`
+      summary += `**Address:** ${data.identity.address_or_area}\n`
+    }
+    if (data.identity?.phone) {
+      summary += `**Phone:** ${data.identity.phone}\n`
+    }
+    if (data.identity?.email) {
+      summary += `**Email:** ${data.identity.email}\n`
     }
     if (data.offering?.core_services && data.offering.core_services.length > 0) {
       summary += `**Services:** ${data.offering.core_services.join(', ')}\n`
     }
-    if (data.credibility?.owner_name) {
-      summary += `**Owner:** ${data.credibility.owner_name}\n`
-    }
     
-    summary += "\nDoes the spelling of your Business Name, Phone Number, and Email look 100% perfect?\n"
-    summary += "If you see any double letters or typos, just let me know and I'll fix it right now."
+    summary += "\nIf there is even a tiny typo, tell me now!"
     
     return summary
   }
@@ -291,14 +285,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           }
       }
 
-      // Phase 0: Discovery - Detect archetype
+      // Phase 0: Discovery - Detect archetype (hidden, never revealed)
       if (phase === 'discovery' && subStep === 'business_type') {
-        const detectedArchetype = detectArchetype(userMessage) || 'BrickAndMortar' // Default to BrickAndMortar if null
-        const archetypeNames: Record<string, string> = {
-          'BrickAndMortar': 'Brick & Mortar',
-          'ServiceOnWheels': 'Service on Wheels',
-          'AppointmentPro': 'Appointment Pro'
-        }
+        const detectedArchetype = detectArchetype(userMessage) || 'BrickAndMortar'
         
         setOnboardingState({
           phase: 'storefront',
@@ -311,7 +300,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         const archetypeMsg: Message = {
           id: `assistant_${Date.now()}`,
           role: 'assistant',
-          content: `Got it! That sounds like a ${archetypeNames[detectedArchetype]} business. Let's get the basics down so people can find you. What is the official Business Name? (Please double-check the spelling/spacing so I get it right!)`,
+          content: "Awesome. Let's get you set up. First, what is the official business name? (Check your spelling—I want to get it perfect!)",
           timestamp: new Date()
         }
         setMessages(prev => [...prev, archetypeMsg])
@@ -322,13 +311,40 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // Phase 1: Storefront
       if (phase === 'storefront') {
         if (subStep === 'business_name') {
-          const validation = validateCriticalField('business_name', userMessage)
+          const businessName = userMessage.trim()
+          
+          // Check if all lowercase - suggest capitalization
+          if (businessName === businessName.toLowerCase() && businessName.length > 0 && !businessName.match(/^\d/)) {
+            const capitalized = businessName.split(' ').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ')
+            
+            setOnboardingState({
+              ...onboardingState,
+              needsVerification: {
+                field: 'business_name',
+                value: businessName,
+                suggestion: capitalized
+              }
+            })
+            const verifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Should I capitalize that as "${capitalized}"?`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, verifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const validation = validateCriticalField('business_name', businessName)
           if (!validation.isValid && validation.suggestion) {
             setOnboardingState({
               ...onboardingState,
               needsVerification: {
                 field: 'business_name',
-                value: userMessage,
+                value: businessName,
                 suggestion: validation.suggestion
               }
             })
@@ -347,7 +363,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             ...data,
             identity: {
               ...data.identity,
-              business_name: validation.suggestion || userMessage.trim(),
+              business_name: validation.suggestion || businessName,
               phone: '',
               email: '',
               website: '',
@@ -357,12 +373,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           }
           
           let nextQuestion = ''
-          if (archetype === 'BrickAndMortar') {
-            nextQuestion = "And where is the shop located? (Address)"
-          } else if (archetype === 'ServiceOnWheels') {
-            nextQuestion = "And what cities or areas do you travel to?"
+          if (archetype === 'BrickAndMortar' || archetype === 'AppointmentPro') {
+            nextQuestion = "Where are you located? I need the exact street address for the listing."
           } else {
-            nextQuestion = "And where is your studio/office located?"
+            nextQuestion = "Since you travel to clients, which cities or neighborhoods do you cover?"
           }
           
           setOnboardingState({
@@ -386,15 +400,44 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         if (subStep === 'location') {
           const locationInput = userMessage.trim()
           
-          // For Brick & Mortar and Appointment Pro, check if we have both city and state
+          // For Brick & Mortar and Appointment Pro, require full street address
           if (archetype === 'BrickAndMortar' || archetype === 'AppointmentPro') {
-            // Check if it looks like just a city (no comma, no state abbreviation)
-            const hasComma = locationInput.includes(',')
-            const hasStateAbbr = /,\s*[A-Z]{2}\b/i.test(locationInput)
+            // Check if it's just a city name (no numbers, no street name indicators)
+            const hasNumber = /\d/.test(locationInput)
+            const hasStreetIndicators = /\b(street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|way|court|ct|place|pl)\b/i.test(locationInput)
             
-            if (!hasComma || !hasStateAbbr) {
-              // Ask for state
-              const currentLocation = data.identity?.address_or_area || ''
+            if (!hasNumber || !hasStreetIndicators) {
+              // It's likely just a city, ask for full address
+              const updatedData = {
+                ...data,
+                identity: {
+                  ...data.identity,
+                  address_or_area: locationInput
+                } as BusinessProfileData['identity']
+              }
+              
+              setOnboardingState({
+                ...onboardingState,
+                phase: 'storefront',
+                subStep: 'location_full',
+                data: updatedData
+              })
+              
+              const addressMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `${locationInput} is the city, but I need the street and number too! For example: 123 Main St, ${locationInput}. What is the house/building number and street?`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, addressMsg])
+              setIsLoading(false)
+              return
+            }
+            
+            // Check if we have state
+            const hasStateAbbr = /,\s*[A-Z]{2}\b/i.test(locationInput)
+            if (!hasStateAbbr) {
+              // Has street but missing state
               const updatedData = {
                 ...data,
                 identity: {
@@ -413,7 +456,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               const stateMsg: Message = {
                 id: `assistant_${Date.now()}`,
                 role: 'assistant',
-                content: `Got the city (${locationInput}). What state is that in?`,
+                content: `Got the address. What state is that in?`,
                 timestamp: new Date()
               }
               setMessages(prev => [...prev, stateMsg])
@@ -448,11 +491,72 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           return
         }
         
-        if (subStep === 'location_state') {
-          // Combine city and state
+        if (subStep === 'location_full') {
+          // User provided street address, combine with city
           const city = data.identity?.address_or_area || ''
+          const streetAddress = userMessage.trim()
+          const fullAddress = `${streetAddress}, ${city}`
+          
+          // Check if state is included
+          const hasStateAbbr = /,\s*[A-Z]{2}\b/i.test(fullAddress)
+          if (!hasStateAbbr) {
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                address_or_area: fullAddress
+              } as BusinessProfileData['identity']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'location_state',
+              data: updatedData
+            })
+            
+            const stateMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Perfect. What state is that in?`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, stateMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              address_or_area: fullAddress
+            } as BusinessProfileData['identity']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'phone',
+            data: updatedData
+          })
+          
+          const phoneMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "What is the main phone number for clients?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, phoneMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'location_state') {
+          // Combine address with state
+          const address = data.identity?.address_or_area || ''
           const state = userMessage.trim()
-          const fullLocation = `${city}, ${state}`
+          const fullLocation = `${address}, ${state}`
           
           const updatedData = {
             ...data,
@@ -472,7 +576,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const phoneMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "What's the best Phone Number for clients to call?",
+            content: "What is the main phone number for clients?",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, phoneMsg])
@@ -545,6 +649,34 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             return
           }
           
+          // Check for vague hours like "9-5" or "9 to 5"
+          const vaguePattern = /^\d+\s*[-to]?\s*\d+$/i
+          if (vaguePattern.test(hours) && !hours.toLowerCase().includes('am') && !hours.toLowerCase().includes('pm')) {
+            const clarifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Is that ${hours}am to ${hours.split(/[-to]/)[1]?.trim() || '5'}pm? And is that Monday through Friday, or every day?`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, clarifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Check if days are mentioned
+          const hasDays = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekend|daily|every day)\b/i.test(hours)
+          if (!hasDays && hours.length < 15) {
+            const clarifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Which days? Is that Monday through Friday, or every day?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, clarifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
           const updatedData = {
             ...data,
             identity: {
@@ -613,21 +745,22 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             } as BusinessProfileData['identity']
           }
           
-          // Move to Phase 2: Menu
+          // Move to Review Phase (Typo Trap) - before continuing
           setOnboardingState({
             ...onboardingState,
-            phase: 'menu',
-            subStep: 'services',
+            phase: 'proofread',
+            subStep: 'review',
             data: updatedData
           })
           
-          const servicesMsg: Message = {
+          const summary = formatProofreadSummary(updatedData)
+          const reviewMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "Perfect. Now let's talk about what you actually do. When a customer contacts you, what are the top 3-5 Services or Products they are asking for?",
+            content: summary,
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, servicesMsg])
+          setMessages(prev => [...prev, reviewMsg])
           setIsLoading(false)
           return
         }
@@ -637,6 +770,22 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (phase === 'menu') {
         if (subStep === 'services') {
           const services = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0).slice(0, 5)
+          
+          // Check for vague services like "consulting", "services", "help"
+          const vagueServices = ['consulting', 'services', 'help', 'support', 'solutions', 'work', 'stuff']
+          const isVague = services.some(s => vagueServices.includes(s.toLowerCase()))
+          
+          if (isVague || services.length === 0) {
+            const clarifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Nice! What specifically? Do you do financial consulting, IT, HR? Give me the top 3 specific services.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, clarifyMsg])
+            setIsLoading(false)
+            return
+          }
           
           const updatedData = {
             ...data,
@@ -653,13 +802,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             data: updatedData
           })
           
-          const vibeMsg: Message = {
+          const hoursMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "And briefly, how would you describe the Vibe or the specific type of customer you love working with? (e.g., 'High-end luxury', 'Family-friendly and affordable', 'Emergency response').",
+            content: "When are you open? (e.g., M-F 9am-5pm, Closed Weekends).",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, vibeMsg])
+          setMessages(prev => [...prev, hoursMsg])
           setIsLoading(false)
           return
         }
@@ -674,31 +823,44 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             } as BusinessProfileData['offering']
           }
           
-          // Move to Phase 3: Locals
+          // Move to Phase 4: Counter
           setOnboardingState({
             ...onboardingState,
-            phase: 'locals',
-            subStep: 'owner_name',
+            phase: 'counter',
+            subStep: 'payment',
             data: updatedData
           })
           
-          const ownerMsg: Message = {
+          const paymentMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "In a local business, faces matter. Who is the Owner or Lead Expert here? (Please check the spelling of the name closely).",
+            content: "Last few details. How does payment work? Do you take Insurance, Credit Cards, Cash, or Venmo?",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, ownerMsg])
+          setMessages(prev => [...prev, paymentMsg])
           setIsLoading(false)
           return
         }
       }
 
-      // Phase 3: Locals
+      // Phase 3: Locals (after review)
       if (phase === 'locals') {
         if (subStep === 'owner_name') {
-          const validation = validateCriticalField('business_name', userMessage)
-          const ownerName = validation.suggestion || userMessage.trim()
+          const ownerName = userMessage.trim()
+          
+          // Check if it's just a first name (single word, common first name pattern)
+          const nameParts = ownerName.split(/\s+/)
+          if (nameParts.length === 1 && ownerName.length < 15) {
+            const clarifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Hi ${ownerName}! Do you have a last name you want listed on the official profile?`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, clarifyMsg])
+            setIsLoading(false)
+            return
+          }
           
           const updatedData = {
             ...data,
@@ -835,11 +997,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             } as BusinessProfileData['logistics']
           }
           
-          // Move to Phase 5: Proofread
+          // Move to Final Proofread
           setOnboardingState({
             ...onboardingState,
             phase: 'proofread',
-            subStep: 'review',
+            subStep: 'final_review',
             data: updatedData
           })
           
@@ -856,8 +1018,42 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // Phase 5: Proofread
+      // Phase 3: Proofread (Review after Storefront)
       if (phase === 'proofread' && subStep === 'review') {
+        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('looks good') || lowerMessage.includes('perfect')) {
+          // User confirmed - continue to Menu phase
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'menu',
+            subStep: 'services',
+            data: data
+          })
+          
+          const servicesMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "What are the top 3 services you offer? Be specific so people find you on Google.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, servicesMsg])
+          setIsLoading(false)
+          return
+        } else {
+          // User wants to make corrections
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Sure thing! What should I change? Just tell me what's off and what it should be instead.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+        }
+        setIsLoading(false)
+        return
+      }
+      
+      // Final Proofread (after all phases)
+      if (phase === 'proofread' && subStep === 'final_review') {
         if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('looks good') || lowerMessage.includes('perfect')) {
           // User confirmed - save the profile
           try {
