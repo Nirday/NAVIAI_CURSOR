@@ -32,6 +32,7 @@ interface BusinessProfileData {
     email: string
     website: string
     hours: string
+    social_links: string[]
   }
   offering: {
     core_services: string[]
@@ -53,7 +54,7 @@ interface BusinessProfileData {
 }
 
 interface OnboardingState {
-  phase: 'discovery' | 'storefront' | 'menu' | 'locals' | 'counter' | 'proofread' | 'complete'
+  phase: 'website_check' | 'discovery' | 'storefront' | 'menu' | 'locals' | 'counter' | 'proofread' | 'complete'
   subStep: string
   archetype: Archetype
   data: Partial<BusinessProfileData>
@@ -62,6 +63,7 @@ interface OnboardingState {
     value?: string
     suggestion?: string
   } | null
+  fromWebsite: boolean
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -70,22 +72,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
-    phase: 'discovery',
-    subStep: 'business_type',
+    phase: 'website_check',
+    subStep: 'has_website',
     archetype: null,
     data: {},
-    needsVerification: null
+    needsVerification: null,
+    fromWebsite: false
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Initialize with welcome message
+  // Initialize with website check message
   useEffect(() => {
     if (messages.length === 0) {
       const welcomeMsg: Message = {
         id: 'welcome',
         role: 'assistant',
-        content: "To kick things off, in a few words—what exactly does your business do?",
+        content: "Hi! I'm Navi. To speed things up, do you already have a website for your business? If yes, paste the link and I'll pull the details for you!",
         timestamp: new Date()
       }
       setMessages([welcomeMsg])
@@ -160,8 +163,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   // Format proofread summary
-  const formatProofreadSummary = (data: Partial<BusinessProfileData>): string => {
-    let summary = "Okay, look at this closely. Is EVERYTHING spelled right?\n\n"
+  const formatProofreadSummary = (data: Partial<BusinessProfileData>, fromWebsite: boolean = false): string => {
+    let summary = ""
+    
+    if (fromWebsite) {
+      summary = "I grabbed this info directly from your link, but sometimes websites can be outdated. Please double-check this closely—is it 100% current?\n\n"
+    } else {
+      summary = "Okay, I think I have everything! Please review this summary carefully:\n\n"
+    }
     
     if (data.identity?.business_name) {
       summary += `**Name:** ${data.identity.business_name}\n`
@@ -170,16 +179,30 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       summary += `**Address:** ${data.identity.address_or_area}\n`
     }
     if (data.identity?.phone) {
-      summary += `**Phone:** ${data.identity.phone}\n`
-    }
-    if (data.identity?.email) {
+      summary += `**Phone:** ${data.identity.phone}`
+      if (data.identity?.email) {
+        summary += ` | Email: ${data.identity.email}`
+      }
+      summary += "\n"
+    } else if (data.identity?.email) {
       summary += `**Email:** ${data.identity.email}\n`
+    }
+    if (data.identity?.social_links && data.identity.social_links.length > 0) {
+      summary += `**Socials:** ${data.identity.social_links.join(', ')}\n`
+    } else {
+      summary += `**Socials:** None\n`
     }
     if (data.offering?.core_services && data.offering.core_services.length > 0) {
       summary += `**Services:** ${data.offering.core_services.join(', ')}\n`
     }
+    if (data.offering?.target_audience) {
+      summary += `**Target Audience:** ${data.offering.target_audience}\n`
+    }
+    if (data.credibility?.owner_name) {
+      summary += `**Owner:** ${data.credibility.owner_name}\n`
+    }
     
-    summary += "\nIf there is even a tiny typo, tell me now!"
+    summary += "\nDoes the spelling of your Business Name and Phone Number look perfect? If you see any typos, tell me now!"
     
     return summary
   }
@@ -247,42 +270,237 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             setIsLoading(false)
             return
           } else if (needsVerification.field === 'phone') {
-            setOnboardingState({
-              ...onboardingState,
-              phase: 'storefront',
-              subStep: 'hours',
-              data: updatedData,
-              needsVerification: null
+            // Phone verified, continue to get email if not already provided
+            if (!updatedData.identity?.email) {
+              setOnboardingState({
+                ...onboardingState,
+                phase: 'storefront',
+                subStep: 'email_only',
+                data: updatedData,
+                needsVerification: null
+              })
+              
+              const emailMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "Got the phone number. What is the best email address for clients to reach you?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, emailMsg])
+              setIsLoading(false)
+              return
+            } else {
+              // Both phone and email are set, move to social links
+              setOnboardingState({
+                ...onboardingState,
+                phase: 'storefront',
+                subStep: 'social_links',
+                data: updatedData,
+                needsVerification: null
+              })
+              
+              const socialMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, socialMsg])
+              setIsLoading(false)
+              return
+            }
+          } else if (needsVerification.field === 'email') {
+            // Email verified, check if phone is set
+            if (!updatedData.identity?.phone) {
+              setOnboardingState({
+                ...onboardingState,
+                phase: 'storefront',
+                subStep: 'phone_only',
+                data: updatedData,
+                needsVerification: null
+              })
+              
+              const phoneMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "Got the email. What is the main phone number for clients?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, phoneMsg])
+              setIsLoading(false)
+              return
+            } else {
+              // Both set, move to social links
+              setOnboardingState({
+                ...onboardingState,
+                phase: 'storefront',
+                subStep: 'social_links',
+                data: updatedData,
+                needsVerification: null
+              })
+              
+              const socialMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, socialMsg])
+              setIsLoading(false)
+              return
+            }
+          }
+      }
+
+      // Phase -1: Website Check (FIRST interaction)
+      if (phase === 'website_check' && subStep === 'has_website') {
+        const lower = lowerMessage
+        
+        // Check if user provided a URL
+        const urlMatch = userMessage.match(/(https?:\/\/[^\s]+)/i)
+        const isUrl = urlMatch || userMessage.includes('http') || userMessage.includes('www.')
+        
+        if (isUrl || (!lower.includes('no') && !lower.includes('not') && !lower.includes("don't") && !lower.includes('none'))) {
+          // User provided a URL or said yes
+          const url = urlMatch ? urlMatch[0] : userMessage.trim()
+          
+          // Show scanning message
+          const scanningMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Jackpot! 🕵️‍♀️ I'm scanning ${url} now... okay, I found the key details.`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, scanningMsg])
+          
+          try {
+            // Scrape website
+            const response = await fetch('/api/onboarding/scrape-website', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url })
             })
             
-            const hoursMsg: Message = {
+            if (!response.ok) {
+              throw new Error('Failed to scrape website')
+            }
+            
+            const result = await response.json()
+            const scrapedData = result.data
+            
+            // Fill in data from scraped website
+            const updatedData: Partial<BusinessProfileData> = {
+              archetype: detectArchetype(scrapedData.industry || ''),
+              identity: {
+                business_name: scrapedData.businessName || '',
+                address_or_area: scrapedData.location ? 
+                  [scrapedData.location.address, scrapedData.location.city, scrapedData.location.state]
+                    .filter(Boolean).join(', ') : '',
+                phone: scrapedData.contactInfo?.phone || '',
+                email: scrapedData.contactInfo?.email || '',
+                website: url,
+                hours: scrapedData.hours ? 
+                  scrapedData.hours.map((h: any) => `${h.day}: ${h.open}-${h.close}`).join(', ') : '',
+                social_links: []
+              },
+              offering: {
+                core_services: scrapedData.services?.map((s: any) => s.name) || [],
+                target_audience: scrapedData.targetAudience || '',
+                vibe_mission: scrapedData.brandVoice || ''
+              },
+              credibility: {
+                owner_name: '',
+                owner_bio: '',
+                credentials: [],
+                years_in_business: ''
+              },
+              logistics: {
+                payment_methods: [],
+                insurance_accepted: false,
+                booking_policy: '',
+                specific_policy: ''
+              }
+            }
+            
+            // Jump straight to Phase 3: Review
+            setOnboardingState({
+              phase: 'proofread',
+              subStep: 'review',
+              archetype: updatedData.archetype as Archetype,
+              data: updatedData,
+              needsVerification: null,
+              fromWebsite: true
+            })
+            
+            const summary = formatProofreadSummary(updatedData, true)
+            const reviewMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "And what are your standard Opening Hours?",
+              content: summary,
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, hoursMsg])
+            setMessages(prev => [...prev, reviewMsg])
             setIsLoading(false)
             return
-          } else if (needsVerification.field === 'email') {
-            setOnboardingState({
-              ...onboardingState,
-              phase: 'menu',
-              subStep: 'services',
-              data: updatedData,
-              needsVerification: null
-            })
-            
-            const servicesMsg: Message = {
+          } catch (error: any) {
+            const errorMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "Perfect. Now let's talk about what you actually do. When a customer contacts you, what are the top 3-5 Services or Products they are asking for?",
+              content: `Couldn't access that website (${error.message}). No problem at all! Let's build it together from scratch. It'll only take a minute.`,
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, servicesMsg])
+            setMessages(prev => [...prev, errorMsg])
+            
+            // Proceed to Phase 0
+            setOnboardingState({
+              phase: 'discovery',
+              subStep: 'business_type',
+              archetype: null,
+              data: {},
+              needsVerification: null,
+              fromWebsite: false
+            })
+            
+            const discoveryMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "To kick things off, in a few words—what exactly does your business do?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, discoveryMsg])
             setIsLoading(false)
             return
           }
+        } else {
+          // User said no website
+          const noWebsiteMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "No problem at all! Let's build it together from scratch. It'll only take a minute.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, noWebsiteMsg])
+          
+          // Proceed to Phase 0
+          setOnboardingState({
+            phase: 'discovery',
+            subStep: 'business_type',
+            archetype: null,
+            data: {},
+            needsVerification: null,
+            fromWebsite: false
+          })
+          
+          const discoveryMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "To kick things off, in a few words—what exactly does your business do?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, discoveryMsg])
+          setIsLoading(false)
+          return
+        }
       }
 
       // Phase 0: Discovery - Detect archetype (hidden, never revealed)
@@ -294,7 +512,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           subStep: 'business_name',
           archetype: detectedArchetype as Archetype,
           data: { ...data, archetype: detectedArchetype as Archetype },
-          needsVerification: null
+          needsVerification: null,
+          fromWebsite: false
         })
 
         const archetypeMsg: Message = {
@@ -537,17 +756,17 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setOnboardingState({
             ...onboardingState,
             phase: 'storefront',
-            subStep: 'phone',
+            subStep: 'phone_email',
             data: updatedData
           })
           
-          const phoneMsg: Message = {
+          const contactMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "What is the main phone number for clients?",
+            content: "What is the best phone number and email address for clients to reach you?",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, phoneMsg])
+          setMessages(prev => [...prev, contactMsg])
           setIsLoading(false)
           return
         }
@@ -569,24 +788,200 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setOnboardingState({
             ...onboardingState,
             phase: 'storefront',
-            subStep: 'phone',
+            subStep: 'phone_email',
             data: updatedData
           })
           
-          const phoneMsg: Message = {
+          const contactMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "What is the main phone number for clients?",
+            content: "What is the best phone number and email address for clients to reach you?",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, phoneMsg])
+          setMessages(prev => [...prev, contactMsg])
           setIsLoading(false)
           return
         }
         
-        if (subStep === 'phone') {
-          const phone = userMessage.trim()
+        if (subStep === 'phone_email') {
+          // Try to extract phone and email from the response
+          const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
+          const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
           
+          let phone = phoneMatch ? phoneMatch[0] : ''
+          let email = emailMatch ? emailMatch[0] : ''
+          
+          // If we didn't find both, ask for the missing one
+          if (!phone && !email) {
+            // Neither found - ask them to provide both
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "I need both a phone number and email address. Could you provide both? For example: '555-123-4567 and info@business.com'",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          if (!phone) {
+            // Phone missing - ask for it
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                email: email
+              } as BusinessProfileData['identity']
+            }
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'phone_only',
+              data: updatedData
+            })
+            const phoneMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got the email. What is the main phone number for clients?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, phoneMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          if (!email) {
+            // Email missing - ask for it
+            const phoneValidation = validateCriticalField('phone', phone)
+            if (!phoneValidation.isValid) {
+              setOnboardingState({
+                ...onboardingState,
+                needsVerification: {
+                  field: 'phone',
+                  value: phone,
+                  suggestion: undefined
+                }
+              })
+              const verifyMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "That phone number looks a bit off. Could you double-check it?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, verifyMsg])
+              setIsLoading(false)
+              return
+            }
+            
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                phone: phone
+              } as BusinessProfileData['identity']
+            }
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'email_only',
+              data: updatedData
+            })
+            const emailMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got the phone number. What is the best email address for clients to reach you?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, emailMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Both found - validate them
+          const phoneValidation = validateCriticalField('phone', phone)
+          if (!phoneValidation.isValid) {
+            setOnboardingState({
+              ...onboardingState,
+              needsVerification: {
+                field: 'phone',
+                value: phone,
+                suggestion: undefined
+              }
+            })
+            const verifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "That phone number looks a bit off. Could you double-check it?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, verifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const emailValidation = validateCriticalField('email', email)
+          if (!emailValidation.isValid) {
+            if (emailValidation.suggestion) {
+              setOnboardingState({
+                ...onboardingState,
+                needsVerification: {
+                  field: 'email',
+                  value: email,
+                  suggestion: emailValidation.suggestion
+                }
+              })
+              const verifyMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `Just to be safe, did you mean ${emailValidation.suggestion}? I want to make sure clients can reach you.`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, verifyMsg])
+              setIsLoading(false)
+              return
+            } else {
+              const errorMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "That email doesn't look quite right. Could you double-check it?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, errorMsg])
+              setIsLoading(false)
+              return
+            }
+          }
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              phone: phone,
+              email: email
+            } as BusinessProfileData['identity']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'social_links',
+            data: updatedData
+          })
+          
+          const socialMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, socialMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'phone_only') {
+          const phone = userMessage.trim()
           const validation = validateCriticalField('phone', phone)
           if (!validation.isValid) {
             setOnboardingState({
@@ -600,7 +995,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             const verifyMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "That phone number looks a bit off. Could you double-check it? I want to make sure clients can reach you.",
+              content: "That phone number looks a bit off. Could you double-check it?",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, verifyMsg])
@@ -619,91 +1014,22 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setOnboardingState({
             ...onboardingState,
             phase: 'storefront',
-            subStep: 'hours',
+            subStep: 'social_links',
             data: updatedData
           })
           
-          const hoursMsg: Message = {
+          const socialMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "And what are your standard Opening Hours?",
+            content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, hoursMsg])
+          setMessages(prev => [...prev, socialMsg])
           setIsLoading(false)
           return
         }
         
-        if (subStep === 'hours') {
-          const hours = userMessage.trim()
-          
-          if (!hours || hours.length < 3) {
-            const errorMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "Could you provide your opening hours? For example, 'Monday-Friday 9am-5pm' or 'Open daily 8am-6pm'.",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, errorMsg])
-            setIsLoading(false)
-            return
-          }
-          
-          // Check for vague hours like "9-5" or "9 to 5"
-          const vaguePattern = /^\d+\s*[-to]?\s*\d+$/i
-          if (vaguePattern.test(hours) && !hours.toLowerCase().includes('am') && !hours.toLowerCase().includes('pm')) {
-            const clarifyMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: `Is that ${hours}am to ${hours.split(/[-to]/)[1]?.trim() || '5'}pm? And is that Monday through Friday, or every day?`,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, clarifyMsg])
-            setIsLoading(false)
-            return
-          }
-          
-          // Check if days are mentioned
-          const hasDays = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekend|daily|every day)\b/i.test(hours)
-          if (!hasDays && hours.length < 15) {
-            const clarifyMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "Which days? Is that Monday through Friday, or every day?",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, clarifyMsg])
-            setIsLoading(false)
-            return
-          }
-          
-          const updatedData = {
-            ...data,
-            identity: {
-              ...data.identity,
-              hours: hours
-            } as BusinessProfileData['identity']
-          }
-          
-          setOnboardingState({
-            ...onboardingState,
-            phase: 'storefront',
-            subStep: 'email',
-            data: updatedData
-          })
-          
-          const emailMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: "Perfect. And what's the best Email address for clients to reach you?",
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, emailMsg])
-          setIsLoading(false)
-          return
-        }
-        
-        if (subStep === 'email') {
+        if (subStep === 'email_only') {
           const validation = validateCriticalField('email', userMessage)
           if (!validation.isValid) {
             if (validation.suggestion) {
@@ -745,15 +1071,48 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             } as BusinessProfileData['identity']
           }
           
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'social_links',
+            data: updatedData
+          })
+          
+          const socialMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, socialMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'social_links') {
+          // Extract URLs from the message
+          const urlMatches = userMessage.match(/(https?:\/\/[^\s]+)/gi) || []
+          const socialLinks = urlMatches.length > 0 ? urlMatches : 
+            (userMessage.toLowerCase().includes('no') || userMessage.toLowerCase().includes('none') || userMessage.toLowerCase().includes("don't") ? [] : [userMessage.trim()])
+          
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              social_links: socialLinks
+            } as BusinessProfileData['identity']
+          }
+          
           // Move to Review Phase (Typo Trap) - before continuing
           setOnboardingState({
             ...onboardingState,
             phase: 'proofread',
             subStep: 'review',
-            data: updatedData
+            data: updatedData,
+            fromWebsite: false
           })
           
-          const summary = formatProofreadSummary(updatedData)
+          const summary = formatProofreadSummary(updatedData, false)
           const reviewMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -798,46 +1157,177 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setOnboardingState({
             ...onboardingState,
             phase: 'menu',
-            subStep: 'vibe',
+            subStep: 'target_audience',
             data: updatedData
           })
           
-          const hoursMsg: Message = {
+          const audienceMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "When are you open? (e.g., M-F 9am-5pm, Closed Weekends).",
+            content: "Who is your 'Dream Client'? (e.g. Busy moms, Corporate Executives, Homeowners with pools).",
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, hoursMsg])
+          setMessages(prev => [...prev, audienceMsg])
           setIsLoading(false)
           return
         }
         
-        if (subStep === 'vibe') {
+        if (subStep === 'target_audience') {
           const updatedData = {
             ...data,
             offering: {
               ...data.offering,
-              target_audience: userMessage.trim(),
+              target_audience: userMessage.trim()
+            } as BusinessProfileData['offering']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'menu',
+            subStep: 'owner_vibe',
+            data: updatedData
+          })
+          
+          const ownerVibeMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Who is the owner/lead expert? And how would you describe the 'vibe' of the business in 2 words? (e.g. Friendly & Casual, or High-End & Strict).",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, ownerVibeMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'owner_vibe') {
+          // Try to extract owner name and vibe from response
+          const parts = userMessage.split(/[,\-–—]/).map(s => s.trim())
+          let ownerName = parts[0] || userMessage.trim()
+          let vibe = parts.slice(1).join(' ').trim() || ''
+          
+          // If no separator, try to detect
+          if (!vibe && parts.length === 1) {
+            const words = userMessage.trim().split(/\s+/)
+            if (words.length <= 3) {
+              ownerName = userMessage.trim()
+              vibe = ''
+            } else {
+              ownerName = words.slice(0, 2).join(' ')
+              vibe = words.slice(2).join(' ')
+            }
+          }
+          
+          // Check if owner name is just first name
+          const nameParts = ownerName.split(/\s+/)
+          if (nameParts.length === 1 && ownerName.length < 15) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'menu',
+              subStep: 'owner_vibe',
+              data: {
+                ...data,
+                credibility: {
+                  ...data.credibility,
+                  owner_name: ownerName
+                } as BusinessProfileData['credibility']
+              }
+            })
+            const clarifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Hi ${ownerName}! Do you have a last name you want listed on the official profile?`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, clarifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // If vibe is missing, ask for it
+          if (!vibe || vibe.length < 3) {
+            const updatedData = {
+              ...data,
+              credibility: {
+                ...data.credibility,
+                owner_name: ownerName
+              } as BusinessProfileData['credibility']
+            }
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'menu',
+              subStep: 'vibe_only',
+              data: updatedData
+            })
+            const vibeMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got the owner name. How would you describe the 'vibe' of the business in 2 words? (e.g. Friendly & Casual, or High-End & Strict).",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, vibeMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const updatedData = {
+            ...data,
+            credibility: {
+              ...data.credibility,
+              owner_name: ownerName
+            } as BusinessProfileData['credibility'],
+            offering: {
+              ...data.offering,
+              vibe_mission: vibe
+            } as BusinessProfileData['offering']
+          }
+          
+          // Move to Final Review
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'final_review',
+            data: updatedData,
+            fromWebsite: false
+          })
+          
+          const summary = formatProofreadSummary(updatedData, false)
+          const reviewMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: summary,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, reviewMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        if (subStep === 'vibe_only') {
+          const updatedData = {
+            ...data,
+            offering: {
+              ...data.offering,
               vibe_mission: userMessage.trim()
             } as BusinessProfileData['offering']
           }
           
-          // Move to Phase 4: Counter
+          // Move to Final Review
           setOnboardingState({
             ...onboardingState,
-            phase: 'counter',
-            subStep: 'payment',
-            data: updatedData
+            phase: 'proofread',
+            subStep: 'final_review',
+            data: updatedData,
+            fromWebsite: false
           })
           
-          const paymentMsg: Message = {
+          const summary = formatProofreadSummary(updatedData, false)
+          const reviewMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "Last few details. How does payment work? Do you take Insurance, Credit Cards, Cash, or Venmo?",
+            content: summary,
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, paymentMsg])
+          setMessages(prev => [...prev, reviewMsg])
           setIsLoading(false)
           return
         }
