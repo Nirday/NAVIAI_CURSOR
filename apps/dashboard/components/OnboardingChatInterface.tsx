@@ -211,27 +211,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       // Handle verification requests
       if (needsVerification) {
-        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('right')) {
-          // User confirmed - use the suggested value
-          const updatedData = { ...data }
-          if (needsVerification.field === 'email' && needsVerification.suggestion) {
-            updatedData.identity = { ...updatedData.identity, email: needsVerification.suggestion } as BusinessProfileData['identity']
-          } else if (needsVerification.field === 'phone' && needsVerification.suggestion) {
-            updatedData.identity = { ...updatedData.identity, phone: needsVerification.suggestion } as BusinessProfileData['identity']
-          } else if (needsVerification.field === 'business_name' && needsVerification.suggestion) {
-            updatedData.identity = { ...updatedData.identity, business_name: needsVerification.suggestion } as BusinessProfileData['identity']
-          }
-          
-          // Continue with next question based on current phase/subStep
-          setOnboardingState({
-            ...onboardingState,
-            data: updatedData,
-            needsVerification: null
-          })
-          
-          // Continue to next step based on what field was verified
-          const updatedData = { ...data }
-          const verifiedValue = needsVerification.suggestion || userMessage.trim()
+        const updatedData = { ...data }
+        const verifiedValue = (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('right'))
+          ? (needsVerification.suggestion || userMessage.trim())
+          : userMessage.trim()
           
           if (needsVerification.field === 'email') {
             updatedData.identity = { ...updatedData.identity, email: verifiedValue } as BusinessProfileData['identity']
@@ -306,83 +289,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             setIsLoading(false)
             return
           }
-        } else {
-          // User wants to correct it themselves
-          const updatedData = { ...data }
-          if (needsVerification.field === 'email') {
-            updatedData.identity = { ...updatedData.identity, email: userMessage.trim() } as BusinessProfileData['identity']
-          } else if (needsVerification.field === 'phone') {
-            updatedData.identity = { ...updatedData.identity, phone: userMessage.trim() } as BusinessProfileData['identity']
-          } else if (needsVerification.field === 'business_name') {
-            updatedData.identity = { ...updatedData.identity, business_name: userMessage.trim() } as BusinessProfileData['identity']
-          }
-          
-          // Continue to next step (same logic as above)
-          if (needsVerification.field === 'business_name') {
-            let nextQuestion = ''
-            if (archetype === 'BrickAndMortar') {
-              nextQuestion = "And where is the shop located? (Address)"
-            } else if (archetype === 'ServiceOnWheels') {
-              nextQuestion = "And what cities or areas do you travel to?"
-            } else {
-              nextQuestion = "And where is your studio/office located?"
-            }
-            
-            setOnboardingState({
-              ...onboardingState,
-              phase: 'storefront',
-              subStep: 'location',
-              data: updatedData,
-              needsVerification: null
-            })
-            
-            const locationMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: nextQuestion,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, locationMsg])
-            setIsLoading(false)
-            return
-          } else if (needsVerification.field === 'phone') {
-            setOnboardingState({
-              ...onboardingState,
-              phase: 'storefront',
-              subStep: 'email',
-              data: updatedData,
-              needsVerification: null
-            })
-            
-            const emailMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "Perfect. And what's the best Email address for clients to reach you?",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, emailMsg])
-            setIsLoading(false)
-            return
-          } else if (needsVerification.field === 'email') {
-            setOnboardingState({
-              ...onboardingState,
-              phase: 'menu',
-              subStep: 'services',
-              data: updatedData,
-              needsVerification: null
-            })
-            
-            const servicesMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "Perfect. Now let's talk about what you actually do. When a customer contacts you, what are the top 3-5 Services or Products they are asking for?",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, servicesMsg])
-            setIsLoading(false)
-            return
-          }
-        }
       }
 
       // Phase 0: Discovery - Detect archetype
