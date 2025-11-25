@@ -139,8 +139,27 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (value.includes('yahoo.co')) {
         return { isValid: false, suggestion: value.replace(/yahoo\.co/g, 'yahoo.com') }
       }
+      // Check for invalid TLDs (common typos)
+      const invalidTlds = ['.vom', '.con', '.cmo', '.ocm', '.cm', '.co']
+      for (const invalidTld of invalidTlds) {
+        if (value.includes(invalidTld)) {
+          const corrected = value.replace(invalidTld, '.com')
+          return { isValid: false, suggestion: corrected }
+        }
+      }
+      // Check for missing @ or invalid format
       if (!value.includes('@') || !value.includes('.')) {
         return { isValid: false, suggestion: undefined }
+      }
+      // Check if TLD looks suspicious (too short or common typos)
+      const emailParts = value.split('@')
+      if (emailParts.length === 2) {
+        const domain = emailParts[1]
+        const tld = domain.split('.').pop()?.toLowerCase()
+        const validTlds = ['com', 'org', 'net', 'edu', 'gov', 'io', 'co', 'uk', 'ca', 'au', 'de', 'fr', 'jp', 'cn']
+        if (tld && tld.length < 2) {
+          return { isValid: false, suggestion: value.replace(/\.\w+$/, '.com') }
+        }
       }
     }
     
@@ -202,7 +221,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       summary += `**Owner:** ${data.credibility.owner_name}\n`
     }
     
-    summary += "\nDoes the spelling of your Business Name and Phone Number look perfect? If you see any typos, tell me now!"
+    summary += "\nDoes the spelling of your Business Name, Phone Number, and Email look perfect? If you see any typos, tell me now!"
     
     return summary
   }
@@ -1103,6 +1122,30 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             } as BusinessProfileData['identity']
           }
           
+          // Check for email typos before showing review
+          if (updatedData.identity?.email) {
+            const emailValidation = validateCriticalField('email', updatedData.identity.email)
+            if (!emailValidation.isValid && emailValidation.suggestion) {
+              setOnboardingState({
+                ...onboardingState,
+                needsVerification: {
+                  field: 'email',
+                  value: updatedData.identity.email,
+                  suggestion: emailValidation.suggestion
+                }
+              })
+              const verifyMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `Just to be safe, did you mean ${emailValidation.suggestion}? I want to make sure clients can reach you.`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, verifyMsg])
+              setIsLoading(false)
+              return
+            }
+          }
+          
           // Move to Review Phase (Typo Trap) - before continuing
           setOnboardingState({
             ...onboardingState,
@@ -1510,7 +1553,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       // Phase 3: Proofread (Review after Storefront)
       if (phase === 'proofread' && subStep === 'review') {
-        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('looks good') || lowerMessage.includes('perfect')) {
+        // Check for confirmation patterns (including "its good", "it's good", "is good", etc.)
+        const isConfirmed = lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
+                           lowerMessage.includes('looks good') || lowerMessage.includes('perfect') ||
+                           lowerMessage.includes("it's good") || lowerMessage.includes('its good') ||
+                           lowerMessage.includes('is good') || lowerMessage.includes('all good') ||
+                           lowerMessage.includes('sounds good') || lowerMessage === 'ok' || lowerMessage === 'okay'
+        
+        if (isConfirmed) {
           // User confirmed - continue to Menu phase
           setOnboardingState({
             ...onboardingState,
@@ -1544,7 +1594,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       
       // Final Proofread (after all phases)
       if (phase === 'proofread' && subStep === 'final_review') {
-        if (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('looks good') || lowerMessage.includes('perfect')) {
+        // Check for confirmation patterns (including "its good", "it's good", "is good", etc.)
+        const isConfirmed = lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
+                           lowerMessage.includes('looks good') || lowerMessage.includes('perfect') ||
+                           lowerMessage.includes("it's good") || lowerMessage.includes('its good') ||
+                           lowerMessage.includes('is good') || lowerMessage.includes('all good') ||
+                           lowerMessage.includes('sounds good') || lowerMessage === 'ok' || lowerMessage === 'okay'
+        
+        if (isConfirmed) {
           // User confirmed - save the profile
           try {
             await saveProfile(data as BusinessProfileData)
