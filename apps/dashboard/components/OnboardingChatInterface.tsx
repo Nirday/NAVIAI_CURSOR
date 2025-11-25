@@ -293,8 +293,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       // Phase 0: Discovery - Detect archetype
       if (phase === 'discovery' && subStep === 'business_type') {
-        const detectedArchetype = detectArchetype(userMessage)
-        const archetypeNames = {
+        const detectedArchetype = detectArchetype(userMessage) || 'BrickAndMortar' // Default to BrickAndMortar if null
+        const archetypeNames: Record<string, string> = {
           'BrickAndMortar': 'Brick & Mortar',
           'ServiceOnWheels': 'Service on Wheels',
           'AppointmentPro': 'Appointment Pro'
@@ -303,8 +303,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         setOnboardingState({
           phase: 'storefront',
           subStep: 'business_name',
-          archetype: detectedArchetype,
-          data: { ...data, archetype: detectedArchetype },
+          archetype: detectedArchetype as Archetype,
+          data: { ...data, archetype: detectedArchetype as Archetype },
           needsVerification: null
         })
 
