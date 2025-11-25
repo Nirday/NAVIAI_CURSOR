@@ -129,6 +129,56 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     return 'BrickAndMortar'
   }
 
+  // Check if location includes a state (flexible format detection)
+  const hasStateInLocation = (location: string): boolean => {
+    const lower = location.toLowerCase()
+    
+    // List of all US state abbreviations (both uppercase and lowercase patterns)
+    const stateAbbreviations = [
+      'al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga',
+      'hi', 'id', 'il', 'in', 'ia', 'ks', 'ky', 'la', 'me', 'md',
+      'ma', 'mi', 'mn', 'ms', 'mo', 'mt', 'ne', 'nv', 'nh', 'nj',
+      'nm', 'ny', 'nc', 'nd', 'oh', 'ok', 'or', 'pa', 'ri', 'sc',
+      'sd', 'tn', 'tx', 'ut', 'vt', 'va', 'wa', 'wv', 'wi', 'wy'
+    ]
+    
+    // Check for state abbreviation patterns:
+    // 1. With comma: ", ca" or ", CA"
+    // 2. Without comma but with space: " ca" or " CA" (at word boundary)
+    // 3. At the end of string: " ca" or " CA"
+    for (const state of stateAbbreviations) {
+      // Pattern 1: With comma (required space after comma)
+      if (new RegExp(`[,\\s]${state}\\b`, 'i').test(lower)) {
+        return true
+      }
+      // Pattern 2: At end of string (with or without space before)
+      if (new RegExp(`\\s${state}$`, 'i').test(lower)) {
+        return true
+      }
+    }
+    
+    // Also check for common state names
+    const stateNames = [
+      'california', 'texas', 'florida', 'new york', 'pennsylvania', 'illinois',
+      'ohio', 'georgia', 'north carolina', 'michigan', 'new jersey', 'virginia',
+      'washington', 'arizona', 'massachusetts', 'tennessee', 'indiana', 'missouri',
+      'maryland', 'wisconsin', 'colorado', 'minnesota', 'south carolina', 'alabama',
+      'louisiana', 'kentucky', 'oregon', 'oklahoma', 'connecticut', 'utah',
+      'iowa', 'nevada', 'arkansas', 'mississippi', 'kansas', 'new mexico',
+      'nebraska', 'west virginia', 'idaho', 'hawaii', 'new hampshire', 'maine',
+      'rhode island', 'montana', 'delaware', 'south dakota', 'north dakota',
+      'alaska', 'vermont', 'wyoming'
+    ]
+    
+    for (const stateName of stateNames) {
+      if (lower.includes(stateName)) {
+        return true
+      }
+    }
+    
+    return false
+  }
+
   // Eagle Eye validation - check for typos in critical fields
   const validateCriticalField = (field: string, value: string): { isValid: boolean; suggestion?: string } => {
     if (field === 'email') {
@@ -672,9 +722,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               return
             }
             
-            // Check if we have state
-            const hasStateAbbr = /,\s*[A-Z]{2}\b/i.test(locationInput)
-            if (!hasStateAbbr) {
+            // Check if we have state (flexible format detection)
+            if (!hasStateInLocation(locationInput)) {
               // Has street but missing state
               const updatedData = {
                 ...data,
@@ -735,9 +784,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const streetAddress = userMessage.trim()
           const fullAddress = `${streetAddress}, ${city}`
           
-          // Check if state is included
-          const hasStateAbbr = /,\s*[A-Z]{2}\b/i.test(fullAddress)
-          if (!hasStateAbbr) {
+          // Check if state is included (flexible format detection)
+          if (!hasStateInLocation(fullAddress)) {
             const updatedData = {
               ...data,
               identity: {
