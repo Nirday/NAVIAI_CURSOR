@@ -89,6 +89,15 @@ export default function WebsiteEditor({ userId, className = '' }: WebsiteEditorP
         throw new Error(data.error || 'Failed to update website')
       }
 
+      // Update Master Business Profile with website data
+      if (data.saved) {
+        const { extractProfileFromWebsite, updateBusinessProfile } = await import('../utils/profile-updates')
+        const profileUpdates = extractProfileFromWebsite(website)
+        if (profileUpdates) {
+          await updateBusinessProfile(userId, profileUpdates)
+        }
+      }
+
       if (data.saved && data.published) {
         setSaveMessage({ type: 'success', text: 'Website updated and published successfully!' })
         setHasUnsavedChanges(false)

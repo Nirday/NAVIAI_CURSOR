@@ -115,6 +115,45 @@ export default function SocialHubDashboard({ userId, className = '' }: SocialHub
     window.location.href = oauthUrl
   }
 
+  // Update profile when social connections are established
+  useEffect(() => {
+    if (connections.length > 0 && profile) {
+      const updateProfileWithSocial = async () => {
+        const { updateBusinessProfile } = await import('../utils/profile-updates')
+        
+        // Extract social links from connections
+        const socialLinks = connections
+          .filter(conn => conn.connected && conn.profileUrl)
+          .map(conn => conn.profileUrl!)
+        
+        if (socialLinks.length > 0) {
+          // Add social links to custom attributes
+          const existingSocialAttr = profile.customAttributes?.find(
+            attr => attr.label === 'Social Links'
+          )
+          
+          const customAttributes = profile.customAttributes || []
+          if (existingSocialAttr) {
+            // Update existing
+            existingSocialAttr.value = socialLinks.join(', ')
+          } else {
+            // Add new
+            customAttributes.push({
+              label: 'Social Links',
+              value: socialLinks.join(', ')
+            })
+          }
+          
+          await updateBusinessProfile(userId, {
+            customAttributes
+          })
+        }
+      }
+      
+      updateProfileWithSocial()
+    }
+  }, [connections, profile, userId])
+
   if (loading) {
     return (
       <div className={`rounded-lg border bg-white p-6 ${className}`}>

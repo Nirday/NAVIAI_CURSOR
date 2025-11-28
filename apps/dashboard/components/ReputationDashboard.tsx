@@ -47,6 +47,37 @@ export default function ReputationDashboard({
     fetchData()
   }, [userId])
 
+  // Update profile with insights from reputation data
+  useEffect(() => {
+    if (data && data.themes) {
+      const updateProfileFromReviews = async () => {
+        const { updateBusinessProfile } = await import('../utils/profile-updates')
+        
+        // Extract services mentioned in positive reviews
+        const positiveThemes = data.themes.positive || []
+        const mentionedServices = positiveThemes
+          .filter(theme => theme.keywords && theme.keywords.length > 0)
+          .flatMap(theme => theme.keywords)
+          .filter((keyword, index, self) => self.indexOf(keyword) === index) // unique
+          .slice(0, 5) // Top 5
+        
+        if (mentionedServices.length > 0) {
+          // Add to custom attributes
+          await updateBusinessProfile(userId, {
+            customAttributes: [
+              {
+                label: 'Services Mentioned in Reviews',
+                value: mentionedServices.join(', ')
+              }
+            ]
+          })
+        }
+      }
+      
+      updateProfileFromReviews()
+    }
+  }, [data, userId])
+
   const fetchData = async () => {
     setLoading(true)
     try {

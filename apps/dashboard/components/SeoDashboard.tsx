@@ -145,6 +145,29 @@ export default function SeoDashboard({ userId, className = '' }: SeoDashboardPro
       if (res.ok) {
         setSettings(newSettings)
         setSettingsModalOpen(false)
+        
+        // Update Master Business Profile with SEO insights
+        const { updateBusinessProfile } = await import('../utils/profile-updates')
+        const customAttributes: Array<{ label: string; value: string }> = []
+        
+        if (newSettings.targetKeywords && newSettings.targetKeywords.length > 0) {
+          customAttributes.push({
+            label: 'SEO Keywords',
+            value: newSettings.targetKeywords.join(', ')
+          })
+        }
+        
+        if (newSettings.primaryBusinessGoal) {
+          customAttributes.push({
+            label: 'Primary Business Goal',
+            value: newSettings.primaryBusinessGoal
+          })
+        }
+        
+        if (customAttributes.length > 0) {
+          await updateBusinessProfile(userId, { customAttributes })
+        }
+        
         // Refresh data
         fetchData()
       } else {

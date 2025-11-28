@@ -81,6 +81,36 @@ export default function ContentDashboard({ userId, className = '' }: ContentDash
         body: JSON.stringify(settings)
       })
       if (res.ok) {
+        // Update Master Business Profile with content strategy insights
+        const { updateBusinessProfile } = await import('../utils/profile-updates')
+        
+        const updates: any = {}
+        
+        // Update target audience if defined in content settings
+        if (settings.targetPlatforms && settings.targetPlatforms.length > 0) {
+          // This gives us insight into who they're targeting
+          updates.customAttributes = [
+            {
+              label: 'Content Target Platforms',
+              value: settings.targetPlatforms.join(', ')
+            }
+          ]
+        }
+        
+        if (settings.primaryBusinessGoalCta) {
+          updates.customAttributes = [
+            ...(updates.customAttributes || []),
+            {
+              label: 'Primary Business Goal CTA',
+              value: settings.primaryBusinessGoalCta
+            }
+          ]
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          await updateBusinessProfile(userId, updates)
+        }
+        
         alert('Settings saved successfully!')
       } else {
         throw new Error('Failed to save settings')
