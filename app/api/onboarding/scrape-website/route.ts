@@ -69,9 +69,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Normalize URL: ensure it has a protocol
+    let normalizedUrl = url.trim()
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = `https://${normalizedUrl}`
+    }
+
     // Validate URL format
+    let validUrl: URL
     try {
-      new URL(url)
+      validUrl = new URL(normalizedUrl)
     } catch {
       return NextResponse.json(
         { error: 'Invalid URL format' },
@@ -81,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     // In mock mode, return sample data (no delay for faster testing)
     if (isMockMode) {
-      const mockData = getMockScrapedData(url)
+      const mockData = getMockScrapedData(normalizedUrl)
       
       return NextResponse.json({
         success: true,
@@ -91,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Real scraping in production
-    const scrapedData = await scrapeWebsiteForProfile(url)
+    const scrapedData = await scrapeWebsiteForProfile(normalizedUrl)
 
     return NextResponse.json({
       success: true,
