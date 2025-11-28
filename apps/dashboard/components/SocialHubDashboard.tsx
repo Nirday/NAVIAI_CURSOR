@@ -128,14 +128,17 @@ export default function SocialHubDashboard({ userId, className = '' }: SocialHub
         
         if (socialLinks.length > 0) {
           // Add social links to custom attributes
-          const existingSocialAttr = profile.customAttributes?.find(
+          const existingSocialAttrIndex = profile.customAttributes?.findIndex(
             attr => attr.label === 'Social Links'
-          )
+          ) ?? -1
           
-          const customAttributes = profile.customAttributes || []
-          if (existingSocialAttr) {
+          const customAttributes = [...(profile.customAttributes || [])]
+          if (existingSocialAttrIndex >= 0) {
             // Update existing
-            existingSocialAttr.value = socialLinks.join(', ')
+            customAttributes[existingSocialAttrIndex] = {
+              ...customAttributes[existingSocialAttrIndex],
+              value: socialLinks.join(', ')
+            }
           } else {
             // Add new
             customAttributes.push({
