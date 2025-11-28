@@ -150,17 +150,24 @@ export default function SeoDashboard({ userId, className = '' }: SeoDashboardPro
         const { updateBusinessProfile } = await import('../utils/profile-updates')
         const customAttributes: Array<{ label: string; value: string }> = []
         
-        if (newSettings.targetKeywords && newSettings.targetKeywords.length > 0) {
+        if (newSettings.keywords && newSettings.keywords.length > 0) {
           customAttributes.push({
             label: 'SEO Keywords',
-            value: newSettings.targetKeywords.join(', ')
+            value: newSettings.keywords.join(', ')
           })
         }
         
-        if (newSettings.primaryBusinessGoal) {
+        if (newSettings.location) {
           customAttributes.push({
-            label: 'Primary Business Goal',
-            value: newSettings.primaryBusinessGoal
+            label: 'SEO Location',
+            value: newSettings.location
+          })
+        }
+        
+        if (newSettings.competitors && newSettings.competitors.length > 0) {
+          customAttributes.push({
+            label: 'SEO Competitors',
+            value: newSettings.competitors.join(', ')
           })
         }
         
