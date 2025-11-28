@@ -53,21 +53,20 @@ export default function ReputationDashboard({
       const updateProfileFromReviews = async () => {
         const { updateBusinessProfile } = await import('../utils/profile-updates')
         
-        // Extract services mentioned in positive reviews
+        // Extract themes from positive reviews
         const positiveThemes = data.themes.positive || []
-        const mentionedServices = positiveThemes
-          .filter(theme => theme.keywords && theme.keywords.length > 0)
-          .flatMap(theme => theme.keywords)
-          .filter((keyword, index, self) => self.indexOf(keyword) === index) // unique
-          .slice(0, 5) // Top 5
+        const mentionedThemes = positiveThemes
+          .filter(theme => theme.theme && theme.theme.trim().length > 0)
+          .map(theme => theme.theme)
+          .slice(0, 5) // Top 5 themes
         
-        if (mentionedServices.length > 0) {
+        if (mentionedThemes.length > 0) {
           // Add to custom attributes
           await updateBusinessProfile(userId, {
             customAttributes: [
               {
-                label: 'Services Mentioned in Reviews',
-                value: mentionedServices.join(', ')
+                label: 'Positive Themes from Reviews',
+                value: mentionedThemes.join(', ')
               }
             ]
           })
