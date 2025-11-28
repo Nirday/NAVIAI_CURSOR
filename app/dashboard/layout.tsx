@@ -102,12 +102,19 @@ export default async function DashboardLayout({
   // --- If they have a session AND a profile, they can see the dashboard ---
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative overflow-hidden">
+      {/* Animated background blobs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-200 rounded-full opacity-30 blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-200 rounded-full opacity-30 blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-200 rounded-full opacity-20 blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
       {/* Persistent sidebar component */}
       <DashboardSidebar />
 
       {/* Main page content (e.g., website editor, analytics) */}
-      <main className="flex-1 overflow-y-auto ml-64">
+      <main className="flex-1 overflow-y-auto ml-72 relative z-10">
         {children}
       </main>
     </div>

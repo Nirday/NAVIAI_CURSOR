@@ -1762,7 +1762,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   return (
-    <div className={`onboarding-chat flex flex-col h-full bg-gray-50 ${className}`}>
+    <div className={`onboarding-chat flex flex-col h-full ${className}`}>
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6">
         {messages.map((message) => (
@@ -1771,14 +1771,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-2xl rounded-lg px-4 py-3 ${
+              className={`max-w-2xl rounded-3xl px-5 py-4 shadow-lg transform transition-transform hover:scale-[1.02] ${
                 message.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-800 shadow-sm border border-gray-200'
+                  ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-br-md'
+                  : 'bg-white text-gray-800 border-2 border-purple-100 rounded-bl-md'
               }`}
             >
-              <p className="text-base whitespace-pre-wrap">{message.content}</p>
-              <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+              <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
@@ -1786,8 +1786,16 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200">
-              <p className="text-gray-600">Navi AI is thinking...</p>
+            <div className="bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-200 rounded-3xl rounded-bl-md px-6 py-4 shadow-md">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">💭</span>
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce"></div>
+                  <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-3 h-3 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <span className="ml-2 text-purple-700 font-medium">Navi is thinking...</span>
+              </div>
             </div>
           </div>
         )}
@@ -1795,22 +1803,22 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white px-4 sm:px-6 py-4">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="border-t-2 border-purple-200 bg-white/90 backdrop-blur-sm px-4 sm:px-6 py-4 shadow-lg">
+        <form onSubmit={handleSubmit} className="flex gap-3">
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type your answer..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Type your answer... 💬"
+            className="flex-1 px-5 py-4 border-2 border-purple-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all shadow-sm"
             disabled={isLoading || isComplete}
           />
           <button
             type="submit"
             disabled={isLoading || isComplete || !inputValue.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-2xl hover:from-purple-600 hover:to-pink-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
           >
-            Send
+            Send ✨
           </button>
         </form>
       </div>

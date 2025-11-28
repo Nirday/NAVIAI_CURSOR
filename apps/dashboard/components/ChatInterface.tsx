@@ -1,6 +1,7 @@
 /**
  * Chat Interface Component
  * Improved UX with better empty state, larger messages, and error handling
+ * 
  */
 
 'use client'
@@ -248,35 +249,35 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
   }, [messages])
 
   return (
-    <div className={`chat-interface flex flex-col h-full bg-gray-50 ${className}`}>
+    <div className={`chat-interface flex flex-col h-full ${className}`}>
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Improved Empty State */}
         {messages.length === 0 && !isLoading && (
           <div className="max-w-2xl mx-auto text-center py-12">
             <div className="mb-8">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+              <div className="w-24 h-24 bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl animate-bounce" style={{ animationDuration: '2s' }}>
+                <span className="text-5xl">🤖</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Navi AI!</h2>
-              <p className="text-gray-600 text-lg mb-1">
-                I'm here to help you grow your business.
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
+                Welcome to Navi AI! ✨
+              </h2>
+              <p className="text-gray-700 text-lg mb-2 font-medium">
+                I'm your friendly AI assistant, here to help you grow your business! 🚀
               </p>
-              <p className="text-gray-500 text-sm">
+              <p className="text-gray-600 text-base">
                 Ask me anything about SEO, content, social media, reputation, or website management.
               </p>
             </div>
             
             <div className="mt-8">
-              <p className="text-sm font-medium text-gray-700 mb-4">Try asking:</p>
+              <p className="text-sm font-semibold text-gray-700 mb-4">💡 Try asking:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto">
                 {EXAMPLE_QUESTIONS.map((question, index) => (
                   <button
                     key={index}
                     onClick={() => handleExampleClick(question)}
-                    className="text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all text-sm text-gray-700 hover:text-gray-900"
+                    className="text-left px-5 py-4 bg-white border-2 border-purple-200 rounded-2xl hover:border-purple-400 hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 transition-all text-sm text-gray-700 hover:text-gray-900 shadow-sm hover:shadow-md transform hover:scale-105 font-medium"
                   >
                     {question}
                   </button>
@@ -295,12 +296,13 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
             <div className={`max-w-2xl ${message.role === 'user' ? 'ml-auto' : 'mr-auto'}`}>
               <div
                 className={`
-                  px-5 py-3 rounded-2xl relative group
+                  px-5 py-4 rounded-3xl relative group shadow-lg
                   ${message.role === 'user' 
-                    ? 'bg-blue-600 text-white rounded-br-sm' 
-                    : 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm shadow-sm'
+                    ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-br-md' 
+                    : 'bg-white text-gray-900 border-2 border-purple-100 rounded-bl-md shadow-md'
                   }
-                  ${message.status === 'error' ? 'border-2 border-red-300' : ''}
+                  ${message.status === 'error' ? 'border-2 border-red-400' : ''}
+                  transform transition-transform hover:scale-[1.02]
                 `}
               >
                 <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
@@ -356,14 +358,15 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
         {isLoading && (
           <div className="flex justify-start">
             <div className="max-w-2xl">
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-5 py-3 shadow-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-200 rounded-3xl rounded-bl-md px-6 py-4 shadow-md">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl mr-2">💭</span>
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce"></div>
+                    <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-3 h-3 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm text-gray-500 ml-2">Navi AI is thinking...</span>
+                  <span className="ml-2 text-purple-700 font-medium">Navi is thinking...</span>
                 </div>
               </div>
             </div>
@@ -389,23 +392,23 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
       )}
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white p-4 sm:p-6">
+      <div className="border-t-2 border-purple-200 bg-white/90 backdrop-blur-sm p-4 sm:p-6 shadow-lg">
         <div className="max-w-2xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex space-x-3">
+          <form onSubmit={handleSubmit} className="flex gap-3">
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask me anything about your business..."
+              placeholder="Ask me anything about your business... 💬"
               disabled={isLoading}
-              className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 px-5 py-4 text-base border-2 border-purple-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all shadow-sm"
             />
             <button
               type="submit"
               disabled={!inputValue.trim() || isLoading}
-              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-2xl hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
-              Send
+              Send ✨
             </button>
           </form>
           
