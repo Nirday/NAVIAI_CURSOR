@@ -121,10 +121,27 @@ export default function SocialHubDashboard({ userId, className = '' }: SocialHub
       const updateProfileWithSocial = async () => {
         const { updateBusinessProfile } = await import('../utils/profile-updates')
         
-        // Extract social links from connections
+        // Extract social links from active connections
         const socialLinks = connections
-          .filter(conn => conn.connected && conn.profileUrl)
-          .map(conn => conn.profileUrl!)
+          .filter(conn => conn.isActive && conn.platformUsername)
+          .map(conn => {
+            // Construct profile URL based on platform
+            const username = conn.platformUsername
+            switch (conn.platform) {
+              case 'facebook':
+                return `https://facebook.com/${username}`
+              case 'instagram':
+                return `https://instagram.com/${username}`
+              case 'linkedin':
+                return `https://linkedin.com/company/${username}`
+              case 'twitter':
+                return `https://twitter.com/${username}`
+              case 'google_business':
+                return `https://business.google.com/${username}`
+              default:
+                return username
+            }
+          })
         
         if (socialLinks.length > 0) {
           // Add social links to custom attributes
