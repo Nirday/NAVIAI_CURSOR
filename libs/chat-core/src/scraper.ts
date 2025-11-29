@@ -377,3 +377,326 @@ export async function scrapeWebsiteForProfile(url: string): Promise<ScrapedProfi
     throw new ScrapingError(`Unexpected error during website scraping: ${message}`)
   }
 }
+
+/**
+ * ============================
+ * Targeted Business Scraper v2
+ * ============================
+ *
+ * Spec: Targeted Website Scraper Logic for Business Profiles
+ * - Operates in isolation as a pure data-extraction utility
+ * - DOES NOT touch chatbot flows, React UI, or database schema
+ * - Takes a URL and returns a focused JSON object under `scraped_data`
+ */
+
+export interface TargetedScrapedData {
+  scraped_data: {
+    business_name: string | null
+    address_or_area: string | null
+    phone: string | null
+    email: string | null
+    social_links: string[]
+    services: string[]
+    owner_name: string | null
+    vibe_keywords: string[]
+  }
+}
+
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+function extractBusinessName($: cheerio.CheerioAPI): string | null {
+  // 1) Logo alt tag
+  const logoAlt = $('img[alt*="logo" i]').first().attr('alt')
+  if (logoAlt && normalizeText(logoAlt).length > 0) {
+    return normalizeText(logoAlt)
+  }
+
+  // 2) <title> tag
+  const title = $('title').first().text()
+  if (title && normalizeText(title).length > 0) {
+    // Strip separators like " | " or " – "
+    const parts = normalizeText(title).split(/[\|\-\–]/)
+    if (parts[0]) {
+      return normalizeText(parts[0])
+    }
+  }
+
+  // 3) Text near copyright in footer
+  const footerText = $('footer').text() || $('body').text()
+  const copyrightMatch = footerText.match(/©\s*(?:\d{4})?\s*([^|•\n]+)/i)
+  if (copyrightMatch && copyrightMatch[1]) {
+    const candidate = normalizeText(copyrightMatch[1])
+    if (candidate.length > 0 && candidate.length < 80) {
+      return candidate
+    }
+  }
+
+  return null
+}
+
+function extractPhone(text: string): string | null {
+  // Common phone patterns
+  const phoneRegex =
+    /(\+?\d{1,2}[\s\-\.]?)?(\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4})/g
+
+  const headerFooterCandidates: string[] = []
+  const header = text
+  headerFooterCandidates.push(header)
+
+  for (const segment of headerFooterCandidates) {
+    const match = phoneRegex.exec(segment)
+    if (match && match[0]) {
+      return normalizeText(match[0])
+    }
+  }
+
+  // Fallback: scan entire text
+  const globalMatch = phoneRegex.exec(text)
+  if (globalMatch && globalMatch[0]) {
+    return normalizeText(globalMatch[0])
+  }
+
+  return null
+}
+
+function extractEmail($: cheerio.CheerioAPI, text: string): string | null {
+  // Prioritize mailto links
+  const mailtos = $('a[href^="mailto:"]').map((_, el) => {
+    const href = $(el).attr('href') || ''
+    return href.replace(/^mailto:/i, '').trim()
+  }).get()
+
+  const emailRegex =
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
+
+  function filterEmail(email: string): boolean {
+    const lower = email.toLowerCase()
+    if (lower.startsWith('webmaster@') || lower.startsWith('noreply@')) return false
+    return true
+  }
+
+  const priorityPrefixes = ['hello@', 'info@', 'support@']
+
+  const filteredMailtos = mailtos.filter(filterEmail)
+  if (filteredMailtos.length > 0) {
+    const priority = filteredMailtos.find(e =>
+      priorityPrefixes.some(p => e.toLowerCase().startsWith(p))
+    )
+    return normalizeText(priority || filteredMailtos[0])
+  }
+
+  // Fallback: regex over full text
+  const matches = text.match(emailRegex)
+  if (matches && matches.length > 0) {
+    const filtered = matches.filter(filterEmail)
+    if (filtered.length > 0) {
+      const priority = filtered.find(e =>
+        priorityPrefixes.some(p => e.toLowerCase().startsWith(p))
+      )
+      return normalizeText(priority || filtered[0])
+    }
+  }
+
+  return null
+}
+
+function extractAddress(text: string): string | null {
+  const lines = text.split(/\n+/).map(l => normalizeText(l)).filter(Boolean)
+
+  const streetKeywords = /\b(Ave|Avenue|Street|St\.|St\b|Rd\.|Road|Blvd|Boulevard|Suite|Ste\.|Floor|Dr\.|Drive|Lane|Ln\.|Way)\b/i
+  const cityStateZip = /\b[A-Za-z\s]+,\s*[A-Z]{2}\s+\d{5}(-\d{4})?\b/
+
+  for (const line of lines) {
+    if (streetKeywords.test(line) && cityStateZip.test(line)) {
+      return line
+    }
+  }
+
+  // Slightly looser: any line with street keyword and a zip
+  const zipRegex = /\b\d{5}(-\d{4})?\b/
+  for (const line of lines) {
+    if (streetKeywords.test(line) && zipRegex.test(line)) {
+      return line
+    }
+  }
+
+  return null
+}
+
+function extractSocialLinks($: cheerio.CheerioAPI): string[] {
+  const socialDomains = [
+    'facebook.com',
+    'instagram.com',
+    'twitter.com',
+    'x.com',
+    'linkedin.com',
+    'tiktok.com',
+    'youtube.com'
+  ]
+
+  const links = $('a[href]')
+    .map((_, el) => $(el).attr('href') || '')
+    .get()
+    .filter(href =>
+      socialDomains.some(domain => href.toLowerCase().includes(domain))
+    )
+
+  // Deduplicate
+  return Array.from(new Set(links))
+}
+
+function extractServices($: cheerio.CheerioAPI): string[] {
+  const services: string[] = []
+
+  // Candidate sections: headings containing "Services", "What We Do", "Offerings"
+  const serviceHeadings = $('h2, h3, h4')
+    .filter((_, el) => {
+      const text = normalizeText($(el).text()).toLowerCase()
+      return (
+        text.includes('services') ||
+        text.includes('what we do') ||
+        text.includes('offerings')
+      )
+    })
+
+  serviceHeadings.each((_, heading) => {
+    const section = $(heading).parent()
+    section.find('li').each((_, li) => {
+      if (services.length >= 5) return
+      const text = normalizeText($(li).text())
+      if (!text) return
+
+      // Filter out obvious nav items / noise
+      const lower = text.toLowerCase()
+      const navNoise = ['home', 'about', 'contact', 'blog', 'login', 'sign up']
+      if (navNoise.includes(lower)) return
+
+      if (!services.includes(text)) {
+        services.push(text)
+      }
+    })
+  })
+
+  return services.slice(0, 5)
+}
+
+function extractOwnerAndVibe($: cheerio.CheerioAPI): { owner: string | null; vibes: string[] } {
+  let aboutText = ''
+
+  // Try sections with "About" or "Team"
+  $('[id*="about" i], [class*="about" i], [id*="team" i], [class*="team" i]').each((_, el) => {
+    aboutText += ' ' + normalizeText($(el).text())
+  })
+
+  if (!aboutText) {
+    // Fallback: use a portion of the body text
+    aboutText = normalizeText($('body').text()).slice(0, 3000)
+  }
+
+  let owner: string | null = null
+  const ownerRegex =
+    /\b(Dr\.\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+(Founder|Owner|CEO|Principal|Director)\b/
+  const ownerMatch = aboutText.match(ownerRegex)
+  if (ownerMatch && ownerMatch[1]) {
+    owner = ownerMatch[1]
+  }
+
+  const vibeCandidates = [
+    'holistic',
+    'aggressive',
+    'luxury',
+    'affordable',
+    'family-owned',
+    'family owned',
+    'fast',
+    'friendly',
+    'local',
+    'premium',
+    'boutique',
+    'casual',
+    'professional',
+    'modern',
+    'trusted'
+  ]
+
+  const lowerAbout = aboutText.toLowerCase()
+  const vibes: string[] = []
+  for (const word of vibeCandidates) {
+    if (lowerAbout.includes(word) && !vibes.includes(word)) {
+      vibes.push(word)
+    }
+  }
+
+  return {
+    owner,
+    vibes: vibes.slice(0, 5)
+  }
+}
+
+/**
+ * Targeted scraper that returns focused business profile info.
+ * If the site is blocked or unreadable, returns all fields as null/empty.
+ */
+export async function scrapeWebsiteForProfileTargeted(url: string): Promise<TargetedScrapedData> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Bot/1.0; +https://naviai.com/bot)'
+      }
+    })
+
+    if (!response.ok) {
+      throw new ScrapingError(`Could not reach website. Status: ${response.status}`)
+    }
+
+    const html = await response.text()
+    const $ = cheerio.load(html)
+
+    // Remove obvious noise elements: nav, footer legal, etc.
+    $('nav, header .menu, .navigation, .navbar').remove()
+
+    // Extract core texts
+    const bodyText = normalizeText($('body').text())
+    const footerText = normalizeText($('footer').text() || '')
+
+    const businessName = extractBusinessName($)
+    const phone = extractPhone(footerText || bodyText)
+    const email = extractEmail($, bodyText)
+    const address = extractAddress(bodyText)
+    const socialLinks = extractSocialLinks($)
+    const services = extractServices($)
+    const { owner, vibes } = extractOwnerAndVibe($)
+
+    return {
+      scraped_data: {
+        business_name: businessName || null,
+        address_or_area: address || null,
+        phone: phone || null,
+        email: email || null,
+        social_links: socialLinks,
+        services,
+        owner_name: owner || null,
+        vibe_keywords: vibes
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Targeted scraper failed:', message)
+
+    // Per spec: on failure, return all fields null (no crash)
+    return {
+      scraped_data: {
+        business_name: null,
+        address_or_area: null,
+        phone: null,
+        email: null,
+        social_links: [],
+        services: [],
+        owner_name: null,
+        vibe_keywords: []
+      }
+    }
+  }
+}
