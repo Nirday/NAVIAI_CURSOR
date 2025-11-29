@@ -287,10 +287,16 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const detectGlobalIntent = (rawMessage: string): GlobalIntent => {
     const lower = rawMessage.toLowerCase().trim()
 
-    // Any explicit URL in the message
+    // Any explicit URL in the message (with protocol or www)
     const urlMatch = rawMessage.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/i)
     if (urlMatch && urlMatch[0]) {
       return { type: 'scrape_with_url', url: urlMatch[0] }
+    }
+
+    // Bare domain like "example.com" (no protocol / www)
+    const bareDomainMatch = rawMessage.match(/\b[a-z0-9.-]+\.[a-z]{2,}\b/i)
+    if (bareDomainMatch && bareDomainMatch[0]) {
+      return { type: 'scrape_with_url', url: bareDomainMatch[0] }
     }
 
     // Retry / scrape-again style commands
