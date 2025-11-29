@@ -467,7 +467,7 @@ function extractPhone(text: string): string | null {
 
 function extractEmail($: any, text: string): string | null {
   // Prioritize mailto links
-  const mailtos = $('a[href^="mailto:"]').map((_, el) => {
+  const mailtos = $('a[href^="mailto:"]').map((_idx: number, el: any) => {
     const href = $(el).attr('href') || ''
     return href.replace(/^mailto:/i, '').trim()
   }).get()
@@ -541,7 +541,7 @@ function extractSocialLinks($: any): string[] {
   ]
 
   const links = $('a[href]')
-    .map((_, el) => $(el).attr('href') || '')
+    .map((_idx: number, el: any) => $(el).attr('href') || '')
     .get()
     .filter(href =>
       socialDomains.some(domain => href.toLowerCase().includes(domain))
@@ -551,12 +551,12 @@ function extractSocialLinks($: any): string[] {
   return Array.from(new Set(links))
 }
 
-function extractServices($: cheerio.CheerioAPI): string[] {
+function extractServices($: any): string[] {
   const services: string[] = []
 
   // Candidate sections: headings containing "Services", "What We Do", "Offerings"
   const serviceHeadings = $('h2, h3, h4')
-    .filter((_, el) => {
+    .filter((_idx: number, el: any) => {
       const text = normalizeText($(el).text()).toLowerCase()
       return (
         text.includes('services') ||
@@ -565,9 +565,9 @@ function extractServices($: cheerio.CheerioAPI): string[] {
       )
     })
 
-  serviceHeadings.each((_, heading) => {
+  serviceHeadings.each((_idx: number, heading: any) => {
     const section = $(heading).parent()
-    section.find('li').each((_, li) => {
+    section.find('li').each((_i: number, li: any) => {
       if (services.length >= 5) return
       const text = normalizeText($(li).text())
       if (!text) return
@@ -590,7 +590,7 @@ function extractOwnerAndVibe($: any): { owner: string | null; vibes: string[] } 
   let aboutText = ''
 
   // Try sections with "About" or "Team"
-  $('[id*="about" i], [class*="about" i], [id*="team" i], [class*="team" i]').each((_, el) => {
+  $('[id*="about" i], [class*="about" i], [id*="team" i], [class*="team" i]').each((_idx: number, el: any) => {
     aboutText += ' ' + normalizeText($(el).text())
   })
 
