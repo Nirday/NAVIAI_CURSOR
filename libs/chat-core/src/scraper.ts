@@ -543,7 +543,7 @@ function extractSocialLinks($: any): string[] {
   const links = $('a[href]')
     .map((_idx: number, el: any) => $(el).attr('href') || '')
     .get()
-    .filter(href =>
+    .filter((href: string) =>
       socialDomains.some(domain => href.toLowerCase().includes(domain))
     )
 
