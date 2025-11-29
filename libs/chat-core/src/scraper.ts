@@ -291,7 +291,8 @@ ${content}`
       messages: [
         {
           role: 'system',
-          content: 'You are a data extraction expert. Extract business information from website content and return it as valid JSON.'
+          content:
+            'You are a data extraction expert. Extract business information from website content and return it as a strict JSON object that matches the requested schema. Do not include any explanation or text outside of the JSON.'
         },
         {
           role: 'user',
@@ -299,7 +300,9 @@ ${content}`
         }
       ],
       temperature: 0.1, // Low temperature for consistent extraction
-      max_tokens: 2000
+      max_tokens: 2000,
+      // Force the model to return valid JSON only
+      response_format: { type: 'json_object' }
     })
 
     const aiResponse = response.choices[0]?.message?.content
@@ -307,7 +310,7 @@ ${content}`
       throw new AIError('AI returned empty response')
     }
 
-    // Parse the JSON response
+    // Parse the JSON response (should already be strict JSON due to response_format)
     try {
       const extractedData = JSON.parse(aiResponse)
       return extractedData as PartialBusinessProfile
