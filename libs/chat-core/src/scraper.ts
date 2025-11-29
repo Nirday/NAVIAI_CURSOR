@@ -402,11 +402,15 @@ export interface TargetedScrapedData {
   }
 }
 
+// Note: We intentionally use `any` for the Cheerio instance type here to avoid
+// tight coupling to specific Cheerio type signatures across versions.
+// This is a low-risk tradeoff for broader compatibility.
+
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
-function extractBusinessName($: cheerio.CheerioAPI): string | null {
+function extractBusinessName($: any): string | null {
   // 1) Logo alt tag
   const logoAlt = $('img[alt*="logo" i]').first().attr('alt')
   if (logoAlt && normalizeText(logoAlt).length > 0) {
@@ -461,7 +465,7 @@ function extractPhone(text: string): string | null {
   return null
 }
 
-function extractEmail($: cheerio.CheerioAPI, text: string): string | null {
+function extractEmail($: any, text: string): string | null {
   // Prioritize mailto links
   const mailtos = $('a[href^="mailto:"]').map((_, el) => {
     const href = $(el).attr('href') || ''
@@ -525,7 +529,7 @@ function extractAddress(text: string): string | null {
   return null
 }
 
-function extractSocialLinks($: cheerio.CheerioAPI): string[] {
+function extractSocialLinks($: any): string[] {
   const socialDomains = [
     'facebook.com',
     'instagram.com',
@@ -582,7 +586,7 @@ function extractServices($: cheerio.CheerioAPI): string[] {
   return services.slice(0, 5)
 }
 
-function extractOwnerAndVibe($: cheerio.CheerioAPI): { owner: string | null; vibes: string[] } {
+function extractOwnerAndVibe($: any): { owner: string | null; vibes: string[] } {
   let aboutText = ''
 
   // Try sections with "About" or "Team"
