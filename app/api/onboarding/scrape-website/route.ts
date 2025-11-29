@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     console.log('Scraping successful, extracted data:', {
       businessName: scrapedData.businessName,
       hasServices: !!scrapedData.services?.length,
-      hasContactInfo: !!(scrapedData.contactInfo?.phone || scrapedData.contactInfo?.email),
-      extractionMethod: scrapedData.extractionMethod
+      hasContactInfo: !!(scrapedData.contactInfo?.phone || scrapedData.contactInfo?.email)
+      // Note: if you need to inspect extraction method, log the whole object or update ScrapedProfileData type
     })
 
     return NextResponse.json({
