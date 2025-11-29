@@ -209,7 +209,17 @@ async function scrapeWithPuppeteer(url: string): Promise<string> {
       throw error
     }
     const message = error instanceof Error ? error.message : String(error)
-    throw new ScrapingError(`Could not render the website. ${message}`)
+    // Log full Puppeteer error for debugging, but return a user-friendly message
+    console.error('Puppeteer scraping error:', message)
+
+    // If Chrome/Puppeteer isn't available in the environment, avoid exposing internals
+    if (message.toLowerCase().includes('could not find chrome')) {
+      throw new ScrapingError(
+        'This website needs a full browser to load, which is not available in this test environment.'
+      )
+    }
+
+    throw new ScrapingError('Could not render the website in an automated browser.')
   } finally {
     if (browser) {
       await browser.close()
