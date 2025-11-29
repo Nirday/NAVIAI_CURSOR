@@ -64,6 +64,7 @@ interface OnboardingState {
     suggestion?: string
   } | null
   fromWebsite: boolean
+  lastWebsiteUrl?: string | null
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -77,7 +78,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     archetype: null,
     data: {},
     needsVerification: null,
-    fromWebsite: false
+    fromWebsite: false,
+    lastWebsiteUrl: null
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -276,6 +278,151 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     return summary
   }
 
+  // Detect global commands (retry / scrape again / new URL) before treating input as an answer
+  type GlobalIntent =
+    | { type: 'scrape_with_url'; url: string }
+    | { type: 'retry_scrape' }
+    | null
+
+  const detectGlobalIntent = (rawMessage: string): GlobalIntent => {
+    const lower = rawMessage.toLowerCase().trim()
+
+    // Any explicit URL in the message
+    const urlMatch = rawMessage.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/i)
+    if (urlMatch && urlMatch[0]) {
+      return { type: 'scrape_with_url', url: urlMatch[0] }
+    }
+
+    // Retry / scrape-again style commands
+    const retryKeywords = [
+      'retry',
+      'try again',
+      'scrape again',
+      'try scraping again',
+      'try a different url',
+      'different url',
+      'another url',
+      'another website',
+      'change website',
+      'change url',
+      'restart scraping',
+      'restart website'
+    ]
+    if (retryKeywords.some(phrase => lower.includes(phrase))) {
+      return { type: 'retry_scrape' }
+    }
+
+    return null
+  }
+
+  // Shared helper to perform website scraping and update state
+  const scrapeWebsiteAndApply = async (url: string) => {
+    // Show scanning message
+    const scanningMsg: Message = {
+      id: `assistant_${Date.now()}`,
+      role: 'assistant',
+      content: `Jackpot! 🕵️‍♀️ I'm scanning ${url} now...`,
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, scanningMsg])
+
+    try {
+      const response = await fetch('/api/onboarding/scrape-website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const msg = errorData?.error || 'Failed to scrape website'
+        throw new Error(msg)
+      }
+
+      const result = await response.json()
+      const scrapedData = result.data
+
+      // Fill in data from scraped website (resetting any previous manual data)
+      const updatedData: Partial<BusinessProfileData> = {
+        archetype: detectArchetype(scrapedData.industry || ''),
+        identity: {
+          business_name: scrapedData.businessName || '',
+          address_or_area: scrapedData.location
+            ? [scrapedData.location.address, scrapedData.location.city, scrapedData.location.state]
+                .filter(Boolean)
+                .join(', ')
+            : '',
+          phone: scrapedData.contactInfo?.phone || '',
+          email: scrapedData.contactInfo?.email || '',
+          website: url,
+          hours: scrapedData.hours
+            ? scrapedData.hours.map((h: any) => `${h.day}: ${h.open}-${h.close}`).join(', ')
+            : '',
+          social_links: []
+        },
+        offering: {
+          core_services: scrapedData.services?.map((s: any) => s.name) || [],
+          target_audience: scrapedData.targetAudience || '',
+          vibe_mission: scrapedData.brandVoice || ''
+        },
+        credibility: {
+          owner_name: '',
+          owner_bio: '',
+          credentials: [],
+          years_in_business: ''
+        },
+        logistics: {
+          payment_methods: [],
+          insurance_accepted: false,
+          booking_policy: '',
+          specific_policy: ''
+        }
+      }
+
+      // Jump straight to Proofread phase with website data
+      setOnboardingState(prev => ({
+        phase: 'proofread',
+        subStep: 'review',
+        archetype: updatedData.archetype as Archetype,
+        data: updatedData,
+        needsVerification: null,
+        fromWebsite: true,
+        lastWebsiteUrl: url
+      }))
+
+      const summary = formatProofreadSummary(updatedData, true)
+      const reviewMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: summary,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, reviewMsg])
+    } catch (error: any) {
+      console.error('Website scraping failed:', error)
+      const errorMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content:
+          `Scraping that link failed: ${error?.message || 'unable to reach the website.'} ` +
+          "Do you want to try a different URL, or enter your business details manually?",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMsg])
+
+      // Move into a choice state instead of silently switching to manual mode
+      setOnboardingState(prev => ({
+        phase: 'website_check',
+        subStep: 'scrape_failed_choice',
+        archetype: null,
+        data: {},
+        needsVerification: null,
+        fromWebsite: false,
+        lastWebsiteUrl: url
+      }))
+    }
+  }
+
   // Handle user message
   const handleSend = async (userMessage: string) => {
     if (!userMessage.trim() || isLoading || isComplete) return
@@ -292,8 +439,46 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     setIsLoading(true)
 
     try {
-      const { phase, subStep, archetype, data, needsVerification } = onboardingState
+      const { phase, subStep, archetype, data, needsVerification, lastWebsiteUrl } = onboardingState
       const lowerMessage = userMessage.toLowerCase().trim()
+
+      // 1) Global intent / command handling (retry / new URL) BEFORE treating as an answer
+      const globalIntent = detectGlobalIntent(userMessage)
+      if (globalIntent) {
+        if (globalIntent.type === 'scrape_with_url') {
+          await scrapeWebsiteAndApply(globalIntent.url)
+          setIsLoading(false)
+          return
+        }
+
+        if (globalIntent.type === 'retry_scrape') {
+          if (lastWebsiteUrl) {
+            await scrapeWebsiteAndApply(lastWebsiteUrl)
+            setIsLoading(false)
+            return
+          }
+
+          // No previous URL stored – ask for one and go back to website_check
+          const askUrlMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it, let's try again. Paste the website URL you want me to scan.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, askUrlMsg])
+          setOnboardingState(prev => ({
+            phase: 'website_check',
+            subStep: 'has_website',
+            archetype: null,
+            data: {},
+            needsVerification: null,
+            fromWebsite: false,
+            lastWebsiteUrl: null
+          }))
+          setIsLoading(false)
+          return
+        }
+      }
 
       // Handle verification requests
       if (needsVerification) {
@@ -426,120 +611,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         const lower = lowerMessage
         
         // Check if user provided a URL
-        const urlMatch = userMessage.match(/(https?:\/\/[^\s]+)/i)
-        const isUrl = urlMatch || userMessage.includes('http') || userMessage.includes('www.')
+        const urlMatch = userMessage.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/i)
+        const isUrl = !!urlMatch || userMessage.includes('http') || userMessage.includes('www.')
         
         if (isUrl || (!lower.includes('no') && !lower.includes('not') && !lower.includes("don't") && !lower.includes('none'))) {
-          // User provided a URL or said yes
+          // User provided a URL or said yes – try scraping
           const url = urlMatch ? urlMatch[0] : userMessage.trim()
-          
-          // Show scanning message
-          const scanningMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: `Jackpot! 🕵️‍♀️ I'm scanning ${url} now... okay, I found the key details.`,
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, scanningMsg])
-          
-          try {
-            // Scrape website
-            const response = await fetch('/api/onboarding/scrape-website', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url })
-            })
-            
-            if (!response.ok) {
-              throw new Error('Failed to scrape website')
-            }
-            
-            const result = await response.json()
-            const scrapedData = result.data
-            
-            // Fill in data from scraped website
-            const updatedData: Partial<BusinessProfileData> = {
-              archetype: detectArchetype(scrapedData.industry || ''),
-              identity: {
-                business_name: scrapedData.businessName || '',
-                address_or_area: scrapedData.location ? 
-                  [scrapedData.location.address, scrapedData.location.city, scrapedData.location.state]
-                    .filter(Boolean).join(', ') : '',
-                phone: scrapedData.contactInfo?.phone || '',
-                email: scrapedData.contactInfo?.email || '',
-                website: url,
-                hours: scrapedData.hours ? 
-                  scrapedData.hours.map((h: any) => `${h.day}: ${h.open}-${h.close}`).join(', ') : '',
-                social_links: []
-              },
-              offering: {
-                core_services: scrapedData.services?.map((s: any) => s.name) || [],
-                target_audience: scrapedData.targetAudience || '',
-                vibe_mission: scrapedData.brandVoice || ''
-              },
-              credibility: {
-                owner_name: '',
-                owner_bio: '',
-                credentials: [],
-                years_in_business: ''
-              },
-              logistics: {
-                payment_methods: [],
-                insurance_accepted: false,
-                booking_policy: '',
-                specific_policy: ''
-              }
-            }
-            
-            // Jump straight to Phase 3: Review
-            setOnboardingState({
-              phase: 'proofread',
-              subStep: 'review',
-              archetype: updatedData.archetype as Archetype,
-              data: updatedData,
-              needsVerification: null,
-              fromWebsite: true
-            })
-            
-            const summary = formatProofreadSummary(updatedData, true)
-            const reviewMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: summary,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, reviewMsg])
-            setIsLoading(false)
-            return
-          } catch (error: any) {
-            const errorMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: `Couldn't access that website (${error.message}). No problem at all! Let's build it together from scratch. It'll only take a minute.`,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, errorMsg])
-            
-            // Proceed to Phase 0
-            setOnboardingState({
-              phase: 'discovery',
-              subStep: 'business_type',
-              archetype: null,
-              data: {},
-              needsVerification: null,
-              fromWebsite: false
-            })
-            
-            const discoveryMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "To kick things off, in a few words—what exactly does your business do?",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, discoveryMsg])
-            setIsLoading(false)
-            return
-          }
+          await scrapeWebsiteAndApply(url)
+          setIsLoading(false)
+          return
         } else {
           // User said no website
           const noWebsiteMsg: Message = {
@@ -570,6 +650,57 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setIsLoading(false)
           return
         }
+      }
+
+      // Website check: user responding after a failed scrape
+      if (phase === 'website_check' && subStep === 'scrape_failed_choice') {
+        // If they clearly want manual mode
+        if (
+          lowerMessage.includes('manual') ||
+          lowerMessage.includes('manually') ||
+          lowerMessage.includes('no website') ||
+          (lowerMessage.includes('no') && !lowerMessage.includes('url') && !lowerMessage.includes('website'))
+        ) {
+          const noWebsiteMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "No problem at all! Let's build it together from scratch. It'll only take a minute.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, noWebsiteMsg])
+
+          setOnboardingState({
+            phase: 'discovery',
+            subStep: 'business_type',
+            archetype: null,
+            data: {},
+            needsVerification: null,
+            fromWebsite: false,
+            lastWebsiteUrl
+          })
+
+          const discoveryMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "To kick things off, in a few words—what exactly does your business do?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, discoveryMsg])
+          setIsLoading(false)
+          return
+        }
+
+        // If they paste another URL or say "scrape again", the global intent handler above will already have caught it.
+        // If we reach here, and message is ambiguous, gently prompt for clarity.
+        const clarifyMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Got it. If you want me to try scraping again, paste the new website link. If you'd rather skip the website, just say \"manual\" and we'll enter details by hand.",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, clarifyMsg])
+        setIsLoading(false)
+        return
       }
 
       // Phase 0: Discovery - Detect archetype (hidden, never revealed)
