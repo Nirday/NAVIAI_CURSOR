@@ -1758,7 +1758,66 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setIsLoading(false)
           return
         } else {
-          // User wants to make corrections
+          // User wants to make corrections – detect which field they mean
+          if (lowerMessage.includes('email')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_email',
+              data
+            })
+            const askEmailMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got it. What's the correct email address?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askEmailMsg])
+            setIsLoading(false)
+            return
+          }
+          if (lowerMessage.includes('phone') || lowerMessage.includes('number')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_phone',
+              data
+            })
+            const askPhoneMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "No problem. What's the correct main phone number?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askPhoneMsg])
+            setIsLoading(false)
+            return
+          }
+          if (lowerMessage.includes('name') || lowerMessage.includes('business')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_business_name',
+              data
+            })
+            const askNameMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Sure thing. What should the business name be?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askNameMsg])
+            setIsLoading(false)
+            return
+          }
+
+          // Fallback generic correction prompt (only once)
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correction_pending',
+            data
+          })
           const correctionMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -1766,9 +1825,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             timestamp: new Date()
           }
           setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return
         }
-        setIsLoading(false)
-        return
       }
       
       // Final Proofread (after all phases)
@@ -1807,7 +1866,66 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             setMessages(prev => [...prev, errorMsg])
           }
         } else {
-          // User wants to make corrections
+          // User wants to make corrections – detect which field they mean
+          if (lowerMessage.includes('email')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_email',
+              data
+            })
+            const askEmailMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got it. What's the correct email address?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askEmailMsg])
+            setIsLoading(false)
+            return
+          }
+          if (lowerMessage.includes('phone') || lowerMessage.includes('number')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_phone',
+              data
+            })
+            const askPhoneMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "No problem. What's the correct main phone number?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askPhoneMsg])
+            setIsLoading(false)
+            return
+          }
+          if (lowerMessage.includes('name') || lowerMessage.includes('business')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_business_name',
+              data
+            })
+            const askNameMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Sure thing. What should the business name be?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askNameMsg])
+            setIsLoading(false)
+            return
+          }
+
+          // Fallback generic correction prompt (only once)
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correction_pending',
+            data
+          })
           const correctionMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -1815,7 +1933,156 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             timestamp: new Date()
           }
           setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return
         }
+      }
+
+      // Handle targeted corrections after a review/final_review
+      if (phase === 'proofread' && subStep === 'correct_email') {
+        const newEmailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
+        const newEmail = (newEmailMatch ? newEmailMatch[0] : userMessage.trim())
+        const validation = validateCriticalField('email', newEmail)
+        if (!validation.isValid) {
+          const errorMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "That email still doesn't look quite right. Could you double-check it?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, errorMsg])
+          setIsLoading(false)
+          return
+        }
+
+        const updatedData: Partial<BusinessProfileData> = {
+          ...data,
+          identity: {
+            ...data.identity,
+            email: newEmail
+          } as BusinessProfileData['identity']
+        }
+
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'proofread',
+          subStep: onboardingState.fromWebsite ? 'review' : 'final_review',
+          data: updatedData
+        }))
+
+        const reviewMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: summary,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, reviewMsg])
+        setIsLoading(false)
+        return
+      }
+
+      if (phase === 'proofread' && subStep === 'correct_phone') {
+        const newPhone = userMessage.trim()
+        const validation = validateCriticalField('phone', newPhone)
+        if (!validation.isValid) {
+          const errorMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "That phone number looks a bit off. Could you double-check it?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, errorMsg])
+          setIsLoading(false)
+          return
+        }
+
+        const updatedData: Partial<BusinessProfileData> = {
+          ...data,
+          identity: {
+            ...data.identity,
+            phone: newPhone
+          } as BusinessProfileData['identity']
+        }
+
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'proofread',
+          subStep: onboardingState.fromWebsite ? 'review' : 'final_review',
+          data: updatedData
+        }))
+
+        const reviewMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: summary,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, reviewMsg])
+        setIsLoading(false)
+        return
+      }
+
+      if (phase === 'proofread' && subStep === 'correct_business_name') {
+        const newName = userMessage.trim()
+        const validation = validateCriticalField('business_name', newName)
+        if (!validation.isValid && validation.suggestion) {
+          const verifyMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Just to be safe, did you mean "${validation.suggestion}"?`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, verifyMsg])
+          // Keep subStep as correct_business_name; next reply will overwrite
+          setIsLoading(false)
+          return
+        }
+
+        const updatedData: Partial<BusinessProfileData> = {
+          ...data,
+          identity: {
+            ...data.identity,
+            business_name: validation.suggestion || newName
+          } as BusinessProfileData['identity']
+        }
+
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'proofread',
+          subStep: onboardingState.fromWebsite ? 'review' : 'final_review',
+          data: updatedData
+        }))
+
+        const reviewMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: summary,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, reviewMsg])
+        setIsLoading(false)
+        return
+      }
+
+      if (phase === 'proofread' && subStep === 'correction_pending') {
+        // For now, just re-show the summary so they can confirm again
+        const summary = formatProofreadSummary(data, onboardingState.fromWebsite)
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'proofread',
+          subStep: onboardingState.fromWebsite ? 'review' : 'final_review'
+        }))
+
+        const reviewMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: summary,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
         return
       }
