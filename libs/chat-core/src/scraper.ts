@@ -485,7 +485,7 @@ function extractEmail($: any, text: string): string | null {
 
   const filteredMailtos = mailtos.filter(filterEmail)
   if (filteredMailtos.length > 0) {
-    const priority = filteredMailtos.find(e =>
+    const priority = filteredMailtos.find((e: string) =>
       priorityPrefixes.some(p => e.toLowerCase().startsWith(p))
     )
     return normalizeText(priority || filteredMailtos[0])
@@ -496,7 +496,7 @@ function extractEmail($: any, text: string): string | null {
   if (matches && matches.length > 0) {
     const filtered = matches.filter(filterEmail)
     if (filtered.length > 0) {
-      const priority = filtered.find(e =>
+      const priority = filtered.find((e: string) =>
         priorityPrefixes.some(p => e.toLowerCase().startsWith(p))
       )
       return normalizeText(priority || filtered[0])
