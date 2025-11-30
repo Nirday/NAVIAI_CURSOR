@@ -77,12 +77,32 @@ async function checkRobotsTxt(url: string): Promise<void> {
 
 /**
  * Extracts main content from HTML using simple heuristics
+ * Preserves footer contact info (phone, email, address) as per spec
  */
 function extractMainContent(html: string): string {
   const $ = cheerio.load(html)
   
   // Remove script and style elements
-  $('script, style, nav, header, footer, aside, .advertisement, .ads, .sidebar').remove()
+  $('script, style, nav, header, aside, .advertisement, .ads, .sidebar').remove()
+  
+  // Extract footer contact info BEFORE removing footer
+  let footerContactInfo = ''
+  const footer = $('footer')
+  if (footer.length > 0) {
+    // Look for contact info patterns in footer
+    const footerText = footer.text()
+    const hasPhone = /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(footerText)
+    const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(footerText)
+    const hasAddress = /\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)\b/i.test(footerText)
+    
+    // If footer has contact info, preserve it
+    if (hasPhone || hasEmail || hasAddress) {
+      footerContactInfo = '\n\n=== FOOTER CONTACT INFO ===\n' + footerText
+    }
+  }
+  
+  // Now remove footer (we've already extracted contact info if present)
+  $('footer').remove()
   
   // Try to find main content areas
   let mainContent = ''
@@ -113,8 +133,11 @@ function extractMainContent(html: string): string {
     mainContent = $('body').text()
   }
   
+  // Combine main content with footer contact info
+  const combined = mainContent + footerContactInfo
+  
   // Clean up the text
-  return mainContent
+  return combined
     .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
     .replace(/\n\s*\n/g, '\n') // Remove empty lines
     .trim()
@@ -229,70 +252,145 @@ async function scrapeWithPuppeteer(url: string): Promise<string> {
 }
 
 /**
+ * Fetches and cleans content from multiple pages (Homepage, About, Contact/Services)
+ */
+async function fetchMultiPageContent(baseUrl: string): Promise<string> {
+  const urlObj = new URL(baseUrl)
+  const base = `${urlObj.protocol}//${urlObj.host}`
+  
+  // Common page paths to try
+  const pagePaths = [
+    '', // Homepage
+    '/about',
+    '/about-us',
+    '/contact',
+    '/contact-us',
+    '/services',
+    '/our-services'
+  ]
+  
+  const allContent: string[] = []
+  
+  for (const path of pagePaths) {
+    try {
+      const pageUrl = `${base}${path}`
+      const response = await fetch(pageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Bot/1.0; +https://naviai.com/bot)'
+        },
+        signal: AbortSignal.timeout(8000) // 8 second timeout per page
+      })
+      
+      if (response.ok) {
+        const html = await response.text()
+        const cleaned = extractMainContent(html)
+        if (cleaned.length > 100) {
+          allContent.push(`=== PAGE: ${path || 'Homepage'} ===\n${cleaned}`)
+        }
+      }
+    } catch (error) {
+      // Silently skip pages that fail (404, timeout, etc.)
+      console.log(`Skipping page ${path}:`, error instanceof Error ? error.message : String(error))
+    }
+  }
+  
+  // If we got nothing, fall back to just homepage
+  if (allContent.length === 0) {
+    try {
+      const response = await fetch(baseUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Bot/1.0; +https://naviai.com/bot)'
+        },
+        signal: AbortSignal.timeout(10000)
+      })
+      
+      if (response.ok) {
+        const html = await response.text()
+        const cleaned = extractMainContent(html)
+        if (cleaned.length > 100) {
+          allContent.push(cleaned)
+        }
+      }
+    } catch (error) {
+      // If homepage also fails, throw
+      const message = error instanceof Error ? error.message : String(error)
+      throw new ScrapingError(`Could not fetch website content. ${message}`)
+    }
+  }
+  
+  const combined = allContent.join('\n\n')
+  return limitContentLength(combined, 30000) // Allow more content for multi-page
+}
+
+/**
+ * Universal System Prompt for Business Profile Extraction
+ * This prompt forces the AI to think like a Business Analyst and adapt extraction based on industry type
+ */
+const UNIVERSAL_SYSTEM_PROMPT = `You are an expert Business Data Analyst. Your job is to extract a structured "Business Profile" from raw website text.
+
+You must adapt your extraction strategy based on the Industry Type.
+
+PHASE 1: Archetype Detection (Internal Thought)
+First, analyze the text to determine the business type. This decides what "Services" means.
+- Service Area Business (Plumber/HVAC): "Services" = Trade skills (e.g., "Drain Cleaning"). Location = Service Area.
+- Brick & Mortar (Retail/Cafe): "Services" = Product Categories/Menu Highlights. Location = Physical Storefront.
+- Professional (Law/Medical): "Services" = Practice Areas/Treatments. Identity = Partners/Doctors.
+
+PHASE 2: Extraction Rules (The Filter)
+
+RULE 1: Identity (Signal vs. SEO Noise)
+- Name: Extract the Legal or Brand name.
+  - Reject SEO Titles: "Best Dentist in Chicago - Dr. Smith" -> Reject.
+  - Extract: "Smith Family Dental" -> Keep.
+- Address:
+  - If Brick & Mortar: Must find a physical street address.
+  - If Service Area: Look for "Serving [Region]" or "Headquartered in [City]".
+- Phone: Prioritize local or toll-free numbers in the header. Ignore "Fax" or vendor support numbers.
+
+RULE 2: Service Summarization (Context-Aware)
+Do not dump every keyword. Group them into 3-5 Core Pillars.
+
+Scenario A (Restaurant/Bakery):
+- Raw: "Croissants, Muffins, Scones, Coffee, Espresso, Wedding Cakes."
+- Output: ["Artisan Pastries", "Specialty Coffee", "Custom Wedding Cakes"].
+
+Scenario B (Contractor/Trades):
+- Raw: "Leaky faucets, pipe burst, water heaters, sewer line inspection."
+- Output: ["Emergency Plumbing", "Water Heater Installation", "Sewer & Drain Services"].
+
+Scenario C (Professional/Medical):
+- Raw: "Tax prep, audits, bookkeeping, payroll."
+- Output: ["Tax Preparation", "Small Business Accounting", "Audit Representation"].
+
+RULE 3: Authority & Vibe
+- Owner/Lead: Look for specific titles: "Chef", "Principal", "Dr.", "Founder".
+  - Ignore: "Our Team" generic text. Look for a specific name (e.g., "Chef Mario" or "Jane Doe, CPA").
+- Vibe Keywords: Extract 3-5 adjectives that describe the brand voice.
+  - Examples: "Eco-friendly", "High-end", "24/7 Emergency", "Family-Owned", "Minimalist".
+
+PHASE 3: Output Format (Strict JSON)
+Return ONLY this JSON object.`
+
+/**
  * Uses AI to extract business profile information from website content
+ * Now uses the Universal System Prompt for intelligent, context-aware extraction
  */
 async function extractProfileWithAI(content: string): Promise<PartialBusinessProfile> {
   try {
-    const prompt = `You are a data extraction expert specializing in extracting business information from website content.
+    const userPrompt = `Analyze this website text and extract the business profile following the Universal System Prompt rules.
 
-Extract business profile information from the following website content and return it as a JSON object conforming to the Partial<BusinessProfile interface.
-
-Required JSON structure (use exact field names):
+Return ONLY a JSON object with this exact structure:
 {
-  "businessName": "string",
-  "industry": "string", 
-  "location": {
-    "address": "string",
-    "city": "string",
-    "state": "string",
-    "zipCode": "string",
-    "country": "string"
-  },
-  "contactInfo": {
-    "phone": "string",
-    "email": "string",
-    "website": "string"
-  },
-  "services": [
-    {
-      "name": "string",
-      "description": "string",
-      "price": "string (optional)"
-    }
-  ],
-  "hours": [
-    {
-      "day": "string",
-      "open": "string",
-      "close": "string"
-    }
-  ],
-  "brandVoice": "friendly" | "professional" | "witty" | "formal",
-  "targetAudience": "string",
-  "customAttributes": [
-    {
-      "label": "string",
-      "value": "string"
-    }
-  ]
+  "business_name": "String (Clean Name)",
+  "industry_archetype": "String (e.g. 'Restaurant', 'Medical', 'Trade')",
+  "address_or_area": "String (Full Address OR 'Serving X Area')",
+  "phone": "String",
+  "email": "String",
+  "services": ["Category 1", "Category 2", "Category 3", "Category 4"],
+  "owner_name": "String (or null)",
+  "vibe_keywords": ["String", "String", "String"],
+  "social_links": ["URL", "URL"]
 }
-
-Example output:
-{
-  "businessName": "Example Plumbing",
-  "services": [
-    {
-      "name": "Leak Repair",
-      "description": "Fast leak fixes."
-    }
-  ],
-  "location": {
-    "city": "Anytown",
-    "state": "CA"
-  }
-}
-
-Extract only the information that is clearly present in the content. If information is not available, omit that field entirely. Return only valid JSON.
 
 Website content:
 ${content}`
@@ -302,12 +400,11 @@ ${content}`
       messages: [
         {
           role: 'system',
-          content:
-            'You are a data extraction expert. Extract business information from website content and return it as a strict JSON object that matches the requested schema. Do not include any explanation or text outside of the JSON.'
+          content: UNIVERSAL_SYSTEM_PROMPT
         },
         {
           role: 'user',
-          content: prompt
+          content: userPrompt
         }
       ],
       temperature: 0.1, // Low temperature for consistent extraction
@@ -324,7 +421,36 @@ ${content}`
     // Parse the JSON response (should already be strict JSON due to response_format)
     try {
       const extractedData = JSON.parse(aiResponse)
-      return extractedData as PartialBusinessProfile
+      
+      // Transform the universal format to PartialBusinessProfile format
+      const transformed: PartialBusinessProfile = {
+        businessName: extractedData.business_name || null,
+        industry: extractedData.industry_archetype || null,
+        location: extractedData.address_or_area ? {
+          address: extractedData.address_or_area,
+          city: '',
+          state: '',
+          zipCode: '',
+          country: 'US'
+        } : undefined,
+        contactInfo: {
+          phone: extractedData.phone || '',
+          email: extractedData.email || '',
+          website: ''
+        },
+        services: (extractedData.services || []).map((s: string) => ({
+          name: s,
+          description: ''
+        })),
+        brandVoice: 'professional' as const,
+        targetAudience: '',
+        customAttributes: [
+          ...(extractedData.owner_name ? [{ label: 'Owner', value: extractedData.owner_name }] : []),
+          ...(extractedData.vibe_keywords?.length ? [{ label: 'Vibe Keywords', value: extractedData.vibe_keywords.join(', ') }] : [])
+        ]
+      }
+      
+      return transformed
     } catch (parseError) {
       console.error('Failed to parse AI response:', aiResponse)
       throw new AIError('AI returned malformed JSON response')
@@ -349,26 +475,37 @@ export async function scrapeWebsiteForProfile(url: string): Promise<ScrapedProfi
       throw new ScrapingError('Invalid URL protocol. Only HTTP and HTTPS are supported.')
     }
 
-    // Check robots.txt first
+    // Check robots.txt first (now just logs, doesn't block)
     await checkRobotsTxt(url)
 
+    // Step A: Fetch Raw Content from Multiple Pages (The Net)
     let content: string
-    let extractionMethod: 'cheerio' | 'puppeteer'
+    let extractionMethod: 'cheerio' | 'puppeteer' | 'multipage'
 
-    // Try Cheerio first (faster, for static content)
+    // Try multi-page fetch first (new universal approach)
     try {
-      content = await scrapeWithCheerio(url)
-      extractionMethod = 'cheerio'
-    } catch (cheerioError) {
-      const message = cheerioError instanceof Error ? cheerioError.message : String(cheerioError)
-      console.log('Cheerio failed, trying Puppeteer:', message)
+      content = await fetchMultiPageContent(url)
+      extractionMethod = 'multipage'
+      console.log('Multi-page content fetched successfully')
+    } catch (multipageError) {
+      const message = multipageError instanceof Error ? multipageError.message : String(multipageError)
+      console.log('Multi-page fetch failed, trying single-page Cheerio:', message)
       
-      // Fall back to Puppeteer for dynamic content
-      content = await scrapeWithPuppeteer(url)
-      extractionMethod = 'puppeteer'
+      // Fall back to single-page scraping
+      try {
+        content = await scrapeWithCheerio(url)
+        extractionMethod = 'cheerio'
+      } catch (cheerioError) {
+        const cheerioMsg = cheerioError instanceof Error ? cheerioError.message : String(cheerioError)
+        console.log('Cheerio failed, trying Puppeteer:', cheerioMsg)
+        
+        // Fall back to Puppeteer for dynamic content
+        content = await scrapeWithPuppeteer(url)
+        extractionMethod = 'puppeteer'
+      }
     }
 
-    // Extract profile information using AI
+    // Step B: LLM Processing (The Brain) - Uses Universal System Prompt
     const extractedProfile = await extractProfileWithAI(content)
 
     // Calculate confidence score based on extracted data
