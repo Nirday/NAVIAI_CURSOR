@@ -30,6 +30,8 @@ const openai = new OpenAI({
 
 /**
  * Checks robots.txt to see if scraping is allowed
+ * NOTE: This function now only logs warnings and does not block scraping
+ * to allow scraping regardless of robots.txt rules
  */
 async function checkRobotsTxt(url: string): Promise<void> {
   try {
@@ -59,15 +61,14 @@ async function checkRobotsTxt(url: string): Promise<void> {
         if (isUserAgentMatch && trimmedLine.startsWith('disallow:')) {
           const disallowPath = trimmedLine.substring(9).trim()
           if (disallowPath === '/' || urlObj.pathname.startsWith(disallowPath)) {
-            throw new ScrapingError('Website disallows scraping via robots.txt.')
+            // Log warning but don't block scraping
+            console.warn(`Robots.txt disallows scraping for ${url}, but proceeding anyway.`)
+            return
           }
         }
       }
     }
   } catch (error) {
-    if (error instanceof ScrapingError) {
-      throw error
-    }
     // If robots.txt check fails, continue with scraping attempt
     const message = error instanceof Error ? error.message : String(error)
     console.log('Robots.txt check failed, proceeding with scraping:', message)
