@@ -1816,6 +1816,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             setIsLoading(false)
             return
           }
+          if (lowerMessage.includes('address') || lowerMessage.includes('location')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_address',
+              data
+            })
+            const askAddressMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got it. What's the correct address? Please include the street address, city, and state.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askAddressMsg])
+            setIsLoading(false)
+            return
+          }
 
           // Fallback generic correction prompt (only once)
           setOnboardingState({
@@ -1921,6 +1938,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               timestamp: new Date()
             }
             setMessages(prev => [...prev, askNameMsg])
+            setIsLoading(false)
+            return
+          }
+          if (lowerMessage.includes('address') || lowerMessage.includes('location')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_address',
+              data
+            })
+            const askAddressMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got it. What's the correct address? Please include the street address, city, and state.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askAddressMsg])
             setIsLoading(false)
             return
           }
@@ -2074,12 +2108,177 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
 
       if (phase === 'proofread' && subStep === 'correction_pending') {
-        // For now, just re-show the summary so they can confirm again
+        // User provided more details - try to detect what field they're correcting
+        const lower = userMessage.toLowerCase()
+        
+        if (lower.includes('email')) {
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correct_email',
+            data
+          })
+          const askEmailMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct email address?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, askEmailMsg])
+          setIsLoading(false)
+          return
+        }
+        if (lower.includes('phone') || lower.includes('number')) {
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correct_phone',
+            data
+          })
+          const askPhoneMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "No problem. What's the correct main phone number?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, askPhoneMsg])
+          setIsLoading(false)
+          return
+        }
+        if (lower.includes('name') || lower.includes('business')) {
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correct_business_name',
+            data
+          })
+          const askNameMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Sure thing. What should the business name be?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, askNameMsg])
+          setIsLoading(false)
+          return
+        }
+        if (lower.includes('address') || lower.includes('location')) {
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correct_address',
+            data
+          })
+          const askAddressMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct address? Please include the street address, city, and state.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, askAddressMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        // If we still can't detect, re-show the summary
         const summary = formatProofreadSummary(data, onboardingState.fromWebsite)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
           subStep: onboardingState.fromWebsite ? 'review' : 'final_review'
+        }))
+
+        const reviewMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: summary,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, reviewMsg])
+        setIsLoading(false)
+        return
+      }
+
+      // Handle address correction
+      if (phase === 'proofread' && subStep === 'correct_address') {
+        const newAddress = userMessage.trim()
+        
+        // Check if state is included (flexible format detection)
+        if (!hasStateInLocation(newAddress)) {
+          // Has street but missing state - ask for it
+          const updatedData = {
+            ...data,
+            identity: {
+              ...data.identity,
+              address_or_area: newAddress
+            } as BusinessProfileData['identity']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correct_address_state',
+            data: updatedData
+          })
+          
+          const stateMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Got the address. What state is that in?`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, stateMsg])
+          setIsLoading(false)
+          return
+        }
+
+        const updatedData: Partial<BusinessProfileData> = {
+          ...data,
+          identity: {
+            ...data.identity,
+            address_or_area: newAddress
+          } as BusinessProfileData['identity']
+        }
+
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'proofread',
+          subStep: onboardingState.fromWebsite ? 'review' : 'final_review',
+          data: updatedData
+        }))
+
+        const reviewMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: summary,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, reviewMsg])
+        setIsLoading(false)
+        return
+      }
+
+      // Handle address state correction
+      if (phase === 'proofread' && subStep === 'correct_address_state') {
+        const address = data.identity?.address_or_area || ''
+        const state = userMessage.trim()
+        const fullAddress = `${address}, ${state}`
+
+        const updatedData: Partial<BusinessProfileData> = {
+          ...data,
+          identity: {
+            ...data.identity,
+            address_or_area: fullAddress
+          } as BusinessProfileData['identity']
+        }
+
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'proofread',
+          subStep: onboardingState.fromWebsite ? 'review' : 'final_review',
+          data: updatedData
         }))
 
         const reviewMsg: Message = {

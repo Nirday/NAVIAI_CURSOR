@@ -84,7 +84,13 @@ async function saveChatMessage(message: Omit<ChatMessage, 'messageId'>): Promise
  */
 async function analyzeIntent(message: string, conversationHistory: ChatMessage[], profile?: BusinessProfile): Promise<IntentAnalysis> {
   try {
+    // Get the last assistant message to understand what was just displayed
+    const lastAssistantMessage = [...conversationHistory]
+      .reverse()
+      .find(msg => msg.role === 'assistant')
+    
     const historyContext = conversationHistory
+      .slice(-20) // Last 20 messages for context
       .map(msg => `${msg.role}: ${msg.content}`)
       .join('\n')
     
@@ -94,13 +100,23 @@ Business Profile:
 - Industry: ${profile.industry}
 - Services: ${profile.services.map(s => s.name).join(', ')}
 - Location: ${profile.location.city}, ${profile.location.state}
+- Address: ${profile.location.address || 'Not provided'}
+- Phone: ${profile.contactInfo?.phone || 'Not provided'}
+- Email: ${profile.contactInfo?.email || 'Not provided'}
 ` : 'No business profile found yet.'
+
+    const lastDisplayedContext = lastAssistantMessage ? `
+Last message displayed to user:
+${lastAssistantMessage.content}
+
+This may contain business information (name, address, phone, email) that the user is now correcting.
+` : ''
 
     const prompt = `You are an AI assistant orchestrator for Navi AI, a business growth platform. Analyze the user's message and determine their intent.
 
 Available intents:
 - UPDATE_PROFILE: User wants to update their business profile information
-- USER_CORRECTION: User is correcting something the AI said or did wrong
+- USER_CORRECTION: User is correcting something the AI said or did wrong (e.g., "need to update the address", "email is wrong", "change the phone number")
 - CREATE_WEBSITE: User wants to create or update their website
 - WRITE_BLOG: User wants to create blog content
 - GET_SUGGESTIONS: User wants suggestions or recommendations
@@ -115,6 +131,8 @@ Available intents:
 - UNKNOWN: Intent cannot be determined
 
 ${profileContext}
+
+${lastDisplayedContext}
 
 Recent conversation:
 ${historyContext}
@@ -242,10 +260,63 @@ async function handleProfileUpdate(userId: string, entities: Record<string, any>
 }
 
 /**
- * Handles user corrections
+ * Handles user corrections with full conversation context
  */
-async function handleUserCorrection(userId: string, message: string): Promise<string> {
-  return "My apologies for the mistake! Thanks for catching that. What should I change it to?"
+async function handleUserCorrection(
+  userId: string, 
+  message: string, 
+  conversationHistory: ChatMessage[],
+  profile?: BusinessProfile
+): Promise<string> {
+  try {
+    // Get the last assistant message to understand what was displayed
+    const lastAssistantMessage = [...conversationHistory]
+      .reverse()
+      .find(msg => msg.role === 'assistant')
+    
+    const contextPrompt = `You are Navi AI, a business assistant. The user is correcting information that was previously displayed.
+
+Previous conversation context:
+${conversationHistory.slice(-10).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+
+${profile ? `Current business profile:
+- Name: ${profile.businessName}
+- Address: ${profile.location?.address || 'Not provided'}
+- Phone: ${profile.contactInfo?.phone || 'Not provided'}
+- Email: ${profile.contactInfo?.email || 'Not provided'}
+` : ''}
+
+User's correction message: "${message}"
+
+Analyze what the user wants to correct:
+1. Identify which field they're referring to (name, address, phone, email, services, etc.)
+2. If they provided the new value, extract it
+3. If they only mentioned what needs changing, ask for the new value
+
+Respond naturally and helpfully. If you need the new value, ask for it specifically. If they provided it, acknowledge and confirm what you'll update.`
+    
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4-turbo-preview',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are Navi AI, a helpful business assistant. When users correct information, understand the context and help them update it accurately.'
+        },
+        {
+          role: 'user',
+          content: contextPrompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 500
+    })
+    
+    const aiResponse = response.choices[0]?.message?.content
+    return aiResponse || "My apologies for the mistake! Thanks for catching that. What should I change it to?"
+  } catch (error) {
+    console.error('Error handling user correction:', error)
+    return "My apologies for the mistake! Thanks for catching that. What should I change it to?"
+  }
 }
 
 /**
@@ -740,7 +811,7 @@ export async function processUserMessage(userId: string, message: string): Promi
         break
         
       case 'USER_CORRECTION':
-        response = await handleUserCorrection(userId, message)
+        response = await handleUserCorrection(userId, message, conversationHistory, profile)
         break
         
       case 'CREATE_WEBSITE':
