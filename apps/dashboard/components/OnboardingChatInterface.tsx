@@ -744,7 +744,85 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         const lower = userMessage.toLowerCase()
         
         // Check which field is being corrected
-        if (lower.includes('service') || (phase === 'menu' && subStep === 'services')) {
+        // IMPORTANT: Check email FIRST before address, since "email address" contains "address"
+        if (lower.includes('email') || lower.match(/email\s+address/i)) {
+          // Email correction
+          // Try to extract the new email from the message
+          const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
+          const newEmail = emailMatch ? emailMatch[0] : ''
+          
+          if (newEmail) {
+            // Validate the email
+            const validation = validateCriticalField('email', newEmail)
+            if (!validation.isValid && validation.suggestion) {
+              setOnboardingState({
+                ...onboardingState,
+                needsVerification: {
+                  field: 'email',
+                  value: newEmail,
+                  suggestion: validation.suggestion
+                }
+              })
+              const verifyMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `Just to be safe, did you mean ${validation.suggestion}?`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, verifyMsg])
+              setIsLoading(false)
+              return
+            }
+            
+            // Update email directly
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                email: validation.suggestion || newEmail
+              } as BusinessProfileData['identity']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              data: updatedData
+            })
+            
+            const correctionMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Got it, I've updated the email to ${validation.suggestion || newEmail}. Does this look right?`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, correctionMsg])
+            setIsLoading(false)
+            return
+          } else {
+            // No email found in message, ask for it
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'email_only',
+              data: {
+                ...data,
+                identity: {
+                  ...data.identity,
+                  email: ''
+                } as BusinessProfileData['identity']
+              }
+            })
+            
+            const correctionMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got it. What's the correct email address?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, correctionMsg])
+            setIsLoading(false)
+            return
+          }
+        } else if (lower.includes('service') || (phase === 'menu' && subStep === 'services')) {
           // Service correction - extract which service(s) to remove
           const currentServices = data.offering?.core_services || []
           
@@ -802,8 +880,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setMessages(prev => [...prev, correctionMsg])
           setIsLoading(false)
           return // Stay on current step
-        } else if (lower.includes('address') || lower.includes('location')) {
+        } else if ((lower.includes('address') || lower.includes('location')) && !lower.includes('email address')) {
           // Address correction - ask for new address
+          // Make sure it's not "email address" by checking the context
           setOnboardingState({
             ...onboardingState,
             phase: 'storefront',
@@ -845,30 +924,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             id: `assistant_${Date.now()}`,
             role: 'assistant',
             content: "Got it. What's the correct phone number?",
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, correctionMsg])
-          setIsLoading(false)
-          return
-        } else if (lower.includes('email')) {
-          // Email correction
-          setOnboardingState({
-            ...onboardingState,
-            phase: 'storefront',
-            subStep: 'email_only',
-            data: {
-              ...data,
-              identity: {
-                ...data.identity,
-                email: ''
-              } as BusinessProfileData['identity']
-            }
-          })
-          
-          const correctionMsg: Message = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: "Got it. What's the correct email address?",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, correctionMsg])
