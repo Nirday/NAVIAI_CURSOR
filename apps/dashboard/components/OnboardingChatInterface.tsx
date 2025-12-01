@@ -282,6 +282,79 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   /**
+   * Slot Filling: Extract entities (phone, email, address, services) from user input
+   * Returns what was found and what's still missing
+   */
+  interface ExtractedEntities {
+    email?: string
+    phone?: string
+    address?: string
+    services?: string[]
+    updated: boolean // Whether any entities were found
+  }
+
+  const extractEntities = (userMessage: string, currentData: Partial<BusinessProfileData>): ExtractedEntities => {
+    const extracted: ExtractedEntities = { updated: false }
+    
+    // Extract email
+    const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
+    if (emailMatch && !currentData.identity?.email) {
+      const email = emailMatch[0]
+      const validation = validateCriticalField('email', email)
+      extracted.email = validation.suggestion || email
+      extracted.updated = true
+    }
+    
+    // Extract phone
+    const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/)
+    if (phoneMatch && !currentData.identity?.phone) {
+      const phone = phoneMatch[0]
+      const validation = validateCriticalField('phone', phone)
+      if (validation.isValid) {
+        extracted.phone = phone
+        extracted.updated = true
+      }
+    }
+    
+    // Extract address (look for street address patterns)
+    const addressPatterns = [
+      /\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)[^,]*,\s*[A-Za-z\s]+,\s*[A-Z]{2}/i,
+      /\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)[^,]*,\s*[A-Za-z\s]+/i
+    ]
+    
+    for (const pattern of addressPatterns) {
+      const addressMatch = userMessage.match(pattern)
+      if (addressMatch && !currentData.identity?.address_or_area) {
+        extracted.address = addressMatch[0].trim()
+        extracted.updated = true
+        break
+      }
+    }
+    
+    // Extract services (if in menu phase or if message contains service-like patterns)
+    const serviceKeywords = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => {
+      const lower = s.toLowerCase()
+      // Filter out common non-service words
+      return s.length > 2 && 
+             !['the', 'is', 'are', 'and', 'or', 'for', 'with', 'here', 'my'].includes(lower) &&
+             !lower.match(/^(email|phone|address|name)$/i)
+    })
+    
+    if (serviceKeywords.length > 0 && serviceKeywords.length <= 5) {
+      // Check if these look like services (not too vague)
+      const vagueServices = ['consulting', 'services', 'help', 'support', 'solutions', 'work', 'stuff']
+      const isVague = serviceKeywords.some(s => vagueServices.includes(s.toLowerCase()))
+      
+      if (!isVague && !currentData.offering?.core_services?.length) {
+        extracted.services = serviceKeywords
+        extracted.updated = true
+      }
+    }
+    
+    return extracted
+  }
+
+  /**
    * Intent Classification: Categorizes user input into ANSWER, CORRECTION, or OFF_TOPIC
    * 
    * SYSTEM RULE: You are a focused Business Profile Assistant. Your ONLY goal is to complete the profile.
@@ -701,7 +774,150 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // 2) INTENT CLASSIFICATION - Classify user input BEFORE processing as answer
       const userIntent = classifyUserIntent(userMessage, phase, subStep)
       
-      // Handle OFF_TOPIC requests
+      // 3) SLOT FILLING - Extract entities from user input regardless of current question
+      // This allows users to provide information out of order
+      // Only do slot filling in storefront phase (collecting contact info) or menu phase (collecting services)
+      // Skip if it's a correction, off-topic, or verification response
+      const shouldDoSlotFilling = (phase === 'storefront' || phase === 'menu') && 
+                                   !needsVerification && // Don't interfere with verification
+                                   userIntent !== 'CORRECTION' && // Corrections are handled separately
+                                   userIntent !== 'OFF_TOPIC' // Off-topic is handled separately
+      
+      if (shouldDoSlotFilling) {
+        const extracted = extractEntities(userMessage, data)
+        
+        if (extracted.updated) {
+        // Update data with extracted entities
+        const updatedData: Partial<BusinessProfileData> = {
+          ...data,
+          identity: {
+            ...data.identity,
+            ...(extracted.email && { email: extracted.email }),
+            ...(extracted.phone && { phone: extracted.phone }),
+            ...(extracted.address && { address_or_area: extracted.address })
+          } as BusinessProfileData['identity'],
+          ...(extracted.services && {
+            offering: {
+              ...data.offering,
+              core_services: extracted.services
+            } as BusinessProfileData['offering']
+          })
+        }
+        
+        // Build acknowledgment message
+        const acknowledgments: string[] = []
+        if (extracted.email) {
+          const emailValidation = validateCriticalField('email', extracted.email)
+          if (emailValidation.isValid) {
+            acknowledgments.push(`saved the email as ${extracted.email}`)
+          } else if (emailValidation.suggestion) {
+            acknowledgments.push(`saved the email as ${emailValidation.suggestion} (corrected from ${extracted.email})`)
+            updatedData.identity!.email = emailValidation.suggestion
+          }
+        }
+        if (extracted.phone) {
+          acknowledgments.push(`saved the phone number as ${extracted.phone}`)
+        }
+        if (extracted.address) {
+          acknowledgments.push(`saved the address as ${extracted.address}`)
+        }
+        if (extracted.services) {
+          acknowledgments.push(`saved ${extracted.services.length} service${extracted.services.length > 1 ? 's' : ''}: ${extracted.services.join(', ')}`)
+        }
+        
+        // Update state
+        setOnboardingState({
+          ...onboardingState,
+          data: updatedData
+        })
+        
+        // Acknowledge what was saved
+        const ackMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: `Got it, ${acknowledgments.join(', ')}.`,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, ackMsg])
+        
+        // Check what's still missing and ask for the next item
+        const missingFields: string[] = []
+        if (!updatedData.identity?.email) missingFields.push('email address')
+        if (!updatedData.identity?.phone) missingFields.push('phone number')
+        if (!updatedData.identity?.address_or_area && (archetype === 'BrickAndMortar' || archetype === 'AppointmentPro')) {
+          missingFields.push('physical address')
+        }
+        if (!updatedData.offering?.core_services?.length && phase === 'menu') {
+          missingFields.push('services')
+        }
+        
+        if (missingFields.length > 0) {
+          // Determine which field to ask for next (prioritize based on phase)
+          let nextSubStep = subStep
+          let nextQuestion = ''
+          
+          if (phase === 'storefront') {
+            if (missingFields.includes('email address') && !updatedData.identity?.phone) {
+              nextSubStep = 'phone_email'
+              nextQuestion = "What is the best phone number and email address for clients to reach you?"
+            } else if (missingFields.includes('phone number') && !updatedData.identity?.email) {
+              nextSubStep = 'phone_email'
+              nextQuestion = "What is the best phone number and email address for clients to reach you?"
+            } else if (missingFields.includes('phone number')) {
+              nextSubStep = 'phone_only'
+              nextQuestion = "What is the main phone number for clients?"
+            } else if (missingFields.includes('email address')) {
+              nextSubStep = 'email_only'
+              nextQuestion = "What is the best email address for clients to reach you?"
+            } else if (missingFields.includes('physical address')) {
+              nextSubStep = 'location'
+              if (archetype === 'BrickAndMortar') {
+                nextQuestion = "And where is the shop located? (Address)"
+              } else if (archetype === 'ServiceOnWheels') {
+                nextQuestion = "And what cities or areas do you travel to?"
+              } else {
+                nextQuestion = "And where is your studio/office located?"
+              }
+            }
+          } else if (phase === 'menu' && missingFields.includes('services')) {
+            nextSubStep = 'services'
+            nextQuestion = "What are the top 3 services you offer? Be specific so people find you on Google."
+          }
+          
+          if (nextQuestion) {
+            setOnboardingState({
+              ...onboardingState,
+              subStep: nextSubStep,
+              data: updatedData
+            })
+            
+            const nextQuestionMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: nextQuestion,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, nextQuestionMsg])
+            setIsLoading(false)
+            return // Don't process as answer to current question
+          } else {
+            // Generic fallback
+            const nextQuestionMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Now, I still need your ${missingFields.join(' and ')}.`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, nextQuestionMsg])
+            setIsLoading(false)
+            return
+          }
+        }
+        // If entities were extracted but all fields are filled, continue with normal flow
+        }
+      }
+
+      // 4) Handle OFF_TOPIC requests
       if (userIntent === 'OFF_TOPIC') {
         const currentQuestionContext: Record<string, Record<string, string>> = {
           'menu': {
@@ -1042,7 +1258,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
 
       // Handle verification requests
-      if (needsVerification) {
+      if (needsVerification && needsVerification.field) {
         const updatedData = { ...data }
         const verifiedValue = (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('right'))
           ? (needsVerification.suggestion || userMessage.trim())
