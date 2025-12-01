@@ -200,7 +200,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         return { isValid: false, suggestion: value.replace(/yahoo\.co/g, 'yahoo.com') }
       }
       // Check for invalid TLDs (common typos)
-      const invalidTlds = ['.vom', '.con', '.cmo', '.ocm', '.cm', '.co']
+      const invalidTlds = ['.vom', '.con', '.cmo', '.ocm', '.cm', '.co', '.coom', '.comm', '.c0m', '.comn']
       for (const invalidTld of invalidTlds) {
         if (value.includes(invalidTld)) {
           const corrected = value.replace(invalidTld, '.com')
@@ -471,16 +471,42 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const detectGlobalIntent = (rawMessage: string): GlobalIntent => {
     const lower = rawMessage.toLowerCase().trim()
 
+    // FIRST: Check if it's an email address - if so, DON'T treat it as a URL
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    if (emailPattern.test(rawMessage.trim())) {
+      return null // It's an email, not a URL
+    }
+
+    // Also check if message contains an email (even if there's other text)
+    const emailInMessage = rawMessage.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
+    if (emailInMessage) {
+      // If the entire message is just an email or email-like, don't treat as URL
+      const trimmed = rawMessage.trim()
+      if (trimmed === emailInMessage[0] || trimmed.startsWith(emailInMessage[0]) || trimmed.endsWith(emailInMessage[0])) {
+        return null // It's an email, not a URL
+      }
+    }
+
     // Any explicit URL in the message (with protocol or www)
     const urlMatch = rawMessage.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/i)
     if (urlMatch && urlMatch[0]) {
-      return { type: 'scrape_with_url', url: urlMatch[0] }
+      // Double-check it's not an email
+      if (!emailPattern.test(urlMatch[0])) {
+        return { type: 'scrape_with_url', url: urlMatch[0] }
+      }
     }
 
     // Bare domain like "example.com" (no protocol / www)
+    // BUT exclude if it looks like an email domain part
     const bareDomainMatch = rawMessage.match(/\b[a-z0-9.-]+\.[a-z]{2,}\b/i)
     if (bareDomainMatch && bareDomainMatch[0]) {
-      return { type: 'scrape_with_url', url: bareDomainMatch[0] }
+      const domain = bareDomainMatch[0]
+      // Check if it's part of an email (has @ before it)
+      const beforeDomain = rawMessage.substring(0, rawMessage.indexOf(domain))
+      if (!beforeDomain.includes('@')) {
+        // Not an email, treat as URL
+        return { type: 'scrape_with_url', url: domain }
+      }
     }
 
     // Retry / scrape-again style commands
