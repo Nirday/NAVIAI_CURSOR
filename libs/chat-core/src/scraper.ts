@@ -252,129 +252,187 @@ async function scrapeWithPuppeteer(url: string): Promise<string> {
 }
 
 /**
- * Fetches and cleans content from multiple pages (Homepage, About, Contact/Services)
+ * Step A: The Scout - Analyzes homepage to find navigation links
  */
-async function fetchMultiPageContent(baseUrl: string): Promise<string> {
+function extractNavigationLinks(html: string, baseUrl: string): string[] {
+  const $ = cheerio.load(html)
   const urlObj = new URL(baseUrl)
   const base = `${urlObj.protocol}//${urlObj.host}`
+  const foundLinks: Set<string> = new Set()
   
-  // Common page paths to try
-  const pagePaths = [
-    '', // Homepage
-    '/about',
-    '/about-us',
-    '/contact',
-    '/contact-us',
-    '/services',
-    '/our-services'
+  // Look for navigation links matching patterns
+  const linkPatterns = [
+    /\/about/i,
+    /\/about-us/i,
+    /\/our-story/i,
+    /\/team/i,
+    /\/contact/i,
+    /\/contact-us/i,
+    /\/location/i,
+    /\/services/i,
+    /\/our-services/i,
+    /\/fleet/i,
+    /\/menu/i
   ]
   
-  const allContent: string[] = []
-  
-  for (const path of pagePaths) {
+  // Check all anchor tags
+  $('a[href]').each((_idx: number, el: any) => {
+    const href = $(el).attr('href')
+    if (!href) return
+    
+    // Convert relative URLs to absolute
+    let absoluteUrl: string
     try {
-      const pageUrl = `${base}${path}`
-      const response = await fetch(pageUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Bot/1.0; +https://naviai.com/bot)'
-        },
-        signal: AbortSignal.timeout(8000) // 8 second timeout per page
-      })
+      absoluteUrl = new URL(href, base).href
+    } catch {
+      return
+    }
+    
+    // Check if it's from the same domain
+    try {
+      const linkUrl = new URL(absoluteUrl)
+      if (linkUrl.host !== urlObj.host) return
       
-      if (response.ok) {
-        const html = await response.text()
-        const cleaned = extractMainContent(html)
-        if (cleaned.length > 100) {
-          allContent.push(`=== PAGE: ${path || 'Homepage'} ===\n${cleaned}`)
+      const pathname = linkUrl.pathname.toLowerCase()
+      
+      // Check if path matches any pattern
+      for (const pattern of linkPatterns) {
+        if (pattern.test(pathname)) {
+          foundLinks.add(absoluteUrl)
+          break
         }
       }
-    } catch (error) {
-      // Silently skip pages that fail (404, timeout, etc.)
-      console.log(`Skipping page ${path}:`, error instanceof Error ? error.message : String(error))
+    } catch {
+      return
     }
-  }
+  })
   
-  // If we got nothing, fall back to just homepage
-  if (allContent.length === 0) {
-    try {
-      const response = await fetch(baseUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Bot/1.0; +https://naviai.com/bot)'
-        },
-        signal: AbortSignal.timeout(10000)
-      })
-      
-      if (response.ok) {
-        const html = await response.text()
-        const cleaned = extractMainContent(html)
-        if (cleaned.length > 100) {
-          allContent.push(cleaned)
-        }
-      }
-    } catch (error) {
-      // If homepage also fails, throw
-      const message = error instanceof Error ? error.message : String(error)
-      throw new ScrapingError(`Could not fetch website content. ${message}`)
-    }
-  }
-  
-  const combined = allContent.join('\n\n')
-  return limitContentLength(combined, 30000) // Allow more content for multi-page
+  return Array.from(foundLinks).slice(0, 3) // Limit to 3 sub-pages
 }
 
 /**
- * Universal System Prompt for Business Profile Extraction
- * This prompt forces the AI to think like a Business Analyst and adapt extraction based on industry type
+ * Fetches and cleans a single page
  */
-const UNIVERSAL_SYSTEM_PROMPT = `You are an expert Business Data Analyst. Your job is to extract a structured "Business Profile" from raw website text.
+async function fetchSinglePage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Bot/1.0; +https://naviai.com/bot)'
+      },
+      signal: AbortSignal.timeout(8000) // 8 second timeout per page
+    })
+    
+    if (response.ok) {
+      const html = await response.text()
+      const cleaned = extractMainContent(html)
+      if (cleaned.length > 100) {
+        return cleaned
+      }
+    }
+  } catch (error) {
+    console.log(`Failed to fetch ${url}:`, error instanceof Error ? error.message : String(error))
+  }
+  
+  return null
+}
 
-You must adapt your extraction strategy based on the Industry Type.
+/**
+ * Deep-Dive Multi-Page Scraper: "The Spider Protocol"
+ * Step A: Scout (analyze homepage for links)
+ * Step B: Hunt (fetch sub-pages in parallel)
+ * Step C: Synthesis (combine all text)
+ */
+async function fetchMultiPageContent(baseUrl: string): Promise<string> {
+  const urlObj = new URL(baseUrl)
+  
+  // Step A: The Scout - Fetch and analyze homepage
+  const homepageResponse = await fetch(baseUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Bot/1.0; +https://naviai.com/bot)'
+    },
+    signal: AbortSignal.timeout(10000)
+  })
+  
+  if (!homepageResponse.ok) {
+    throw new ScrapingError(`Could not fetch homepage. Status: ${homepageResponse.status}`)
+  }
+  
+  const homepageHtml = await homepageResponse.text()
+  const homepageContent = extractMainContent(homepageHtml)
+  
+  if (homepageContent.length < 100) {
+    throw new ScrapingError('Homepage content appears to be empty or heavily JavaScript-reliant.')
+  }
+  
+  // Extract navigation links from homepage
+  const subPageUrls = extractNavigationLinks(homepageHtml, baseUrl)
+  
+  // Step B: The Hunt - Fetch sub-pages in parallel (max 3)
+  const subPagePromises = subPageUrls.map(url => fetchSinglePage(url))
+  const subPageResults = await Promise.all(subPagePromises)
+  
+  // Step C: The Synthesis - Combine all text
+  const allContent: string[] = []
+  allContent.push(`=== HOMEPAGE ===\n${homepageContent}`)
+  
+  // Add sub-pages with labels
+  const pageLabels: Record<string, string> = {
+    'contact': 'CONTACT PAGE',
+    'about': 'ABOUT PAGE',
+    'services': 'SERVICES PAGE',
+    'fleet': 'FLEET PAGE',
+    'menu': 'MENU PAGE'
+  }
+  
+  subPageResults.forEach((content, index) => {
+    if (content) {
+      const url = subPageUrls[index]
+      const pathname = new URL(url).pathname.toLowerCase()
+      
+      // Determine page label
+      let label = 'SUB-PAGE'
+      for (const [key, value] of Object.entries(pageLabels)) {
+        if (pathname.includes(key)) {
+          label = value
+          break
+        }
+      }
+      
+      allContent.push(`=== ${label} ===\n${content}`)
+    }
+  })
+  
+  const combined = allContent.join('\n\n---\n\n')
+  return limitContentLength(combined, 35000) // Allow more content for deep crawl
+}
 
-PHASE 1: Archetype Detection (Internal Thought)
-First, analyze the text to determine the business type. This decides what "Services" means.
-- Service Area Business (Plumber/HVAC): "Services" = Trade skills (e.g., "Drain Cleaning"). Location = Service Area.
-- Brick & Mortar (Retail/Cafe): "Services" = Product Categories/Menu Highlights. Location = Physical Storefront.
-- Professional (Law/Medical): "Services" = Practice Areas/Treatments. Identity = Partners/Doctors.
-- Asset-Based Service (Limo/Rental/Venue): "Services" = Usage Scenarios (Weddings) + Key Assets (Fleet/Equipment).
+/**
+ * Deep Crawl Edition System Prompt
+ * Optimized for multi-page content synthesis
+ */
+const UNIVERSAL_SYSTEM_PROMPT = `You are an expert Business Data Analyst. You have been given text content from multiple pages of a business website.
 
-PHASE 2: Extraction Rules (The Filter)
+Your goal is to synthesize this into a single "Golden Record" Business Profile.
 
-RULE 1: Identity (Signal vs. SEO Noise)
-- Name: Extract the Legal or Brand name.
-  - Reject SEO Titles: "Best Dentist in Chicago - Dr. Smith" -> Reject.
-  - Extract: "Smith Family Dental" -> Keep.
-- Address:
-  - If Brick & Mortar: Must find a physical street address.
-  - If Service Area: Look for "Serving [Region]" or "Headquartered in [City]".
-- Phone: Prioritize local or toll-free numbers in the header. Ignore "Fax" or vendor support numbers.
+PRIORITY 1: The "Physical" Hunt (Address)
+You must find the Physical HQ Address.
+- Look in the 'Contact Page' text.
+- Reject: "Serving the Bay Area" (This is a service radius, not an address).
+- Accept: "982 E Lewelling Blvd, Hayward, CA" (Number + Street + City).
+- If multiple locations: Pick the one labeled "Headquarters" or "Main Office".
 
-RULE 2: Service Summarization (Context-Aware)
-Do not dump every keyword. Group them into 3-5 Core Pillars.
-CRITICAL: If the business relies on specific hardware, vehicles, or equipment (e.g., Limo Service, Gym, Camera Rental), you MUST include those Key Assets in the service description.
+PRIORITY 2: The "Asset" Hunt (Services)
+Do not create a run-on sentence.
+Break it down. If this is a Transportation/Rental business, you MUST list the Fleet/Assets as their own service category.
+- Bad: "We offer weddings, wine tours, hummer limos, and party buses."
+- Good: ["Wedding Transportation", "Napa Wine Tours", "Luxury Fleet (Hummer Limos, Party Buses)"].
+- Group services into 3-5 Core Pillars. Do not dump every keyword.
 
-Scenario A (Restaurant/Bakery):
-- Raw: "Croissants, Muffins, Scones, Coffee, Espresso, Wedding Cakes."
-- Output: ["Artisan Pastries", "Specialty Coffee", "Custom Wedding Cakes"].
+PRIORITY 3: The "Human" Hunt (Owner/Socials)
+- Owner: Look for "Founder", "President", or "Owner" in the 'About Page' text.
+- Socials: specific URLs (instagram.com/..., facebook.com/...) are often found in the Footer text.
 
-Scenario B (Contractor/Trades):
-- Raw: "Leaky faucets, pipe burst, water heaters, sewer line inspection."
-- Output: ["Emergency Plumbing", "Water Heater Installation", "Sewer & Drain Services"].
-
-Scenario C (Professional/Medical):
-- Raw: "Tax prep, audits, bookkeeping, payroll."
-- Output: ["Tax Preparation", "Small Business Accounting", "Audit Representation"].
-
-Scenario D (Asset-Based/Transportation):
-- Raw: "Weddings, Proms, Hummer Limo, Party Bus, Ford Transit, SFO Transfers."
-- Output: ["Luxury Fleet (Hummer Limos, Party Buses)", "Wedding & Prom Transportation", "Airport Transfers (Sedans/SUVs)"].
-
-RULE 3: Authority & Vibe
-- Owner/Lead: Look for specific titles: "Chef", "Principal", "Dr.", "Founder".
-  - Ignore: "Our Team" generic text. Look for a specific name (e.g., "Chef Mario" or "Jane Doe, CPA").
-- Vibe Keywords: Extract 3-5 adjectives that describe the brand voice.
-  - Examples: "Eco-friendly", "High-end", "24/7 Emergency", "Family-Owned", "Minimalist".
-
-PHASE 3: Output Format (Strict JSON)
+PRIORITY 4: Strict JSON Output
 Return ONLY this JSON object.`
 
 /**
@@ -383,22 +441,22 @@ Return ONLY this JSON object.`
  */
 async function extractProfileWithAI(content: string): Promise<PartialBusinessProfile> {
   try {
-    const userPrompt = `Analyze this website text and extract the business profile following the Universal System Prompt rules.
+    const userPrompt = `Analyze this multi-page website text and extract the business profile following the Deep Crawl System Prompt priorities.
 
 Return ONLY a JSON object with this exact structure:
 {
-  "business_name": "String (Clean Name)",
-  "industry_archetype": "String (e.g. 'Restaurant', 'Medical', 'Trade', 'Transportation')",
-  "address_or_area": "String (Full Address OR 'Serving X Area')",
+  "business_name": "String",
+  "industry_archetype": "String",
+  "address": "String (Must be full street address if available)",
   "phone": "String",
   "email": "String",
-  "services": ["Category 1", "Category 2", "Category 3", "Category 4"],
+  "social_links": ["URL", "URL"],
+  "services": ["Short Category 1", "Short Category 2", "Short Category 3", "Short Category 4", "Short Category 5"],
   "owner_name": "String (or null)",
-  "vibe_keywords": ["String", "String", "String"],
-  "social_links": ["URL", "URL"]
+  "vibe_keywords": ["String", "String", "String"]
 }
 
-Website content:
+Multi-page website content:
 ${content}`
 
     const response = await openai.chat.completions.create({
@@ -428,12 +486,15 @@ ${content}`
     try {
       const extractedData = JSON.parse(aiResponse)
       
-      // Transform the universal format to PartialBusinessProfile format
+      // Transform the deep crawl format to PartialBusinessProfile format
+      // Handle both old format (address_or_area) and new format (address)
+      const addressValue = extractedData.address || extractedData.address_or_area || null
+      
       const transformed: PartialBusinessProfile = {
         businessName: extractedData.business_name || null,
         industry: extractedData.industry_archetype || null,
-        location: extractedData.address_or_area ? {
-          address: extractedData.address_or_area,
+        location: addressValue ? {
+          address: addressValue,
           city: '',
           state: '',
           zipCode: '',
