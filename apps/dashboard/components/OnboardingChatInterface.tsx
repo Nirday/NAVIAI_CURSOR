@@ -66,6 +66,8 @@ interface OnboardingState {
   fromWebsite: boolean
   lastWebsiteUrl?: string | null
   missing_data_report?: string[]
+  lastQuestionAsked?: string // Track last question to prevent loops
+  questionRepeatCount?: number // Track how many times same question was asked
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -81,7 +83,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     needsVerification: null,
     fromWebsite: false,
     lastWebsiteUrl: null,
-    missing_data_report: []
+    missing_data_report: [],
+    lastQuestionAsked: '',
+    questionRepeatCount: 0
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -236,6 +240,118 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   // Format proofread summary
+  /**
+   * Detects if user input looks like a valid answer (not a question)
+   * Returns true if it seems like an answer, false if it's unclear
+   */
+  const looksLikeValidAnswer = (userMessage: string, currentSubStep: string): boolean => {
+    const lower = userMessage.toLowerCase().trim()
+    
+    // Very short responses are likely answers (unless they're questions)
+    if (userMessage.length < 3) return false
+    
+    // Check for common answer patterns
+    const answerPatterns: RegExp[] = [
+      /^\d+/, // Starts with number (phone, address, etc.)
+      /@/, // Contains @ (email)
+      /^[a-z]+\s+[a-z]+/i, // Two words (likely name or address)
+      /(street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|way|court|ct|lane|ln)/i, // Address keywords
+      /(monday|tuesday|wednesday|thursday|friday|saturday|sunday|am|pm|\d{1,2}:\d{2})/i, // Hours keywords
+      /(cash|credit|card|venmo|paypal|insurance|check)/i, // Payment keywords
+      /(instagram|facebook|linkedin|twitter|\.com|\.org)/i // Social media keywords
+    ]
+    
+    // Check for single word that's not too short/long (likely a name or answer)
+    if (/^[a-z]+$/i.test(userMessage) && userMessage.length > 2 && userMessage.length < 20) {
+      return true
+    }
+    
+    // If it matches answer patterns, it's likely an answer
+    if (answerPatterns.some(pattern => pattern.test(userMessage))) {
+      return true
+    }
+    
+    // If it doesn't end with ? and is not a question word, likely an answer
+    if (!lower.endsWith('?') && !/^(what|how|why|where|when|who|which|can|could|would|do|does|is|are|will)\b/i.test(lower)) {
+      return true
+    }
+    
+    return false
+  }
+
+  /**
+   * Detects if user input is a clarification question vs an answer
+   * Returns null if it's an answer, or a helpful response if it's a question
+   */
+  const detectClarificationQuestion = (userMessage: string, currentPhase: string, currentSubStep: string): string | null => {
+    const lower = userMessage.toLowerCase().trim()
+    
+    // Question patterns
+    const questionPatterns = [
+      /^(what|how|why|where|when|who|which|can you|could you|would you|do you|is|are|does|will)\b/i,
+      /\?$/,
+      /^(what's|what is|how do|how does|how can|why do|why does|where is|where are|when do|when does)/i,
+      /^(explain|tell me|help me|i don't|i do not|i'm not|i am not|not sure|unsure|confused|what do you mean)/i
+    ]
+    
+    // Check if it's a question
+    const isQuestion = questionPatterns.some(pattern => pattern.test(lower))
+    
+    if (!isQuestion) {
+      return null // It's an answer, not a question
+    }
+    
+    // Provide context-aware clarification responses
+    const contextResponses: Record<string, Record<string, string>> = {
+      'website_check': {
+        'has_website': "I'm asking if you have a website for your business. If yes, paste the URL. If no, just say 'no' and we'll set things up manually.",
+        'scrape_failed_choice': "I had trouble scraping that website. Would you like to try a different URL, or should we enter your details manually?"
+      },
+      'discovery': {
+        'business_type': "I'm trying to understand what kind of business you run. Just tell me in a few words - like 'restaurant', 'plumber', 'law firm', etc."
+      },
+      'storefront': {
+        'business_name': "I need the official name of your business - exactly as you want it to appear on your profile. Please double-check the spelling!",
+        'location': "I need your business address. For a physical location, include the street address, city, and state. For service areas, tell me which cities or regions you serve.",
+        'phone_email': "I need both a phone number and email address. You can provide them together like: '555-123-4567 and info@business.com'",
+        'phone_only': "I need the main phone number where clients can reach you. Format it however you like - I'll understand.",
+        'email_only': "I need an email address where clients can contact you. Make sure to double-check for typos!",
+        'hours': "I need your business hours. For example: 'Monday-Friday 9am-5pm' or 'Open daily 10am-8pm'",
+        'social_links': "If you have social media accounts (Instagram, Facebook, LinkedIn, etc.), paste the links here. If not, just say 'no' or 'none'."
+      },
+      'menu': {
+        'services': "I'm asking about the main services or products you offer. List 3-5 key things customers come to you for.",
+        'target_audience': "I want to know who your ideal customers are. For example: 'Families with kids', 'Small business owners', 'Seniors', etc.",
+        'owner_vibe': "I'm asking for the owner's name and the business vibe. You can provide both like: 'John Smith, Friendly & Professional' or just the name first.",
+        'vibe_only': "I need a brief description of your business vibe in 2 words. Examples: 'Friendly & Casual', 'High-End & Strict', 'Fast & Reliable'."
+      },
+      'locals': {
+        'owner_name': "I'm asking for the name of the business owner or lead expert. This helps build trust with customers.",
+        'credentials': "I'm asking about licenses, certifications, degrees, or how long you've been in business. This adds credibility to your profile."
+      },
+      'counter': {
+        'payment': "I'm asking how customers pay you. Do you accept cash, credit cards, insurance, Venmo, etc.?",
+        'policy': "I'm asking about your booking or reservation policies. For example: 'Walk-ins welcome', 'Appointment required', '24-hour cancellation policy', etc."
+      },
+      'proofread': {
+        'review': "I'm showing you a summary of all the information I've collected. Please review it and let me know if anything needs to be corrected.",
+        'final_review': "This is the final review before I save everything. Please check that the business name, phone, and email are spelled correctly."
+      }
+    }
+    
+    // Get context-specific response
+    const phaseResponses = contextResponses[currentPhase]
+    if (phaseResponses) {
+      const response = phaseResponses[currentSubStep] || phaseResponses['*']
+      if (response) {
+        return response
+      }
+    }
+    
+    // Generic fallback
+    return "I'm here to help! Could you rephrase your question? I'm currently collecting information about your business to set up your profile."
+  }
+
   const formatProofreadSummary = (data: Partial<BusinessProfileData>, fromWebsite: boolean = false, missingDataReport?: string[]): string => {
     let summary = ""
     
@@ -496,6 +612,65 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setIsLoading(false)
           return
         }
+      }
+
+      // 2) Check if user is asking a clarification question vs providing an answer
+      // Skip this check for verification responses (yes/no) and confirmation patterns
+      const isVerificationResponse = needsVerification && (
+        lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
+        lowerMessage.includes('right') || lowerMessage === 'no' || lowerMessage === 'n'
+      )
+      const isConfirmation = lowerMessage === 'yes' || lowerMessage === 'y' || 
+        lowerMessage.includes('looks good') || lowerMessage.includes('perfect') ||
+        lowerMessage.includes("it's good") || lowerMessage.includes('its good') ||
+        lowerMessage.includes('is good') || lowerMessage.includes('all good') ||
+        lowerMessage.includes('sounds good') || lowerMessage === 'ok' || lowerMessage === 'okay'
+      
+      // Check if it looks like a valid answer first
+      const seemsLikeAnswer = looksLikeValidAnswer(userMessage, subStep)
+      
+      // Only check for clarification if it doesn't seem like an answer
+      if (!isVerificationResponse && !isConfirmation && !seemsLikeAnswer) {
+        const clarificationResponse = detectClarificationQuestion(userMessage, phase, subStep)
+        if (clarificationResponse) {
+          const clarifyMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: clarificationResponse,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, clarifyMsg])
+          setIsLoading(false)
+          return // Don't process as an answer, just provide clarification
+        }
+      }
+      
+      // 3) Prevent loops: Track question repetition and be more lenient after repeats
+      const currentQuestion = `${phase}_${subStep}`
+      const isRepeatingQuestion = onboardingState.lastQuestionAsked === currentQuestion
+      const repeatCount = isRepeatingQuestion ? (onboardingState.questionRepeatCount || 0) + 1 : 0
+      
+      // Update question tracking
+      if (!isRepeatingQuestion) {
+        // New question - reset counter
+        setOnboardingState(prev => ({
+          ...prev,
+          lastQuestionAsked: currentQuestion,
+          questionRepeatCount: 0
+        }))
+      } else {
+        // Same question - increment counter
+        setOnboardingState(prev => ({
+          ...prev,
+          questionRepeatCount: repeatCount
+        }))
+      }
+      
+      // If we've asked this question 3+ times, accept almost any non-question response
+      if (repeatCount >= 3) {
+        // Force accept the answer to break the loop
+        console.log('Question repeated 3+ times, accepting user response to prevent loop')
+        // The answer will be processed normally below, but we're more lenient
       }
 
       // Handle verification requests
