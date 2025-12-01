@@ -1463,12 +1463,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             setOnboardingState({
               ...onboardingState,
               phase: 'menu',
-              subStep: 'owner_vibe',
+              subStep: 'owner_last_name', // Change subStep to track we're waiting for last name
               data: {
                 ...data,
                 credibility: {
                   ...data.credibility,
-                  owner_name: ownerName
+                  owner_name: ownerName // Store first name temporarily
                 } as BusinessProfileData['credibility']
               }
             })
@@ -1571,6 +1571,69 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setIsLoading(false)
           return
         }
+        
+        // Handle last name response in menu phase
+        if (subStep === 'owner_last_name') {
+          const lastName = userMessage.trim()
+          const firstName = data.credibility?.owner_name || ''
+          
+          // Check if user declined to provide last name
+          const lowerMessage = lastName.toLowerCase()
+          if (lowerMessage === 'no' || lowerMessage === 'n' || lowerMessage === 'none' || lowerMessage === "don't" || lowerMessage === "no thanks") {
+            // Use just the first name and ask for vibe
+            const updatedData = {
+              ...data,
+              credibility: {
+                ...data.credibility,
+                owner_name: firstName // Keep just first name
+              } as BusinessProfileData['credibility']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'menu',
+              subStep: 'vibe_only',
+              data: updatedData
+            })
+            
+            const vibeMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got the owner name. How would you describe the 'vibe' of the business in 2 words? (e.g. Friendly & Casual, or High-End & Strict).",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, vibeMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Combine first and last name, then ask for vibe
+          const fullName = `${firstName} ${lastName}`.trim()
+          const updatedData = {
+            ...data,
+            credibility: {
+              ...data.credibility,
+              owner_name: fullName
+            } as BusinessProfileData['credibility']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'menu',
+            subStep: 'vibe_only',
+            data: updatedData
+          })
+          
+          const vibeMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got the owner name. How would you describe the 'vibe' of the business in 2 words? (e.g. Friendly & Casual, or High-End & Strict).",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, vibeMsg])
+          setIsLoading(false)
+          return
+        }
       }
 
       // Phase 3: Locals (after review)
@@ -1581,6 +1644,19 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           // Check if it's just a first name (single word, common first name pattern)
           const nameParts = ownerName.split(/\s+/)
           if (nameParts.length === 1 && ownerName.length < 15) {
+            // Store first name and ask for last name
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'locals',
+              subStep: 'owner_last_name', // Change subStep to track we're waiting for last name
+              data: {
+                ...data,
+                credibility: {
+                  ...data.credibility,
+                  owner_name: ownerName // Store first name temporarily
+                } as BusinessProfileData['credibility']
+              }
+            })
             const clarifyMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
@@ -1597,6 +1673,75 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             credibility: {
               ...data.credibility,
               owner_name: ownerName,
+              owner_bio: '',
+              credentials: [],
+              years_in_business: ''
+            } as BusinessProfileData['credibility']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'locals',
+            subStep: 'credentials',
+            data: updatedData
+          })
+          
+          const credMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Are there specific Licenses, Certifications, or Degrees we should highlight? Or maybe just how long you've been serving the community?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, credMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        // Handle last name response
+        if (subStep === 'owner_last_name') {
+          const lastName = userMessage.trim()
+          const firstName = data.credibility?.owner_name || ''
+          
+          // Check if user declined to provide last name
+          const lowerMessage = lastName.toLowerCase()
+          if (lowerMessage === 'no' || lowerMessage === 'n' || lowerMessage === 'none' || lowerMessage === "don't" || lowerMessage === "no thanks") {
+            // Use just the first name
+            const updatedData = {
+              ...data,
+              credibility: {
+                ...data.credibility,
+                owner_name: firstName, // Keep just first name
+                owner_bio: '',
+                credentials: [],
+                years_in_business: ''
+              } as BusinessProfileData['credibility']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'locals',
+              subStep: 'credentials',
+              data: updatedData
+            })
+            
+            const credMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Are there specific Licenses, Certifications, or Degrees we should highlight? Or maybe just how long you've been serving the community?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, credMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Combine first and last name
+          const fullName = `${firstName} ${lastName}`.trim()
+          const updatedData = {
+            ...data,
+            credibility: {
+              ...data.credibility,
+              owner_name: fullName,
               owner_bio: '',
               credentials: [],
               years_in_business: ''
