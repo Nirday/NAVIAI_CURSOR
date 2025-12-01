@@ -335,6 +335,7 @@ First, analyze the text to determine the business type. This decides what "Servi
 - Service Area Business (Plumber/HVAC): "Services" = Trade skills (e.g., "Drain Cleaning"). Location = Service Area.
 - Brick & Mortar (Retail/Cafe): "Services" = Product Categories/Menu Highlights. Location = Physical Storefront.
 - Professional (Law/Medical): "Services" = Practice Areas/Treatments. Identity = Partners/Doctors.
+- Asset-Based Service (Limo/Rental/Venue): "Services" = Usage Scenarios (Weddings) + Key Assets (Fleet/Equipment).
 
 PHASE 2: Extraction Rules (The Filter)
 
@@ -349,6 +350,7 @@ RULE 1: Identity (Signal vs. SEO Noise)
 
 RULE 2: Service Summarization (Context-Aware)
 Do not dump every keyword. Group them into 3-5 Core Pillars.
+CRITICAL: If the business relies on specific hardware, vehicles, or equipment (e.g., Limo Service, Gym, Camera Rental), you MUST include those Key Assets in the service description.
 
 Scenario A (Restaurant/Bakery):
 - Raw: "Croissants, Muffins, Scones, Coffee, Espresso, Wedding Cakes."
@@ -361,6 +363,10 @@ Scenario B (Contractor/Trades):
 Scenario C (Professional/Medical):
 - Raw: "Tax prep, audits, bookkeeping, payroll."
 - Output: ["Tax Preparation", "Small Business Accounting", "Audit Representation"].
+
+Scenario D (Asset-Based/Transportation):
+- Raw: "Weddings, Proms, Hummer Limo, Party Bus, Ford Transit, SFO Transfers."
+- Output: ["Luxury Fleet (Hummer Limos, Party Buses)", "Wedding & Prom Transportation", "Airport Transfers (Sedans/SUVs)"].
 
 RULE 3: Authority & Vibe
 - Owner/Lead: Look for specific titles: "Chef", "Principal", "Dr.", "Founder".
@@ -382,7 +388,7 @@ async function extractProfileWithAI(content: string): Promise<PartialBusinessPro
 Return ONLY a JSON object with this exact structure:
 {
   "business_name": "String (Clean Name)",
-  "industry_archetype": "String (e.g. 'Restaurant', 'Medical', 'Trade')",
+  "industry_archetype": "String (e.g. 'Restaurant', 'Medical', 'Trade', 'Transportation')",
   "address_or_area": "String (Full Address OR 'Serving X Area')",
   "phone": "String",
   "email": "String",
