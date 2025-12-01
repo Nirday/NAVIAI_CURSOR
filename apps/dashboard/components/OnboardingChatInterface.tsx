@@ -282,6 +282,61 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   /**
+   * Intent Classification: Categorizes user input into ANSWER, CORRECTION, or OFF_TOPIC
+   * 
+   * SYSTEM RULE: You are a focused Business Profile Assistant. Your ONLY goal is to complete the profile.
+   * Prioritize accuracy over speed. If the user corrects you, handle it immediately and stay on the current step.
+   * Politely refuse off-topic requests and redirect back to profile completion.
+   */
+  type UserIntent = 'ANSWER' | 'CORRECTION' | 'OFF_TOPIC' | 'CLARIFICATION'
+
+  const classifyUserIntent = (userMessage: string, currentPhase: string, currentSubStep: string): UserIntent => {
+    const lower = userMessage.toLowerCase().trim()
+    
+    // CORRECTION patterns - user is correcting something (check this FIRST)
+    const correctionPatterns = [
+      /(that's not|that is not|that's wrong|that is wrong|that's incorrect|that is incorrect|that's not right)/i,
+      /(not.*service|not.*address|not.*phone|not.*email|not.*name|not.*correct|wrong.*service|wrong.*address|wrong.*phone|wrong.*email)/i,
+      /(remove|delete|take out|get rid of|don't include|don't want|exclude)/i,
+      /(change|update|fix|correct|edit|modify).*(service|address|phone|email|name|location)/i,
+      /(no,|nope,|actually,|wait,|hold on).*(that|it|this)/i,
+      /(that|this|it).*(is not|isn't|is wrong|is incorrect)/i
+    ]
+    
+    if (correctionPatterns.some(pattern => pattern.test(userMessage))) {
+      return 'CORRECTION'
+    }
+    
+    // OFF_TOPIC patterns - unrelated questions
+    const offTopicPatterns = [
+      /(weather|temperature|rain|snow|forecast)/i,
+      /(write.*poem|create.*story|generate.*code|write.*code|make.*song|compose)/i,
+      /(what.*time|what.*date|when.*today|how.*old|what.*day)/i,
+      /(joke|funny|entertain|play.*game|tell.*joke)/i,
+      /(tell me about (?!your|the business|your company|your service))/i,
+      /(how.*are you|what.*up|what.*doing)/i
+    ]
+    
+    if (offTopicPatterns.some(pattern => pattern.test(userMessage))) {
+      return 'OFF_TOPIC'
+    }
+    
+    // CLARIFICATION patterns - asking for help/clarification
+    const clarificationPatterns = [
+      /^(what|how|why|where|when|who|which|can you|could you|would you|do you|is|are|does|will)\b/i,
+      /\?$/,
+      /(explain|tell me|help me|i don't|i do not|i'm not|i am not|not sure|unsure|confused|what do you mean)/i
+    ]
+    
+    if (clarificationPatterns.some(pattern => pattern.test(userMessage))) {
+      return 'CLARIFICATION'
+    }
+    
+    // Default to ANSWER if none of the above match
+    return 'ANSWER'
+  }
+
+  /**
    * Detects if user input is a clarification question vs an answer
    * Returns null if it's an answer, or a helpful response if it's a question
    */
@@ -617,7 +672,221 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // 2) Check if user is asking for suggestions/help BEFORE processing as answer
+      // 2) INTENT CLASSIFICATION - Classify user input BEFORE processing as answer
+      const userIntent = classifyUserIntent(userMessage, phase, subStep)
+      
+      // Handle OFF_TOPIC requests
+      if (userIntent === 'OFF_TOPIC') {
+        const currentQuestionContext: Record<string, Record<string, string>> = {
+          'menu': {
+            'services': 'What are the top 3 services you offer?',
+            'target_audience': "Who is your 'Dream Client'?",
+            'owner_vibe': "Who is the owner/lead expert and what's the business vibe?",
+            'vibe_only': "How would you describe the 'vibe' of the business?"
+          },
+          'storefront': {
+            'business_name': "What is the official Business Name?",
+            'location': 'Where is your business located?',
+            'phone_email': 'What is the best phone number and email address?',
+            'hours': 'What are your standard Opening Hours?'
+          },
+          'locals': {
+            'owner_name': "Who is the owner or lead expert?",
+            'credentials': 'What licenses, certifications, or years in business?'
+          },
+          'counter': {
+            'payment': 'How does payment work?',
+            'policy': 'What are your booking/cancellation policies?'
+          }
+        }
+        
+        const questionText = currentQuestionContext[phase]?.[subStep] || 'this question'
+        const offTopicMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: `I'd love to chat about that later, but let's finish your business profile first so customers can find you. Back to ${questionText}...`,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, offTopicMsg])
+        setIsLoading(false)
+        return // Don't process as answer
+      }
+      
+      // Handle CORRECTION requests
+      if (userIntent === 'CORRECTION') {
+        // Extract what needs to be corrected
+        const lower = userMessage.toLowerCase()
+        
+        // Check which field is being corrected
+        if (lower.includes('service') || (phase === 'menu' && subStep === 'services')) {
+          // Service correction - extract which service(s) to remove
+          const currentServices = data.offering?.core_services || []
+          
+          // Try to extract which service to remove by matching service names
+          let servicesToRemove: string[] = []
+          currentServices.forEach(service => {
+            const serviceLower = service.toLowerCase()
+            // Check if user message contains the service name
+            if (lower.includes(serviceLower) || serviceLower.split(' ').some(word => lower.includes(word))) {
+              servicesToRemove.push(service)
+            }
+          })
+          
+          // If user says "that's not a service" or similar without specifying, check recent context
+          if (servicesToRemove.length === 0 && (lower.includes("that's not") || lower.includes('not a service') || lower.includes('wrong service') || lower.includes('remove that'))) {
+            // Check last message shown to user (might contain the service they're referring to)
+            const lastAssistantMsg = messages.filter(m => m.role === 'assistant').slice(-1)[0]
+            if (lastAssistantMsg) {
+              // Try to find service names in the last message
+              currentServices.forEach(service => {
+                if (lastAssistantMsg.content.includes(service)) {
+                  servicesToRemove.push(service)
+                }
+              })
+            }
+            
+            // If still nothing, remove the last service in the list as fallback
+            if (servicesToRemove.length === 0 && currentServices.length > 0) {
+              servicesToRemove = [currentServices[currentServices.length - 1]]
+            }
+          }
+          
+          // Remove the identified services
+          const updatedServices = currentServices.filter(s => !servicesToRemove.includes(s))
+          
+          const updatedData = {
+            ...data,
+            offering: {
+              ...data.offering,
+              core_services: updatedServices
+            } as BusinessProfileData['offering']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            data: updatedData
+          })
+          
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Got it, I've updated that. ${updatedServices.length > 0 ? `Current services: ${updatedServices.join(', ')}` : 'No services listed yet.'} Does this look right now?`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return // Stay on current step
+        } else if (lower.includes('address') || lower.includes('location')) {
+          // Address correction - ask for new address
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'location',
+            data: {
+              ...data,
+              identity: {
+                ...data.identity,
+                address_or_area: ''
+              } as BusinessProfileData['identity']
+            }
+          })
+          
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct address? Please include the street address, city, and state.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return
+        } else if (lower.includes('phone') || lower.includes('number')) {
+          // Phone correction
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'phone_only',
+            data: {
+              ...data,
+              identity: {
+                ...data.identity,
+                phone: ''
+              } as BusinessProfileData['identity']
+            }
+          })
+          
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct phone number?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return
+        } else if (lower.includes('email')) {
+          // Email correction
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'email_only',
+            data: {
+              ...data,
+              identity: {
+                ...data.identity,
+                email: ''
+              } as BusinessProfileData['identity']
+            }
+          })
+          
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct email address?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return
+        } else if (lower.includes('name') || lower.includes('business')) {
+          // Business name correction
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'business_name',
+            data: {
+              ...data,
+              identity: {
+                ...data.identity,
+                business_name: ''
+              } as BusinessProfileData['identity']
+            }
+          })
+          
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct business name?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return
+        } else {
+          // Generic correction - ask what to correct
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "I want to make sure I get this right. What specifically needs to be corrected? (e.g., 'Remove Luxury Fleet from services', 'Change the address', 'Fix the phone number')",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setIsLoading(false)
+          return
+        }
+      }
+      
+      // 3) Check if user is asking for suggestions/help BEFORE processing as answer
       // This is critical - we need to catch these BEFORE they're treated as answers
       const suggestionRequestPatterns = [
         /(suggest|recommend|help me|what should|what would|not sure|unsure|don't know|dunno|can you suggest|can you recommend|give me ideas|ideas for)/i,
@@ -631,7 +900,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // If it's a suggestion request, handle it in the specific subStep handler
       // We'll let the subStep-specific logic handle it, but we flag it here
       
-      // 3) Check if user is asking a clarification question vs providing an answer
+      // 4) Check if user is asking a clarification question vs providing an answer
       // Skip this check for verification responses (yes/no) and confirmation patterns
       const isVerificationResponse = needsVerification && (
         lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
