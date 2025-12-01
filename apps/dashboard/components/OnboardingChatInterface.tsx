@@ -1543,6 +1543,61 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // Phase 2: Menu
       if (phase === 'menu') {
         if (subStep === 'services') {
+          // Check if user is asking for suggestions/help
+          const suggestionPatterns = [
+            /(suggest|recommend|help me|what should|what would|not sure|unsure|don't know|dunno|can you suggest|can you recommend|give me ideas|ideas for)/i,
+            /(best.*option|best.*service|top.*option|top.*service)/i
+          ]
+          
+          const isAskingForSuggestions = suggestionPatterns.some(pattern => pattern.test(userMessage))
+          
+          if (isAskingForSuggestions) {
+            // Provide suggestions based on business type/industry
+            const industry = data.offering?.core_services?.[0] || data.identity?.business_name || ''
+            const currentArchetype = onboardingState.archetype || data.archetype
+            
+            let suggestions: string[] = []
+            let suggestionText = ''
+            if (currentArchetype === 'BrickAndMortar' || industry.toLowerCase().includes('restaurant') || industry.toLowerCase().includes('cafe') || industry.toLowerCase().includes('bakery')) {
+              suggestions = ['Dine-In Service', 'Takeout & Delivery', 'Catering Services']
+              suggestionText = "Based on your business type, here are some common services:\n• Dine-In Service\n• Takeout & Delivery\n• Catering Services\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
+            } else if (currentArchetype === 'ServiceOnWheels' || industry.toLowerCase().includes('plumb') || industry.toLowerCase().includes('hvac') || industry.toLowerCase().includes('electric')) {
+              suggestions = ['Emergency Repairs', 'Installation Services', 'Maintenance & Inspections']
+              suggestionText = "Based on your business type, here are some common services:\n• Emergency Repairs\n• Installation Services\n• Maintenance & Inspections\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
+            } else if (currentArchetype === 'AppointmentPro' || industry.toLowerCase().includes('medical') || industry.toLowerCase().includes('dental') || industry.toLowerCase().includes('legal') || industry.toLowerCase().includes('law')) {
+              suggestions = ['Consultation Services', 'Treatment/Service Delivery', 'Follow-Up Care']
+              suggestionText = "Based on your business type, here are some common services:\n• Consultation Services\n• Treatment/Service Delivery\n• Follow-Up Care\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
+            } else {
+              // Generic suggestions
+              suggestions = ['Primary Service Offering', 'Secondary Service', 'Additional Services']
+              suggestionText = "I'd be happy to help! Here are some general service categories:\n• Primary Service Offering\n• Secondary Service\n• Additional Services\n\nCan you tell me more about what your business does? For example, if you're a chiropractor, you might offer: 'Chiropractic Adjustments', 'Wellness Coaching', 'Pain Management'."
+            }
+            
+            // Store suggestions in state and ask for confirmation
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'menu',
+              subStep: 'services_suggestions', // New subStep for handling suggestions
+              data: {
+                ...data,
+                offering: {
+                  ...data.offering,
+                  suggested_services: suggestions // Temporarily store suggestions
+                } as any
+              }
+            })
+            
+            const suggestMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: suggestionText,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, suggestMsg])
+            setIsLoading(false)
+            return
+          }
+          
           const services = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0).slice(0, 5)
           
           // Check for vague services like "consulting", "services", "help"
@@ -1566,6 +1621,85 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             offering: {
               ...data.offering,
               core_services: services
+            } as BusinessProfileData['offering']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'menu',
+            subStep: 'target_audience',
+            data: updatedData
+          })
+          
+          const audienceMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Who is your 'Dream Client'? (e.g. Busy moms, Corporate Executives, Homeowners with pools).",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, audienceMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        // Handle service suggestions confirmation/modification
+        if (subStep === 'services_suggestions') {
+          // User can accept suggestions, modify them, or provide their own
+          const lower = userMessage.toLowerCase().trim()
+          
+          // Check if they want to use the suggestions as-is
+          if (lower === 'yes' || lower === 'y' || lower === 'use these' || lower === 'these work' || lower.includes('use them')) {
+            const suggestedServices = (data.offering as any)?.suggested_services || []
+            const services = suggestedServices.length > 0 ? suggestedServices : ['Primary Service', 'Secondary Service', 'Additional Service']
+            
+            const updatedData = {
+              ...data,
+              offering: {
+                ...data.offering,
+                core_services: services,
+                suggested_services: undefined // Remove temporary suggestions
+              } as BusinessProfileData['offering']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'menu',
+              subStep: 'target_audience',
+              data: updatedData
+            })
+            
+            const audienceMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Who is your 'Dream Client'? (e.g. Busy moms, Corporate Executives, Homeowners with pools).",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, audienceMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Otherwise, treat their response as services (they're modifying or providing their own)
+          const services = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0).slice(0, 5)
+          
+          if (services.length === 0) {
+            const clarifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "I need at least one service. Can you list 3 services you offer? For example: 'Chiropractic Adjustments, Wellness Coaching, Pain Management'",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, clarifyMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const updatedData = {
+            ...data,
+            offering: {
+              ...data.offering,
+              core_services: services,
+              suggested_services: undefined // Remove temporary suggestions
             } as BusinessProfileData['offering']
           }
           
