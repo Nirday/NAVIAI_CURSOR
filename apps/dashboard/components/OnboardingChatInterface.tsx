@@ -1833,6 +1833,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             setIsLoading(false)
             return
           }
+          if (lowerMessage.includes('social') || lowerMessage.includes('instagram') || lowerMessage.includes('facebook') || lowerMessage.includes('linkedin')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_socials',
+              data
+            })
+            const askSocialsMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got it. What are your social media links? Paste the URLs for Instagram, Facebook, LinkedIn, or any other platforms you use.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askSocialsMsg])
+            setIsLoading(false)
+            return
+          }
 
           // Fallback generic correction prompt (only once)
           setOnboardingState({
@@ -1955,6 +1972,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               timestamp: new Date()
             }
             setMessages(prev => [...prev, askAddressMsg])
+            setIsLoading(false)
+            return
+          }
+          if (lowerMessage.includes('social') || lowerMessage.includes('instagram') || lowerMessage.includes('facebook') || lowerMessage.includes('linkedin')) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'proofread',
+              subStep: 'correct_socials',
+              data
+            })
+            const askSocialsMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got it. What are your social media links? Paste the URLs for Instagram, Facebook, LinkedIn, or any other platforms you use.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, askSocialsMsg])
             setIsLoading(false)
             return
           }
@@ -2179,6 +2213,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setIsLoading(false)
           return
         }
+        if (lower.includes('social') || lower.includes('instagram') || lower.includes('facebook') || lower.includes('linkedin')) {
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'proofread',
+            subStep: 'correct_socials',
+            data
+          })
+          const askSocialsMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What are your social media links? Paste the URLs for Instagram, Facebook, LinkedIn, or any other platforms you use.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, askSocialsMsg])
+          setIsLoading(false)
+          return
+        }
         
         // If we still can't detect, re-show the summary
         const summary = formatProofreadSummary(data, onboardingState.fromWebsite)
@@ -2270,6 +2321,40 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           identity: {
             ...data.identity,
             address_or_area: fullAddress
+          } as BusinessProfileData['identity']
+        }
+
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'proofread',
+          subStep: onboardingState.fromWebsite ? 'review' : 'final_review',
+          data: updatedData
+        }))
+
+        const reviewMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: summary,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, reviewMsg])
+        setIsLoading(false)
+        return
+      }
+
+      // Handle social links correction
+      if (phase === 'proofread' && subStep === 'correct_socials') {
+        // Extract URLs from the message
+        const urlMatches = userMessage.match(/(https?:\/\/[^\s]+)/gi) || []
+        const socialLinks = urlMatches.length > 0 ? urlMatches : 
+          (userMessage.toLowerCase().includes('no') || userMessage.toLowerCase().includes('none') || userMessage.toLowerCase().includes("don't") ? [] : [userMessage.trim()])
+        
+        const updatedData: Partial<BusinessProfileData> = {
+          ...data,
+          identity: {
+            ...data.identity,
+            social_links: socialLinks
           } as BusinessProfileData['identity']
         }
 
