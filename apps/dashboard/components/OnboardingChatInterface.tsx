@@ -69,6 +69,7 @@ interface OnboardingState {
   lastQuestionAsked?: string // Track last question to prevent loops
   questionRepeatCount?: number // Track how many times same question was asked
   scrapedWebsiteData?: any // Store original scraped data for suggestions
+  lockedFields?: Set<string> // Fields that are verified and should NOT be asked about again
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -87,7 +88,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     missing_data_report: [],
     lastQuestionAsked: '',
     questionRepeatCount: 0,
-    scrapedWebsiteData: undefined
+    scrapedWebsiteData: undefined,
+    lockedFields: new Set<string>()
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -279,6 +281,50 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     }
     
     return false
+  }
+
+  /**
+   * Extract entity from correction message - "Customer is Always Right" approach
+   * Ignores surrounding words like "no it is", "actually", etc. and extracts the actual entity
+   */
+  const extractEntityFromCorrection = (userMessage: string, fieldType: 'email' | 'phone' | 'address'): string | null => {
+    if (fieldType === 'email') {
+      // Extract email - look for email pattern, ignore surrounding words
+      const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
+      return emailMatch ? emailMatch[0] : null
+    } else if (fieldType === 'phone') {
+      // Extract phone - look for phone pattern
+      const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/)
+      return phoneMatch ? phoneMatch[0] : null
+    } else if (fieldType === 'address') {
+      // Extract address - look for street address patterns
+      const addressPatterns = [
+        /\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)[^,]*,\s*[A-Za-z\s]+,\s*[A-Z]{2}/i,
+        /\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)[^,]*,\s*[A-Za-z\s]+/i
+      ]
+      for (const pattern of addressPatterns) {
+        const addressMatch = userMessage.match(pattern)
+        if (addressMatch) return addressMatch[0].trim()
+      }
+      return null
+    }
+    return null
+  }
+
+  /**
+   * Check if a field is locked (verified and should not be asked about again)
+   */
+  const isFieldLocked = (field: string, lockedFields?: Set<string>): boolean => {
+    return lockedFields ? lockedFields.has(field) : false
+  }
+
+  /**
+   * Lock a field (mark as verified)
+   */
+  const lockField = (field: string, lockedFields: Set<string>): Set<string> => {
+    const newSet = new Set(lockedFields)
+    newSet.add(field)
+    return newSet
   }
 
   /**
@@ -956,88 +1002,126 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       
       // Handle CORRECTION requests
       if (userIntent === 'CORRECTION') {
-        // Extract what needs to be corrected
+        // "Customer is Always Right" - Trust user corrections immediately
         const lower = userMessage.toLowerCase()
+        const { lockedFields = new Set<string>() } = onboardingState
         
         // Check which field is being corrected
         // IMPORTANT: Check email FIRST before address, since "email address" contains "address"
         if (lower.includes('email') || lower.match(/email\s+address/i)) {
-          // Email correction
-          // Try to extract the new email from the message
-          const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
-          const newEmail = emailMatch ? emailMatch[0] : ''
+          // Email correction - extract entity ignoring surrounding words
+          const newEmail = extractEntityFromCorrection(userMessage, 'email')
           
           if (newEmail) {
-            // Validate the email
-            const validation = validateCriticalField('email', newEmail)
-            if (!validation.isValid && validation.suggestion) {
-              setOnboardingState({
-                ...onboardingState,
-                needsVerification: {
-                  field: 'email',
-                  value: newEmail,
-                  suggestion: validation.suggestion
-                }
-              })
-              const verifyMsg: Message = {
-                id: `assistant_${Date.now()}`,
-                role: 'assistant',
-                content: `Just to be safe, did you mean ${validation.suggestion}?`,
-                timestamp: new Date()
-              }
-              setMessages(prev => [...prev, verifyMsg])
-              setIsLoading(false)
-              return
-            }
+            // Basic validation - if it looks like a valid email, trust the user
+            const basicEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+            const isValidFormat = basicEmailRegex.test(newEmail)
             
-            // Update email directly
-            const updatedData = {
-              ...data,
-              identity: {
-                ...data.identity,
-                email: validation.suggestion || newEmail
-              } as BusinessProfileData['identity']
-            }
-            
-            setOnboardingState({
-              ...onboardingState,
-              data: updatedData
-            })
-            
-            const correctionMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: `Got it, I've updated the email to ${validation.suggestion || newEmail}. Does this look right?`,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, correctionMsg])
-            setIsLoading(false)
-            return
-          } else {
-            // No email found in message, ask for it
-            setOnboardingState({
-              ...onboardingState,
-              phase: 'storefront',
-              subStep: 'email_only',
-              data: {
+            if (isValidFormat) {
+              // FORCE OVERWRITE - Customer is always right
+              const updatedData = {
                 ...data,
                 identity: {
                   ...data.identity,
-                  email: ''
+                  email: newEmail
                 } as BusinessProfileData['identity']
               }
-            })
-            
-            const correctionMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "Got it. What's the correct email address?",
-              timestamp: new Date()
+              
+              // Lock the field and clear verification
+              const newLockedFields = lockField('email', lockedFields)
+              
+              setOnboardingState({
+                ...onboardingState,
+                data: updatedData,
+                needsVerification: null, // Clear verification immediately
+                lockedFields: newLockedFields
+              })
+              
+              const correctionMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `Got it, I've updated the email to ${newEmail}.`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, correctionMsg])
+              setIsLoading(false)
+              return
             }
-            setMessages(prev => [...prev, correctionMsg])
-            setIsLoading(false)
-            return
           }
+          
+          // No valid email found in message, ask for it
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct email address?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'email_only',
+            needsVerification: null // Clear verification
+          })
+          setIsLoading(false)
+          return
+        } else if (lower.includes('phone') || lower.includes('number')) {
+          // Phone correction - extract entity ignoring surrounding words
+          const newPhone = extractEntityFromCorrection(userMessage, 'phone')
+          
+          if (newPhone) {
+            // Basic validation - if it looks like a valid phone, trust the user
+            const basicPhoneRegex = /[\d\s\-\(\)\+]{10,}/
+            const isValidFormat = basicPhoneRegex.test(newPhone)
+            
+            if (isValidFormat) {
+              // FORCE OVERWRITE - Customer is always right
+              const updatedData = {
+                ...data,
+                identity: {
+                  ...data.identity,
+                  phone: newPhone
+                } as BusinessProfileData['identity']
+              }
+              
+              // Lock the field and clear verification
+              const newLockedFields = lockField('phone', lockedFields)
+              
+              setOnboardingState({
+                ...onboardingState,
+                data: updatedData,
+                needsVerification: null, // Clear verification immediately
+                lockedFields: newLockedFields
+              })
+              
+              const correctionMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: `Got it, I've updated the phone number to ${newPhone}.`,
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, correctionMsg])
+              setIsLoading(false)
+              return
+            }
+          }
+          
+          // No valid phone found, ask for it
+          const correctionMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Got it. What's the correct phone number?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, correctionMsg])
+          setOnboardingState({
+            ...onboardingState,
+            phase: 'storefront',
+            subStep: 'phone_only',
+            needsVerification: null // Clear verification
+          })
+          setIsLoading(false)
+          return
         } else if (lower.includes('service') || (phase === 'menu' && subStep === 'services')) {
           // Service correction - extract which service(s) to remove
           const currentServices = data.offering?.core_services || []
@@ -1259,6 +1343,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       // Handle verification requests
       if (needsVerification && needsVerification.field) {
+        const { lockedFields = new Set<string>() } = onboardingState
         const updatedData = { ...data }
         const verifiedValue = (lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || lowerMessage.includes('right'))
           ? (needsVerification.suggestion || userMessage.trim())
@@ -1266,13 +1351,31 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           
           if (needsVerification.field === 'email') {
             updatedData.identity = { ...updatedData.identity, email: verifiedValue } as BusinessProfileData['identity']
+            // Lock the field after verification
+            const newLockedFields = lockField('email', lockedFields)
+            setOnboardingState(prev => ({
+              ...prev,
+              lockedFields: newLockedFields
+            }))
           } else if (needsVerification.field === 'phone') {
             updatedData.identity = { ...updatedData.identity, phone: verifiedValue } as BusinessProfileData['identity']
+            // Lock the field after verification
+            const newLockedFields = lockField('phone', lockedFields)
+            setOnboardingState(prev => ({
+              ...prev,
+              lockedFields: newLockedFields
+            }))
           } else if (needsVerification.field === 'business_name') {
             updatedData.identity = { ...updatedData.identity, business_name: verifiedValue } as BusinessProfileData['identity']
+            // Lock the field after verification
+            const newLockedFields = lockField('business_name', lockedFields)
+            setOnboardingState(prev => ({
+              ...prev,
+              lockedFields: newLockedFields
+            }))
           }
           
-          // Continue to next step
+          // Continue to next step - CLEAR verification immediately
           if (needsVerification.field === 'business_name') {
             let nextQuestion = ''
             if (archetype === 'BrickAndMortar') {
@@ -1760,6 +1863,71 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             } as BusinessProfileData['identity']
           }
           
+          // Check if phone/email are locked before asking
+          const { lockedFields: locationLockedFields = new Set<string>() } = onboardingState
+          const isPhoneLockedAtLocation = isFieldLocked('phone', locationLockedFields)
+          const isEmailLockedAtLocation = isFieldLocked('email', locationLockedFields)
+          
+          // If both are locked, skip to next step
+          if (isPhoneLockedAtLocation && isEmailLockedAtLocation) {
+            // Both locked - move to social links
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'social_links',
+              data: updatedData
+            })
+            
+            const socialMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, socialMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // If one is locked, ask only for the other
+          if (isPhoneLockedAtLocation && !isEmailLockedAtLocation) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'email_only',
+              data: updatedData
+            })
+            
+            const emailMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "What is the best email address for clients to reach you?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, emailMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          if (isEmailLockedAtLocation && !isPhoneLockedAtLocation) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'phone_only',
+              data: updatedData
+            })
+            
+            const phoneMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "What is the main phone number for clients?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, phoneMsg])
+            setIsLoading(false)
+            return
+          }
+          
           setOnboardingState({
             ...onboardingState,
             phase: 'storefront',
@@ -1779,55 +1947,98 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         
         if (subStep === 'phone_email') {
-          // Try to extract phone and email from the response
-          const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
-          const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
+          // Check if fields are locked - if so, skip this step
+          const { lockedFields: phoneEmailLockedFields = new Set<string>() } = onboardingState
+          const isPhoneLocked = isFieldLocked('phone', phoneEmailLockedFields)
+          const isEmailLocked = isFieldLocked('email', phoneEmailLockedFields)
           
-          let phone = phoneMatch ? phoneMatch[0] : ''
-          let email = emailMatch ? emailMatch[0] : ''
-          
-          // If we didn't find both, ask for the missing one
-          if (!phone && !email) {
-            // Neither found - ask them to provide both
-            const errorMsg: Message = {
+          if (isPhoneLocked && isEmailLocked) {
+            // Both locked - move to social links
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'social_links',
+              data: data
+            })
+            
+            const socialMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "I need both a phone number and email address. Could you provide both? For example: '555-123-4567 and info@business.com'",
+              content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, errorMsg])
+            setMessages(prev => [...prev, socialMsg])
             setIsLoading(false)
             return
           }
           
-          if (!phone) {
-            // Phone missing - ask for it
+          // If one is locked, only process the other
+          if (isPhoneLocked) {
+            // Only process email
+            const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
+            const email = emailMatch ? emailMatch[0] : ''
+            
+            if (!email) {
+              const errorMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "I need an email address. Could you provide it?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, errorMsg])
+              setIsLoading(false)
+              return
+            }
+            
+            const emailValidation = validateCriticalField('email', email)
+            const finalEmail = emailValidation.suggestion || email
+            
             const updatedData = {
               ...data,
               identity: {
                 ...data.identity,
-                email: email
+                email: finalEmail
               } as BusinessProfileData['identity']
             }
+            
+            const newLockedFields = lockField('email', phoneEmailLockedFields)
+            
             setOnboardingState({
               ...onboardingState,
               phase: 'storefront',
-              subStep: 'phone_only',
-              data: updatedData
+              subStep: 'social_links',
+              data: updatedData,
+              lockedFields: newLockedFields
             })
-            const phoneMsg: Message = {
+            
+            const socialMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "Got the email. What is the main phone number for clients?",
+              content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
               timestamp: new Date()
             }
-            setMessages(prev => [...prev, phoneMsg])
+            setMessages(prev => [...prev, socialMsg])
             setIsLoading(false)
             return
           }
           
-          if (!email) {
-            // Email missing - ask for it
+          if (isEmailLocked) {
+            // Only process phone
+            const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
+            const phone = phoneMatch ? phoneMatch[0] : ''
+            
+            if (!phone) {
+              const errorMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "I need a phone number. Could you provide it?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, errorMsg])
+              setIsLoading(false)
+              return
+            }
+            
             const phoneValidation = validateCriticalField('phone', phone)
             if (!phoneValidation.isValid) {
               setOnboardingState({
@@ -1856,11 +2067,121 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 phone: phone
               } as BusinessProfileData['identity']
             }
+            
+            const newLockedFields = lockField('phone', phoneEmailLockedFields)
+            
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'social_links',
+              data: updatedData,
+              lockedFields: newLockedFields
+            })
+            
+            const socialMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, socialMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Neither is locked - process normally
+          // Try to extract phone and email from the response
+          const phoneMatch = userMessage.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
+          const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)
+          
+          let phone = phoneMatch ? phoneMatch[0] : ''
+          let email = emailMatch ? emailMatch[0] : ''
+          
+          // If we didn't find both, ask for the missing one
+          if (!phone && !email) {
+            // Neither found - ask them to provide both
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "I need both a phone number and email address. Could you provide both? For example: '555-123-4567 and info@business.com'",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          if (!phone) {
+            // Phone missing - ask for it, but lock email first
+            const emailValidation = validateCriticalField('email', email)
+            const finalEmail = emailValidation.suggestion || email
+            const { lockedFields = new Set<string>() } = onboardingState
+            const newLockedFields = lockField('email', lockedFields)
+            
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                email: finalEmail
+              } as BusinessProfileData['identity']
+            }
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'phone_only',
+              data: updatedData,
+              lockedFields: newLockedFields
+            })
+            const phoneMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Got the email. What is the main phone number for clients?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, phoneMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          if (!email) {
+            // Email missing - ask for it, but lock phone first
+            const phoneValidation = validateCriticalField('phone', phone)
+            if (!phoneValidation.isValid) {
+              setOnboardingState({
+                ...onboardingState,
+                needsVerification: {
+                  field: 'phone',
+                  value: phone,
+                  suggestion: undefined
+                }
+              })
+              const verifyMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "That phone number looks a bit off. Could you double-check it?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, verifyMsg])
+              setIsLoading(false)
+              return
+            }
+            
+            const { lockedFields = new Set<string>() } = onboardingState
+            const newLockedFields = lockField('phone', lockedFields)
+            
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                phone: phone
+              } as BusinessProfileData['identity']
+            }
             setOnboardingState({
               ...onboardingState,
               phase: 'storefront',
               subStep: 'email_only',
-              data: updatedData
+              data: updatedData,
+              lockedFields: newLockedFields
             })
             const emailMsg: Message = {
               id: `assistant_${Date.now()}`,
@@ -1896,44 +2217,53 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           }
           
           const emailValidation = validateCriticalField('email', email)
-          if (!emailValidation.isValid) {
-            if (emailValidation.suggestion) {
-              setOnboardingState({
-                ...onboardingState,
-                needsVerification: {
-                  field: 'email',
-                  value: email,
-                  suggestion: emailValidation.suggestion
-                }
-              })
-              const verifyMsg: Message = {
-                id: `assistant_${Date.now()}`,
-                role: 'assistant',
-                content: `Just to be safe, did you mean ${emailValidation.suggestion}? I want to make sure clients can reach you.`,
-                timestamp: new Date()
+          // "Customer is Always Right" - if basic format is valid, trust the user
+          const basicEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+          const isValidEmailFormat = basicEmailRegex.test(email)
+          
+          if (!isValidEmailFormat && emailValidation.suggestion) {
+            setOnboardingState({
+              ...onboardingState,
+              needsVerification: {
+                field: 'email',
+                value: email,
+                suggestion: emailValidation.suggestion
               }
-              setMessages(prev => [...prev, verifyMsg])
-              setIsLoading(false)
-              return
-            } else {
-              const errorMsg: Message = {
-                id: `assistant_${Date.now()}`,
-                role: 'assistant',
-                content: "That email doesn't look quite right. Could you double-check it?",
-                timestamp: new Date()
-              }
-              setMessages(prev => [...prev, errorMsg])
-              setIsLoading(false)
-              return
+            })
+            const verifyMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Just to be safe, did you mean ${emailValidation.suggestion}? I want to make sure clients can reach you.`,
+              timestamp: new Date()
             }
+            setMessages(prev => [...prev, verifyMsg])
+            setIsLoading(false)
+            return
+          } else if (!isValidEmailFormat) {
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "That email doesn't look quite right. Could you double-check it?",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
           }
+          
+          // Both valid - lock both fields and move to next step
+          const { lockedFields: bothFieldsLockedFields = new Set<string>() } = onboardingState
+          const emailLockedSet = lockField('email', bothFieldsLockedFields)
+          const newLockedFields = lockField('phone', emailLockedSet)
+          
+          const finalEmail = emailValidation.suggestion || email
           
           const updatedData = {
             ...data,
             identity: {
               ...data.identity,
               phone: phone,
-              email: email
+              email: finalEmail
             } as BusinessProfileData['identity']
           }
           
@@ -1941,7 +2271,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             ...onboardingState,
             phase: 'storefront',
             subStep: 'social_links',
-            data: updatedData
+            data: updatedData,
+            lockedFields: newLockedFields
           })
           
           const socialMsg: Message = {
@@ -1956,9 +2287,33 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         
         if (subStep === 'phone_only') {
+          // Check if phone is already locked - if so, skip to next step
+          const { lockedFields = new Set<string>() } = onboardingState
+          if (isFieldLocked('phone', lockedFields)) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'social_links',
+              data: data
+            })
+            
+            const socialMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, socialMsg])
+            setIsLoading(false)
+            return
+          }
+          
           const phone = userMessage.trim()
-          const validation = validateCriticalField('phone', phone)
-          if (!validation.isValid) {
+          // "Customer is Always Right" - basic validation
+          const basicPhoneRegex = /[\d\s\-\(\)\+]{10,}/
+          const isValidFormat = basicPhoneRegex.test(phone)
+          
+          if (!isValidFormat) {
             setOnboardingState({
               ...onboardingState,
               needsVerification: {
@@ -1978,6 +2333,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             return
           }
           
+          // Lock the field and update
+          const newLockedFields = lockField('phone', lockedFields)
+          
           const updatedData = {
             ...data,
             identity: {
@@ -1990,7 +2348,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             ...onboardingState,
             phase: 'storefront',
             subStep: 'social_links',
-            data: updatedData
+            data: updatedData,
+            lockedFields: newLockedFields
           })
           
           const socialMsg: Message = {
@@ -2005,14 +2364,40 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         
         if (subStep === 'email_only') {
-          const validation = validateCriticalField('email', userMessage)
-          if (!validation.isValid) {
+          // Check if email is already locked - if so, skip to next step
+          const { lockedFields = new Set<string>() } = onboardingState
+          if (isFieldLocked('email', lockedFields)) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'storefront',
+              subStep: 'social_links',
+              data: data
+            })
+            
+            const socialMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Do you have an Instagram, Facebook, or LinkedIn page set up yet? If so, paste the links here!",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, socialMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          const email = userMessage.trim()
+          // "Customer is Always Right" - basic validation
+          const basicEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+          const isValidFormat = basicEmailRegex.test(email)
+          
+          if (!isValidFormat) {
+            const validation = validateCriticalField('email', email)
             if (validation.suggestion) {
               setOnboardingState({
                 ...onboardingState,
                 needsVerification: {
                   field: 'email',
-                  value: userMessage,
+                  value: email,
                   suggestion: validation.suggestion
                 }
               })
@@ -2038,11 +2423,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
           }
           
+          // Lock the field and update
+          const newLockedFields = lockField('email', lockedFields)
+          
           const updatedData = {
             ...data,
             identity: {
               ...data.identity,
-              email: userMessage.trim()
+              email: email
             } as BusinessProfileData['identity']
           }
           
@@ -2050,7 +2438,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             ...onboardingState,
             phase: 'storefront',
             subStep: 'social_links',
-            data: updatedData
+            data: updatedData,
+            lockedFields: newLockedFields
           })
           
           const socialMsg: Message = {
