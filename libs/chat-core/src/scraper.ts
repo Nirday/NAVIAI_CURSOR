@@ -432,7 +432,15 @@ PRIORITY 3: The "Human" Hunt (Owner/Socials)
 - Owner: Look for "Founder", "President", or "Owner" in the 'About Page' text.
 - Socials: specific URLs (instagram.com/..., facebook.com/...) are often found in the Footer text.
 
-PRIORITY 4: Strict JSON Output
+PRIORITY 4: The Gap Analysis (What is missing?)
+Analyze your final findings. If any critical field is null or empty, add a human-readable string to the missing_data_report list explaining what you couldn't find.
+Examples:
+- "I could not find the Owner's Name on the About page."
+- "The Contact page did not contain a physical street address."
+- "No email address was found in the footer or contact sections."
+- "Social media links were not found in the footer or header."
+
+PRIORITY 5: Strict JSON Output
 Return ONLY this JSON object.`
 
 /**
@@ -453,7 +461,8 @@ Return ONLY a JSON object with this exact structure:
   "social_links": ["URL", "URL"],
   "services": ["Short Category 1", "Short Category 2", "Short Category 3", "Short Category 4", "Short Category 5"],
   "owner_name": "String (or null)",
-  "vibe_keywords": ["String", "String", "String"]
+  "vibe_keywords": ["String", "String", "String"],
+  "missing_data_report": ["String", "String"]
 }
 
 Multi-page website content:
@@ -486,6 +495,9 @@ ${content}`
     try {
       const extractedData = JSON.parse(aiResponse)
       
+      // Store missing_data_report before transformation
+      const missingDataReport = extractedData.missing_data_report || []
+      
       // Transform the deep crawl format to PartialBusinessProfile format
       // Handle both old format (address_or_area) and new format (address)
       const addressValue = extractedData.address || extractedData.address_or_area || null
@@ -517,7 +529,9 @@ ${content}`
         ]
       }
       
-      return transformed
+      // Return both transformed profile and missing data report
+      // We'll attach missing_data_report in scrapeWebsiteForProfile
+      return { transformed, missingDataReport } as any
     } catch (parseError) {
       console.error('Failed to parse AI response:', aiResponse)
       throw new AIError('AI returned malformed JSON response')
@@ -573,7 +587,11 @@ export async function scrapeWebsiteForProfile(url: string): Promise<ScrapedProfi
     }
 
     // Step B: LLM Processing (The Brain) - Uses Universal System Prompt
-    const extractedProfile = await extractProfileWithAI(content)
+    const extractionResult = await extractProfileWithAI(content)
+    
+    // Handle both old format (just PartialBusinessProfile) and new format (with missingDataReport)
+    const extractedProfile = (extractionResult as any).transformed || extractionResult
+    const missingDataReport = (extractionResult as any).missingDataReport || []
 
     // Calculate confidence score based on extracted data
     let confidence = 0.5 // Base confidence
@@ -585,7 +603,8 @@ export async function scrapeWebsiteForProfile(url: string): Promise<ScrapedProfi
     return {
       ...extractedProfile,
       confidence: Math.min(confidence, 1.0),
-      extractionMethod
+      extractionMethod,
+      missing_data_report: missingDataReport
     } as ScrapedProfileData
   } catch (error) {
     if (error instanceof ScrapingError || error instanceof AIError) {

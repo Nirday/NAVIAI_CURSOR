@@ -108,4 +108,5 @@ export interface ScrapedProfileData {
   socialLinks?: { platform: string; url: string; }[];
   confidence: number; // 0-1 score of extraction confidence
   extractionMethod?: 'cheerio' | 'puppeteer' | 'multipage'; // Method used for content extraction
+  missing_data_report?: string[]; // Human-readable list of missing data items
 }

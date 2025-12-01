@@ -65,6 +65,7 @@ interface OnboardingState {
   } | null
   fromWebsite: boolean
   lastWebsiteUrl?: string | null
+  missing_data_report?: string[]
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -79,7 +80,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     data: {},
     needsVerification: null,
     fromWebsite: false,
-    lastWebsiteUrl: null
+    lastWebsiteUrl: null,
+    missing_data_report: []
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -234,7 +236,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   // Format proofread summary
-  const formatProofreadSummary = (data: Partial<BusinessProfileData>, fromWebsite: boolean = false): string => {
+  const formatProofreadSummary = (data: Partial<BusinessProfileData>, fromWebsite: boolean = false, missingDataReport?: string[]): string => {
     let summary = ""
     
     if (fromWebsite) {
@@ -271,6 +273,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     }
     if (data.credibility?.owner_name) {
       summary += `**Owner:** ${data.credibility.owner_name}\n`
+    }
+    
+    // Display missing data report if available
+    if (missingDataReport && missingDataReport.length > 0) {
+      summary += "\n\n**Note:** I couldn't find some information on your website:\n"
+      missingDataReport.forEach((item, index) => {
+        summary += `• ${item}\n`
+      })
+      summary += "\nYou can provide these details during our conversation if you'd like."
     }
     
     summary += "\nDoes the spelling of your Business Name, Phone Number, and Email look perfect? If you see any typos, tell me now!"
@@ -393,10 +404,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         data: updatedData,
         needsVerification: null,
         fromWebsite: true,
-        lastWebsiteUrl: url
+        lastWebsiteUrl: url,
+        missing_data_report: scrapedData.missing_data_report || []
       }))
 
-      const summary = formatProofreadSummary(updatedData, true)
+      const summary = formatProofreadSummary(updatedData, true, scrapedData.missing_data_report)
       const reviewMsg: Message = {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
@@ -1340,7 +1352,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             fromWebsite: false
           })
           
-          const summary = formatProofreadSummary(updatedData, false)
+          const summary = formatProofreadSummary(updatedData, false, undefined)
           const reviewMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -1518,7 +1530,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             fromWebsite: false
           })
           
-          const summary = formatProofreadSummary(updatedData, false)
+          const summary = formatProofreadSummary(updatedData, false, undefined)
           const reviewMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -1548,7 +1560,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             fromWebsite: false
           })
           
-          const summary = formatProofreadSummary(updatedData, false)
+          const summary = formatProofreadSummary(updatedData, false, undefined)
           const reviewMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -1723,7 +1735,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             data: updatedData
           })
           
-          const summary = formatProofreadSummary(updatedData)
+          const summary = formatProofreadSummary(updatedData, false, undefined)
           const proofreadMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -2037,7 +2049,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           } as BusinessProfileData['identity']
         }
 
-        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite, onboardingState.missing_data_report)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
@@ -2079,7 +2091,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           } as BusinessProfileData['identity']
         }
 
-        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite, onboardingState.missing_data_report)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
@@ -2122,7 +2134,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           } as BusinessProfileData['identity']
         }
 
-        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite, onboardingState.missing_data_report)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
@@ -2232,7 +2244,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         
         // If we still can't detect, re-show the summary
-        const summary = formatProofreadSummary(data, onboardingState.fromWebsite)
+        const summary = formatProofreadSummary(data, onboardingState.fromWebsite, onboardingState.missing_data_report)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
@@ -2291,7 +2303,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           } as BusinessProfileData['identity']
         }
 
-        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite, onboardingState.missing_data_report)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
@@ -2324,7 +2336,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           } as BusinessProfileData['identity']
         }
 
-        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite, onboardingState.missing_data_report)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
@@ -2358,7 +2370,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           } as BusinessProfileData['identity']
         }
 
-        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite)
+        const summary = formatProofreadSummary(updatedData, onboardingState.fromWebsite, onboardingState.missing_data_report)
         setOnboardingState(prev => ({
           ...prev,
           phase: 'proofread',
