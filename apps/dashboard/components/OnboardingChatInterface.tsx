@@ -68,6 +68,7 @@ interface OnboardingState {
   missing_data_report?: string[]
   lastQuestionAsked?: string // Track last question to prevent loops
   questionRepeatCount?: number // Track how many times same question was asked
+  scrapedWebsiteData?: any // Store original scraped data for suggestions
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -85,7 +86,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     lastWebsiteUrl: null,
     missing_data_report: [],
     lastQuestionAsked: '',
-    questionRepeatCount: 0
+    questionRepeatCount: 0,
+    scrapedWebsiteData: undefined
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -521,7 +523,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         needsVerification: null,
         fromWebsite: true,
         lastWebsiteUrl: url,
-        missing_data_report: scrapedData.missing_data_report || []
+        missing_data_report: scrapedData.missing_data_report || [],
+        scrapedWebsiteData: scrapedData // Store original scraped data for suggestions
       }))
 
       const summary = formatProofreadSummary(updatedData, true, scrapedData.missing_data_report)
@@ -614,7 +617,21 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // 2) Check if user is asking a clarification question vs providing an answer
+      // 2) Check if user is asking for suggestions/help BEFORE processing as answer
+      // This is critical - we need to catch these BEFORE they're treated as answers
+      const suggestionRequestPatterns = [
+        /(suggest|recommend|help me|what should|what would|not sure|unsure|don't know|dunno|can you suggest|can you recommend|give me ideas|ideas for)/i,
+        /(best.*option|best.*service|top.*option|top.*service)/i,
+        /(what do you think|what would you|based on.*website|from.*website|use.*website|check.*website|look.*website)/i,
+        /(i am not sure|i'm not sure|i don't know|idk|not certain)/i
+      ]
+      
+      const isSuggestionRequest = suggestionRequestPatterns.some(pattern => pattern.test(userMessage))
+      
+      // If it's a suggestion request, handle it in the specific subStep handler
+      // We'll let the subStep-specific logic handle it, but we flag it here
+      
+      // 3) Check if user is asking a clarification question vs providing an answer
       // Skip this check for verification responses (yes/no) and confirmation patterns
       const isVerificationResponse = needsVerification && (
         lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
@@ -629,8 +646,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // Check if it looks like a valid answer first
       const seemsLikeAnswer = looksLikeValidAnswer(userMessage, subStep)
       
-      // Only check for clarification if it doesn't seem like an answer
-      if (!isVerificationResponse && !isConfirmation && !seemsLikeAnswer) {
+      // Only check for clarification if it doesn't seem like an answer AND it's not a suggestion request
+      // (suggestion requests are handled in subStep-specific logic)
+      if (!isVerificationResponse && !isConfirmation && !seemsLikeAnswer && !isSuggestionRequest) {
         const clarificationResponse = detectClarificationQuestion(userMessage, phase, subStep)
         if (clarificationResponse) {
           const clarifyMsg: Message = {
@@ -1543,34 +1561,53 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // Phase 2: Menu
       if (phase === 'menu') {
         if (subStep === 'services') {
-          // Check if user is asking for suggestions/help
-          const suggestionPatterns = [
-            /(suggest|recommend|help me|what should|what would|not sure|unsure|don't know|dunno|can you suggest|can you recommend|give me ideas|ideas for)/i,
-            /(best.*option|best.*service|top.*option|top.*service)/i
+          // Check if user is asking for suggestions/help - EXPANDED patterns
+          // Check this FIRST before processing as an answer
+          const lowerMsg = userMessage.toLowerCase()
+          const suggestionKeywords = [
+            'suggest', 'recommend', 'help me', 'what should', 'what would', 
+            'not sure', 'unsure', "don't know", "i don't know", "i'm not sure", 
+            'dunno', 'idk', 'can you suggest', 'can you recommend', 
+            'give me ideas', 'ideas for', 'what do you think', 'what would you',
+            'based on', 'from website', 'use website', 'check website', 
+            'look website', 'website', 'best option', 'best service', 
+            'top option', 'top service', 'not certain'
           ]
           
-          const isAskingForSuggestions = suggestionPatterns.some(pattern => pattern.test(userMessage))
+          const isAskingForSuggestions = suggestionKeywords.some(keyword => lowerMsg.includes(keyword)) ||
+            /(suggest|recommend|help|what.*think|what.*should|what.*would|based.*on|not.*sure)/i.test(userMessage)
           
           if (isAskingForSuggestions) {
-            // Provide suggestions based on business type/industry
-            const industry = data.offering?.core_services?.[0] || data.identity?.business_name || ''
-            const currentArchetype = onboardingState.archetype || data.archetype
+            // Check if we have scraped website data
+            const scrapedData = onboardingState.scrapedWebsiteData
+            const hasScrapedServices = scrapedData?.services && Array.isArray(scrapedData.services) && scrapedData.services.length > 0
             
             let suggestions: string[] = []
             let suggestionText = ''
-            if (currentArchetype === 'BrickAndMortar' || industry.toLowerCase().includes('restaurant') || industry.toLowerCase().includes('cafe') || industry.toLowerCase().includes('bakery')) {
-              suggestions = ['Dine-In Service', 'Takeout & Delivery', 'Catering Services']
-              suggestionText = "Based on your business type, here are some common services:\n• Dine-In Service\n• Takeout & Delivery\n• Catering Services\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
-            } else if (currentArchetype === 'ServiceOnWheels' || industry.toLowerCase().includes('plumb') || industry.toLowerCase().includes('hvac') || industry.toLowerCase().includes('electric')) {
-              suggestions = ['Emergency Repairs', 'Installation Services', 'Maintenance & Inspections']
-              suggestionText = "Based on your business type, here are some common services:\n• Emergency Repairs\n• Installation Services\n• Maintenance & Inspections\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
-            } else if (currentArchetype === 'AppointmentPro' || industry.toLowerCase().includes('medical') || industry.toLowerCase().includes('dental') || industry.toLowerCase().includes('legal') || industry.toLowerCase().includes('law')) {
-              suggestions = ['Consultation Services', 'Treatment/Service Delivery', 'Follow-Up Care']
-              suggestionText = "Based on your business type, here are some common services:\n• Consultation Services\n• Treatment/Service Delivery\n• Follow-Up Care\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
+            
+            if (hasScrapedServices) {
+              // Use services from scraped website data
+              suggestions = scrapedData.services.slice(0, 5).map((s: any) => typeof s === 'string' ? s : s.name || s)
+              suggestionText = `Great! I found these services on your website:\n${suggestions.map(s => `• ${s}`).join('\n')}\n\nDo these look right? You can:\n• Say "yes" or "use these" to keep them\n• Modify them by typing your own list\n• Tell me which ones to change`
             } else {
-              // Generic suggestions
-              suggestions = ['Primary Service Offering', 'Secondary Service', 'Additional Services']
-              suggestionText = "I'd be happy to help! Here are some general service categories:\n• Primary Service Offering\n• Secondary Service\n• Additional Services\n\nCan you tell me more about what your business does? For example, if you're a chiropractor, you might offer: 'Chiropractic Adjustments', 'Wellness Coaching', 'Pain Management'."
+              // Provide suggestions based on business type/industry
+              const industry = data.offering?.core_services?.[0] || data.identity?.business_name || scrapedData?.industry || ''
+              const currentArchetype = onboardingState.archetype || data.archetype
+              
+              if (currentArchetype === 'BrickAndMortar' || industry.toLowerCase().includes('restaurant') || industry.toLowerCase().includes('cafe') || industry.toLowerCase().includes('bakery')) {
+                suggestions = ['Dine-In Service', 'Takeout & Delivery', 'Catering Services']
+                suggestionText = "Based on your business type, here are some common services:\n• Dine-In Service\n• Takeout & Delivery\n• Catering Services\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
+              } else if (currentArchetype === 'ServiceOnWheels' || industry.toLowerCase().includes('plumb') || industry.toLowerCase().includes('hvac') || industry.toLowerCase().includes('electric')) {
+                suggestions = ['Emergency Repairs', 'Installation Services', 'Maintenance & Inspections']
+                suggestionText = "Based on your business type, here are some common services:\n• Emergency Repairs\n• Installation Services\n• Maintenance & Inspections\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
+              } else if (currentArchetype === 'AppointmentPro' || industry.toLowerCase().includes('medical') || industry.toLowerCase().includes('dental') || industry.toLowerCase().includes('legal') || industry.toLowerCase().includes('law')) {
+                suggestions = ['Consultation Services', 'Treatment/Service Delivery', 'Follow-Up Care']
+                suggestionText = "Based on your business type, here are some common services:\n• Consultation Services\n• Treatment/Service Delivery\n• Follow-Up Care\n\nDo any of these work for you? You can use these, modify them, or tell me your own!"
+              } else {
+                // Generic suggestions
+                suggestions = ['Primary Service Offering', 'Secondary Service', 'Additional Services']
+                suggestionText = "I'd be happy to help! Here are some general service categories:\n• Primary Service Offering\n• Secondary Service\n• Additional Services\n\nCan you tell me more about what your business does? For example, if you're a chiropractor, you might offer: 'Chiropractic Adjustments', 'Wellness Coaching', 'Pain Management'."
+              }
             }
             
             // Store suggestions in state and ask for confirmation
