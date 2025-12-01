@@ -342,8 +342,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const extractEntities = (userMessage: string, currentData: Partial<BusinessProfileData>): ExtractedEntities => {
     const extracted: ExtractedEntities = { updated: false }
     
-    // Extract email
-    const emailMatch = userMessage.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
+    // Extract email (robust enough to catch emails embedded in sentences)
+    // Examples it should catch:
+    // - "email should be test@example.com"
+    // - "my email is test@example.com, thanks"
+    // - "change it to test@example.com"
+    const emailMatch = userMessage.match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i)
     if (emailMatch && !currentData.identity?.email) {
       const email = emailMatch[0]
       const validation = validateCriticalField('email', email)
@@ -1049,20 +1053,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
           }
           
-          // No valid email found in message, ask for it
+          // No valid email extracted – ask user to type just the email
           const correctionMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "Got it. What's the correct email address?",
+            content: "I understood you want to update the email, but I couldn't catch the value. Please type just the email address for me.",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, correctionMsg])
-          setOnboardingState({
-            ...onboardingState,
-            phase: 'storefront',
-            subStep: 'email_only',
-            needsVerification: null // Clear verification
-          })
           setIsLoading(false)
           return
         } else if (lower.includes('phone') || lower.includes('number')) {
@@ -1106,20 +1104,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
           }
           
-          // No valid phone found, ask for it
+          // No valid phone extracted – ask user to type just the phone number
           const correctionMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "Got it. What's the correct phone number?",
+            content: "I understood you want to update the phone number, but I couldn't catch the value. Please type just the phone number for me.",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, correctionMsg])
-          setOnboardingState({
-            ...onboardingState,
-            phase: 'storefront',
-            subStep: 'phone_only',
-            needsVerification: null // Clear verification
-          })
           setIsLoading(false)
           return
         } else if (lower.includes('service') || (phase === 'menu' && subStep === 'services')) {
