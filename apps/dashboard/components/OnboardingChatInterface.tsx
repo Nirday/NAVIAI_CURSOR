@@ -1419,9 +1419,22 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
             setMessages(prev => [...prev, completeMsg])
 
+            // Show redirecting message after a brief delay
             setTimeout(() => {
-              router.push('/dashboard')
+              const redirectMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "Redirecting you to your dashboard...",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, redirectMsg])
+              
+              // Redirect after showing the message
+              setTimeout(() => {
+                window.location.href = '/dashboard'
+              }, 1000)
             }, 1500)
+            
             setIsLoading(false)
             return
           } catch (error: any) {
@@ -3970,9 +3983,22 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
             setMessages(prev => [...prev, completeMsg])
 
+            // Show redirecting message after a brief delay
             setTimeout(() => {
-              router.push('/dashboard')
+              const redirectMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "Redirecting you to your dashboard...",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, redirectMsg])
+              
+              // Redirect after showing the message
+              setTimeout(() => {
+                window.location.href = '/dashboard'
+              }, 1000)
             }, 1500)
+            
             setIsLoading(false)
           } catch (error: any) {
             console.error('Error saving profile:', error)
