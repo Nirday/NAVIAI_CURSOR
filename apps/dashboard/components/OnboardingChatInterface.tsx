@@ -611,18 +611,38 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   /**
-   * Intent Classification: Categorizes user input into ANSWER, CORRECTION, or OFF_TOPIC
+   * Intent Classification: Categorizes user input into ANSWER, CORRECTION, CONFIRMATION, or OFF_TOPIC
    * 
    * SYSTEM RULE: You are a focused Business Profile Assistant. Your ONLY goal is to complete the profile.
    * Prioritize accuracy over speed. If the user corrects you, handle it immediately and stay on the current step.
    * Politely refuse off-topic requests and redirect back to profile completion.
    */
-  type UserIntent = 'ANSWER' | 'CORRECTION' | 'OFF_TOPIC' | 'CLARIFICATION'
+  type UserIntent = 'ANSWER' | 'CORRECTION' | 'CONFIRMATION' | 'OFF_TOPIC' | 'CLARIFICATION'
 
   const classifyUserIntent = (userMessage: string, currentPhase: string, currentSubStep: string): UserIntent => {
     const lower = userMessage.toLowerCase().trim()
     
-    // CORRECTION patterns - user is correcting something (check this FIRST)
+    // CONFIRMATION patterns - user is confirming/approving (check this FIRST, before correction)
+    // Use loose matching to catch typos like "loooks goood"
+    
+    // Normalize for typo tolerance: remove extra repeated letters (e.g., "loooks" -> "looks", "goood" -> "good")
+    const normalized = lower.replace(/(.)\1{2,}/g, '$1$1') // "loooks goood" -> "looks good"
+    
+    const confirmationPatterns = [
+      /(looks?\s+good|looks?\s+goo+d|looks?\s+perfec+t|looks?\s+great|looks?\s+fine)/i, // "looks good", "loooks goood", "looks perfect"
+      /(it'?s\s+good|its\s+good|is\s+good|all\s+good|sounds?\s+good)/i, // "it's good", "its good", "is good", "all good", "sounds good"
+      /^(perfect|great|fine|excellent|awesome|good|ok|okay|yes|y|correct|right|all\s+set|done|complete)$/i, // Single word confirmations
+      /(no\s+changes?|nothing\s+to\s+change|no\s+corrections?|it'?s\s+correct|is\s+correct|that'?s\s+correct)/i, // "no changes", "nothing to change", "it's correct"
+      /(everything'?s?\s+good|everything\s+looks?\s+good|all\s+set|all\s+good|sounds?\s+good)/i, // "everything's good", "all set"
+      /(proceed|continue|go\s+ahead|let'?s\s+go|ready)/i // Action confirmations
+    ]
+    
+    // Test both original and normalized message
+    if (confirmationPatterns.some(pattern => pattern.test(userMessage) || pattern.test(normalized))) {
+      return 'CONFIRMATION'
+    }
+    
+    // CORRECTION patterns - user is correcting something (check AFTER confirmation)
     const correctionPatterns = [
       /(that's not|that is not|that's wrong|that is wrong|that's incorrect|that is incorrect|that's not right)/i,
       /(not.*service|not.*address|not.*phone|not.*email|not.*name|not.*correct|wrong.*service|wrong.*address|wrong.*phone|wrong.*email)/i,
@@ -1369,7 +1389,87 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         return // Don't process as answer
       }
       
-      // Handle CORRECTION requests
+      // 5) Handle CONFIRMATION requests (check BEFORE correction to avoid false positives)
+      if (userIntent === 'CONFIRMATION') {
+        // If we're in proofread phase, save the profile and complete
+        if (phase === 'proofread' && (subStep === 'review' || subStep === 'final_review')) {
+          try {
+            await saveProfile(data as BusinessProfileData)
+            setIsComplete(true)
+            
+            const completeMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Great! I've saved everything. Setting things up for you now...",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, completeMsg])
+
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 1000)
+            setIsLoading(false)
+            return
+          } catch (error: any) {
+            const errorMsg: Message = {
+              id: `error_${Date.now()}`,
+              role: 'assistant',
+              content: `Oops, hit a snag: ${error?.message || 'Failed to save profile'}. Let me try that again.`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+        }
+        
+        // For other phases, determine next step and continue
+        const nextField = determineNextMissingField(
+          data,
+          phase,
+          subStep,
+          archetype,
+          lockedFields
+        )
+        
+        if (nextField) {
+          const stateUpdates: Partial<OnboardingState> = {}
+          if (nextField.nextSubStep) {
+            stateUpdates.subStep = nextField.nextSubStep
+          }
+          if (nextField.nextPhase) {
+            stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+          }
+          
+          setOnboardingState({
+            ...onboardingState,
+            ...stateUpdates
+          })
+          
+          const nextMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Great! ${nextField.nextQuestion}`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, nextMsg])
+          setIsLoading(false)
+          return
+        }
+        
+        // If no next field, just acknowledge
+        const ackMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Great! Let's continue.",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, ackMsg])
+        setIsLoading(false)
+        return
+      }
+      
+      // 6) Handle CORRECTION requests
       if (userIntent === 'CORRECTION') {
         // "Customer is Always Right" - Trust user corrections immediately
         const lower = userMessage.toLowerCase()
@@ -3685,8 +3785,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       // Phase 3: Proofread (Review after Storefront)
       if (phase === 'proofread' && subStep === 'review') {
-        // Check for confirmation patterns (including "its good", "it's good", "is good", etc.)
-        const isConfirmed = lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
+        // Check for confirmation intent FIRST (CONFIRMATION is handled above, but check here as fallback)
+        const isConfirmed = (userIntent as string) === 'CONFIRMATION' ||
+                           lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
                            lowerMessage.includes('looks good') || lowerMessage.includes('perfect') ||
                            lowerMessage.includes("it's good") || lowerMessage.includes('its good') ||
                            lowerMessage.includes('is good') || lowerMessage.includes('all good') ||
@@ -3819,8 +3920,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       
       // Final Proofread (after all phases)
       if (phase === 'proofread' && subStep === 'final_review') {
-        // Check for confirmation patterns (including "its good", "it's good", "is good", etc.)
-        const isConfirmed = lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
+        // Check for confirmation intent FIRST (CONFIRMATION is handled above, but check here as fallback)
+        const isConfirmed = (userIntent as string) === 'CONFIRMATION' ||
+                           lowerMessage === 'yes' || lowerMessage === 'y' || lowerMessage === 'correct' || 
                            lowerMessage.includes('looks good') || lowerMessage.includes('perfect') ||
                            lowerMessage.includes("it's good") || lowerMessage.includes('its good') ||
                            lowerMessage.includes('is good') || lowerMessage.includes('all good') ||
