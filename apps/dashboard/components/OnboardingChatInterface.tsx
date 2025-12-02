@@ -1393,32 +1393,48 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (userIntent === 'CONFIRMATION') {
         // If we're in proofread phase, save the profile and complete
         if (phase === 'proofread' && (subStep === 'review' || subStep === 'final_review')) {
+          // Set loading state immediately
+          setIsLoading(true)
+          
+          // Show saving message
+          const savingMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Great! Saving your profile now...",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, savingMsg])
+          
           try {
-            await saveProfile(data as BusinessProfileData)
+            const response = await saveProfile(data as BusinessProfileData)
+            
+            // Only proceed if save was successful
             setIsComplete(true)
             
             const completeMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "Great! I've saved everything. Setting things up for you now...",
+              content: "Perfect! I've saved everything. Setting things up for you now...",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, completeMsg])
 
             setTimeout(() => {
               router.push('/dashboard')
-            }, 1000)
+            }, 1500)
             setIsLoading(false)
             return
           } catch (error: any) {
+            console.error('Error saving profile:', error)
+            setIsLoading(false)
+            
             const errorMsg: Message = {
               id: `error_${Date.now()}`,
               role: 'assistant',
-              content: `Oops, hit a snag: ${error?.message || 'Failed to save profile'}. Let me try that again.`,
+              content: "I ran into a technical issue saving your profile. Please try again in a moment, or refresh the page and let me know if the problem persists.",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, errorMsg])
-            setIsLoading(false)
             return
           }
         }
@@ -3930,6 +3946,18 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         
         if (isConfirmed) {
           // User confirmed - save the profile
+          // Set loading state immediately
+          setIsLoading(true)
+          
+          // Show saving message
+          const savingMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Great! Saving your profile now...",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, savingMsg])
+          
           try {
             await saveProfile(data as BusinessProfileData)
             setIsComplete(true)
@@ -3937,19 +3965,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             const completeMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "Awesome! I'm setting everything up for you now. This'll just take a second.",
+              content: "Perfect! I've saved everything. Setting things up for you now...",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, completeMsg])
 
             setTimeout(() => {
               router.push('/dashboard')
-            }, 1000)
+            }, 1500)
+            setIsLoading(false)
           } catch (error: any) {
+            console.error('Error saving profile:', error)
+            setIsLoading(false)
+            
             const errorMsg: Message = {
               id: `error_${Date.now()}`,
               role: 'assistant',
-              content: `Oops, hit a snag: ${error?.message || 'Failed to save profile'}. Let me try that again.`,
+              content: "I ran into a technical issue saving your profile. Please try again in a moment, or refresh the page and let me know if the problem persists.",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, errorMsg])
@@ -4495,17 +4527,31 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         const errorMessage = errorData.error || `Failed to save profile (${response.status})`
-        console.error('API error response:', { status: response.status, errorData, profileData })
+        console.error('API error response:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          errorData, 
+          profileData: {
+            businessName: profileData.businessName,
+            industry: profileData.industry,
+            hasServices: profileData.services?.length > 0
+          }
+        })
         throw new Error(errorMessage)
       }
       
       const result = await response.json()
       console.log('Profile saved successfully:', result)
+      return result
     } catch (error: any) {
       console.error('Error saving profile:', error)
       // Re-throw with a more user-friendly message if it's a validation error
       if (error.message && (error.message.includes('required') || error.message.includes('Validation'))) {
         throw new Error(error.message)
+      }
+      // Re-throw with a user-friendly message for database errors
+      if (error.message && (error.message.includes('Supabase') || error.message.includes('insert') || error.message.includes('Database'))) {
+        throw new Error('Database connection issue. Please try again in a moment.')
       }
       throw error
     }

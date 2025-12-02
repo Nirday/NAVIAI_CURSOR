@@ -195,6 +195,15 @@ export async function getProfile(userId: string): Promise<BusinessProfile | null
  */
 export async function createProfile(userId: string, profileData: PartialBusinessProfile): Promise<BusinessProfile> {
   try {
+    // Validate supabaseAdmin is properly initialized
+    if (!supabaseAdmin) {
+      throw new DatabaseError('Supabase admin client is not initialized')
+    }
+    
+    if (typeof supabaseAdmin.from !== 'function') {
+      throw new DatabaseError('Supabase admin client is not properly initialized. Missing "from" method.')
+    }
+    
     // Check if profile already exists
     const existingProfile = await getProfile(userId)
     if (existingProfile) {
@@ -246,8 +255,13 @@ export async function createProfile(userId: string, profileData: PartialBusiness
       customAttributes: profileData.customAttributes || []
     }
     
-    const { data, error } = await supabaseAdmin
-      .from('business_profiles')
+    // Verify insert method exists before calling
+    const tableQuery = supabaseAdmin.from('business_profiles')
+    if (!tableQuery || typeof tableQuery.insert !== 'function') {
+      throw new DatabaseError('Supabase insert method is not available. Client may not be properly initialized.')
+    }
+    
+    const { data, error } = await tableQuery
       .insert([{
         user_id: newProfile.userId,
         business_name: newProfile.businessName,
