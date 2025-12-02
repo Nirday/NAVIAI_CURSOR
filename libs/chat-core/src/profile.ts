@@ -204,12 +204,6 @@ export async function createProfile(userId: string, profileData: PartialBusiness
       throw new DatabaseError('Supabase admin client is not properly initialized. Missing "from" method.')
     }
     
-    // Check if profile already exists
-    const existingProfile = await getProfile(userId)
-    if (existingProfile) {
-      throw new ProfileExistsError('Profile already exists for this user')
-    }
-    
     // Validate required fields
     if (!profileData.businessName || profileData.businessName.trim() === '') {
       throw new ValidationError('Business name is required')
@@ -255,14 +249,16 @@ export async function createProfile(userId: string, profileData: PartialBusiness
       customAttributes: profileData.customAttributes || []
     }
     
-    // Verify insert method exists before calling
+    // Verify upsert method exists before calling
     const tableQuery = supabaseAdmin.from('business_profiles')
-    if (!tableQuery || typeof tableQuery.insert !== 'function') {
-      throw new DatabaseError('Supabase insert method is not available. Client may not be properly initialized.')
+    if (!tableQuery || typeof tableQuery.upsert !== 'function') {
+      throw new DatabaseError('Supabase upsert method is not available. Client may not be properly initialized.')
     }
     
+    // Use upsert to handle both create and update scenarios
+    // This allows re-running onboarding without duplicate key errors
     const { data, error } = await tableQuery
-      .insert([{
+      .upsert([{
         user_id: newProfile.userId,
         business_name: newProfile.businessName,
         industry: newProfile.industry,
@@ -273,7 +269,9 @@ export async function createProfile(userId: string, profileData: PartialBusiness
         brand_voice: newProfile.brandVoice,
         target_audience: newProfile.targetAudience,
         custom_attributes: newProfile.customAttributes
-      }])
+      }], {
+        onConflict: 'user_id'
+      })
       .select()
       .single()
     
@@ -300,10 +298,10 @@ export async function createProfile(userId: string, profileData: PartialBusiness
     
     return data as BusinessProfile
   } catch (error) {
-    if (error instanceof ValidationError || error instanceof DatabaseError || error instanceof ProfileExistsError) {
+    if (error instanceof ValidationError || error instanceof DatabaseError) {
       throw error
     }
-    throw new DatabaseError(`Unexpected error creating profile: ${error}`)
+    throw new DatabaseError(`Unexpected error saving profile: ${error}`)
   }
 }
 

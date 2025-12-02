@@ -41,13 +41,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Create the business profile
+    // Create or update the business profile (upsert handles both cases)
     const profile = await createProfile(userId, profileData)
 
     return NextResponse.json({
       success: true,
       profile,
-      message: 'Profile created successfully'
+      message: 'Profile saved successfully'
     })
   } catch (error: any) {
     console.error('Error completing onboarding:', error)
@@ -57,13 +57,7 @@ export async function POST(req: NextRequest) {
       name: error.name 
     })
     
-    // Handle specific errors
-    if (error.message?.includes('already exists')) {
-      return NextResponse.json(
-        { error: 'Profile already exists for this user' },
-        { status: 409 }
-      )
-    }
+    // Note: We no longer need to handle "already exists" error since upsert handles it
 
     if (error.message?.includes('required') || error.message?.includes('Validation')) {
       return NextResponse.json(
