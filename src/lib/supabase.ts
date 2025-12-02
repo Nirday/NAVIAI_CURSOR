@@ -21,15 +21,38 @@ export const supabase = useMockData
   : createClient(supabaseUrl, supabaseAnonKey)
 
 // Server-side client with service role key for admin operations
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+// Validate that we have the service role key in production
+if (!useMockData && !serviceRoleKey) {
+  console.error('⚠️ SUPABASE_SERVICE_ROLE_KEY is not set. Admin operations will fail.')
+}
+
 export const supabaseAdmin = useMockData
   ? (mockSupabaseAdmin as any)
-  : createClient(
-      supabaseUrl,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-service-key',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
+  : (() => {
+      try {
+        const client = createClient(
+          supabaseUrl,
+          serviceRoleKey || 'mock-service-key',
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            }
+          }
+        )
+        
+        // Verify the client is properly initialized
+        if (!client || typeof client.from !== 'function') {
+          throw new Error('Failed to initialize Supabase admin client')
         }
+        
+        return client
+      } catch (error) {
+        console.error('Failed to create Supabase admin client:', error)
+        // Fall back to mock in case of initialization failure
+        console.warn('Falling back to mock Supabase admin client')
+        return mockSupabaseAdmin as any
       }
-    )
+    })()

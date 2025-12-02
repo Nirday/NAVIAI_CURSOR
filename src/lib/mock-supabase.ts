@@ -100,11 +100,69 @@ class MockSupabaseClient {
 
   from(table: string) {
     const queryBuilder = new MockQueryBuilder(table, this)
+    const client = this
 
     return {
       select: (columns: string) => {
         queryBuilder.select(columns)
         return queryBuilder
+      },
+      insert: (payload: any[] | any) => {
+        // Normalize to array
+        const items = Array.isArray(payload) ? payload : [payload]
+        
+        // Add items to table
+        const tableData = this.getTableData(table)
+        items.forEach(item => {
+          // Generate a simple ID if not present
+          if (!item.id && !item.user_id) {
+            item.id = `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          }
+          tableData.push(item)
+        })
+        this.data.set(table, tableData)
+        
+        // Return chainable object that supports .select() and .single()
+        return {
+          select: (columns?: string) => {
+            const selectedItems = items.map(item => {
+              if (!columns || columns === '*') {
+                return item
+              }
+              const columnList = columns.split(',').map(c => c.trim())
+              const extracted: any = {}
+              columnList.forEach(col => {
+                if (item[col] !== undefined) {
+                  extracted[col] = item[col]
+                }
+              })
+              return extracted
+            })
+            
+            return {
+              single: async (): Promise<MockSupabaseResponse<any>> => {
+                return { data: selectedItems[0] || null, error: null }
+              },
+              then<TResult1 = MockSupabaseResponse<any[]>, TResult2 = never>(
+                onfulfilled?: ((value: MockSupabaseResponse<any[]>) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+                onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+              ): Promise<TResult1 | TResult2> {
+                const result: MockSupabaseResponse<any[]> = { data: selectedItems, error: null }
+                return Promise.resolve(result).then(onfulfilled, onrejected)
+              }
+            }
+          },
+          single: async (): Promise<MockSupabaseResponse<any>> => {
+            return { data: items[0] || null, error: null }
+          },
+          then<TResult1 = MockSupabaseResponse<any[]>, TResult2 = never>(
+            onfulfilled?: ((value: MockSupabaseResponse<any[]>) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+            onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+          ): Promise<TResult1 | TResult2> {
+            const result: MockSupabaseResponse<any[]> = { data: items, error: null }
+            return Promise.resolve(result).then(onfulfilled, onrejected)
+          }
+        }
       },
       upsert: async (payload: any, options?: { onConflict?: string }): Promise<MockSupabaseResponse<any>> => {
         const tableData = this.getTableData(table)
@@ -123,7 +181,6 @@ class MockSupabaseClient {
         return { data: payload, error: null }
       },
       update: (updates: any) => {
-        const client = this
         return {
           async eq(column: string, value: any): Promise<MockSupabaseResponse<any>> {
             const tableData = client.getTableData(table)
