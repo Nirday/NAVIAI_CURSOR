@@ -70,6 +70,7 @@ interface OnboardingState {
   questionRepeatCount?: number // Track how many times same question was asked
   scrapedWebsiteData?: any // Store original scraped data for suggestions
   lockedFields?: Set<string> // Fields that are verified and should NOT be asked about again
+  awaitingCorrectionFor?: 'email' | 'phone' | null // Track when we're waiting for a field value after fallback
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -89,7 +90,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     lastQuestionAsked: '',
     questionRepeatCount: 0,
     scrapedWebsiteData: undefined,
-    lockedFields: new Set<string>()
+    lockedFields: new Set<string>(),
+    awaitingCorrectionFor: null
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -780,8 +782,103 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     setIsLoading(true)
 
     try {
-      const { phase, subStep, archetype, data, needsVerification, lastWebsiteUrl } = onboardingState
+      const { phase, subStep, archetype, data, needsVerification, lastWebsiteUrl, awaitingCorrectionFor, lockedFields = new Set<string>() } = onboardingState
       const lowerMessage = userMessage.toLowerCase().trim()
+
+      // 0) PRIORITIZE PENDING INPUT - Check if we're waiting for a specific field value
+      if (awaitingCorrectionFor) {
+        if (awaitingCorrectionFor === 'email') {
+          // Validate email format
+          const basicEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+          const isValidFormat = basicEmailRegex.test(userMessage.trim())
+          
+          if (isValidFormat) {
+            // Update email and clear pending state
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                email: userMessage.trim()
+              } as BusinessProfileData['identity']
+            }
+            
+            const newLockedFields = lockField('email', lockedFields)
+            
+            setOnboardingState({
+              ...onboardingState,
+              data: updatedData,
+              awaitingCorrectionFor: null, // Clear pending state
+              lockedFields: newLockedFields
+            })
+            
+            const successMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Got it, I've updated the email to ${userMessage.trim()}.`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, successMsg])
+            setIsLoading(false)
+            return
+          } else {
+            // Invalid format - ask again
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "That doesn't look like a valid email address. Please type just the email address (e.g., test@example.com).",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+        } else if (awaitingCorrectionFor === 'phone') {
+          // Validate phone format
+          const basicPhoneRegex = /[\d\s\-\(\)\+]{10,}/
+          const isValidFormat = basicPhoneRegex.test(userMessage.trim())
+          
+          if (isValidFormat) {
+            // Update phone and clear pending state
+            const updatedData = {
+              ...data,
+              identity: {
+                ...data.identity,
+                phone: userMessage.trim()
+              } as BusinessProfileData['identity']
+            }
+            
+            const newLockedFields = lockField('phone', lockedFields)
+            
+            setOnboardingState({
+              ...onboardingState,
+              data: updatedData,
+              awaitingCorrectionFor: null, // Clear pending state
+              lockedFields: newLockedFields
+            })
+            
+            const successMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Got it, I've updated the phone number to ${userMessage.trim()}.`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, successMsg])
+            setIsLoading(false)
+            return
+          } else {
+            // Invalid format - ask again
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "That doesn't look like a valid phone number. Please type just the phone number (e.g., 555-123-4567).",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+        }
+      }
 
       // 1) Global intent / command handling (retry / new URL) BEFORE treating as an answer
       const globalIntent = detectGlobalIntent(userMessage)
@@ -1053,7 +1150,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
           }
           
-          // No valid email extracted – ask user to type just the email
+          // No valid email extracted – ask user to type just the email and set pending state
           const correctionMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -1061,6 +1158,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             timestamp: new Date()
           }
           setMessages(prev => [...prev, correctionMsg])
+          setOnboardingState({
+            ...onboardingState,
+            awaitingCorrectionFor: 'email' // Set pending state
+          })
           setIsLoading(false)
           return
         } else if (lower.includes('phone') || lower.includes('number')) {
@@ -1104,7 +1205,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
           }
           
-          // No valid phone extracted – ask user to type just the phone number
+          // No valid phone extracted – ask user to type just the phone number and set pending state
           const correctionMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -1112,6 +1213,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             timestamp: new Date()
           }
           setMessages(prev => [...prev, correctionMsg])
+          setOnboardingState({
+            ...onboardingState,
+            awaitingCorrectionFor: 'phone' // Set pending state
+          })
           setIsLoading(false)
           return
         } else if (lower.includes('service') || (phase === 'menu' && subStep === 'services')) {
