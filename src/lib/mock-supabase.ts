@@ -164,21 +164,78 @@ class MockSupabaseClient {
           }
         }
       },
-      upsert: async (payload: any, options?: { onConflict?: string }): Promise<MockSupabaseResponse<any>> => {
-        const tableData = this.getTableData(table)
+      upsert: (payload: any[] | any, options?: { onConflict?: string }) => {
+        // Normalize to array (matching real Supabase API)
+        const items = Array.isArray(payload) ? payload : [payload]
         const conflictKey = options?.onConflict || 'id'
-        const existingIndex = tableData.findIndex((item: any) => {
-          return item[conflictKey] === payload[conflictKey]
+        
+        // Process each item (insert or update based on conflict)
+        const tableData = this.getTableData(table)
+        const processedItems: any[] = []
+        
+        items.forEach(item => {
+          const existingIndex = tableData.findIndex((existing: any) => {
+            return existing[conflictKey] === item[conflictKey]
+          })
+
+          if (existingIndex >= 0) {
+            // Update existing item
+            tableData[existingIndex] = { ...tableData[existingIndex], ...item }
+            processedItems.push(tableData[existingIndex])
+          } else {
+            // Insert new item
+            // Generate a simple ID if not present
+            if (!item.id && !item.user_id && conflictKey === 'id') {
+              item.id = `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            }
+            tableData.push(item)
+            processedItems.push(item)
+          }
         })
-
-        if (existingIndex >= 0) {
-          tableData[existingIndex] = { ...tableData[existingIndex], ...payload }
-        } else {
-          tableData.push(payload)
-        }
-
+        
         this.data.set(table, tableData)
-        return { data: payload, error: null }
+        
+        // Return chainable object that supports .select() and .single() (matching real Supabase API)
+        return {
+          select: (columns?: string) => {
+            const selectedItems = processedItems.map(item => {
+              if (!columns || columns === '*') {
+                return item
+              }
+              const columnList = columns.split(',').map(c => c.trim())
+              const extracted: any = {}
+              columnList.forEach(col => {
+                if (item[col] !== undefined) {
+                  extracted[col] = item[col]
+                }
+              })
+              return extracted
+            })
+            
+            return {
+              single: async (): Promise<MockSupabaseResponse<any>> => {
+                return { data: selectedItems[0] || null, error: null }
+              },
+              then<TResult1 = MockSupabaseResponse<any[]>, TResult2 = never>(
+                onfulfilled?: ((value: MockSupabaseResponse<any[]>) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+                onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+              ): Promise<TResult1 | TResult2> {
+                const result: MockSupabaseResponse<any[]> = { data: selectedItems, error: null }
+                return Promise.resolve(result).then(onfulfilled, onrejected)
+              }
+            }
+          },
+          single: async (): Promise<MockSupabaseResponse<any>> => {
+            return { data: processedItems[0] || null, error: null }
+          },
+          then<TResult1 = MockSupabaseResponse<any[]>, TResult2 = never>(
+            onfulfilled?: ((value: MockSupabaseResponse<any[]>) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+            onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+          ): Promise<TResult1 | TResult2> {
+            const result: MockSupabaseResponse<any[]> = { data: processedItems, error: null }
+            return Promise.resolve(result).then(onfulfilled, onrejected)
+          }
+        }
       },
       update: (updates: any) => {
         return {
