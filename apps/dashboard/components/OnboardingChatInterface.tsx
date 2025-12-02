@@ -4444,32 +4444,41 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   // Save profile to backend
   const saveProfile = async (data: BusinessProfileData) => {
     try {
+      // Validate required fields before attempting to save
+      if (!data.identity?.business_name || data.identity.business_name.trim() === '') {
+        throw new Error('Business name is required')
+      }
+      
+      if (!data.offering?.core_services || data.offering.core_services.length === 0) {
+        throw new Error('At least one service is required')
+      }
+      
       // Convert to the format expected by the API
       const profileData = {
-        businessName: data.identity.business_name,
-        industry: data.offering.core_services.join(', '), // Use services as industry for now
+        businessName: data.identity.business_name.trim(),
+        industry: data.offering.core_services.join(', ') || 'General Services', // Use services as industry
         location: {
-          address: data.identity.address_or_area,
+          address: data.identity.address_or_area || '',
           city: '',
           state: '',
           zipCode: '',
           country: 'US'
         },
         contactInfo: {
-          phone: data.identity.phone,
-          email: data.identity.email,
-          website: data.identity.website
+          phone: data.identity.phone || '',
+          email: data.identity.email || '',
+          website: data.identity.website || ''
         },
         services: data.offering.core_services.map(s => ({ name: s, description: '' })),
         hours: [],
         brandVoice: 'professional' as const,
-        targetAudience: data.offering.target_audience,
+        targetAudience: data.offering.target_audience || '',
         customAttributes: [
           { label: 'Archetype', value: data.archetype || '' },
-          { label: 'Owner', value: data.credibility.owner_name },
-          { label: 'Payment Methods', value: data.logistics.payment_methods.join(', ') },
-          { label: 'Booking Policy', value: data.logistics.booking_policy || data.logistics.specific_policy }
-        ]
+          { label: 'Owner', value: data.credibility?.owner_name || '' },
+          { label: 'Payment Methods', value: (data.logistics?.payment_methods || []).join(', ') },
+          { label: 'Booking Policy', value: data.logistics?.booking_policy || data.logistics?.specific_policy || '' }
+        ].filter(attr => attr.value) // Only include attributes with values
       }
 
       const response = await fetch('/api/onboarding/complete', {
@@ -4485,10 +4494,19 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Failed to save profile (${response.status})`)
+        const errorMessage = errorData.error || `Failed to save profile (${response.status})`
+        console.error('API error response:', { status: response.status, errorData, profileData })
+        throw new Error(errorMessage)
       }
-    } catch (error) {
+      
+      const result = await response.json()
+      console.log('Profile saved successfully:', result)
+    } catch (error: any) {
       console.error('Error saving profile:', error)
+      // Re-throw with a more user-friendly message if it's a validation error
+      if (error.message && (error.message.includes('required') || error.message.includes('Validation'))) {
+        throw new Error(error.message)
+      }
       throw error
     }
   }
