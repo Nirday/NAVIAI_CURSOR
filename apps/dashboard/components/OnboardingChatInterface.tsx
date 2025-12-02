@@ -330,6 +330,84 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   /**
+   * Validate address components with sanity checks
+   */
+  const validateAddressComponent = (
+    input: string,
+    component: 'city' | 'state' | 'zip' | 'full'
+  ): { isValid: boolean; error?: string } => {
+    const trimmed = input.trim()
+    
+    if (component === 'city') {
+      // City must contain letters (cannot be purely numeric)
+      if (/^\d+$/.test(trimmed)) {
+        return {
+          isValid: false,
+          error: "That looks like a number, but I need the full address including the City name (e.g., 'Los Altos' or 'San Francisco')."
+        }
+      }
+      // City must contain at least one letter
+      if (!/[a-zA-Z]/.test(trimmed)) {
+        return {
+          isValid: false,
+          error: "A city name must contain letters. Please provide the city name (e.g., 'Los Altos' or 'San Francisco')."
+        }
+      }
+      return { isValid: true }
+    }
+    
+    if (component === 'state') {
+      // State cannot be purely numeric
+      if (/^\d+$/.test(trimmed)) {
+        return {
+          isValid: false,
+          error: "State cannot be a number. Please provide the state name or abbreviation (e.g., 'CA' or 'California')."
+        }
+      }
+      // State should not be longer than 20 characters
+      if (trimmed.length > 20) {
+        return {
+          isValid: false,
+          error: "State name seems too long. Please provide the state abbreviation (e.g., 'CA') or full name."
+        }
+      }
+      return { isValid: true }
+    }
+    
+    if (component === 'zip') {
+      // Zip code must be 5-9 digits
+      const zipRegex = /^\d{5}(-\d{4})?$/
+      if (!zipRegex.test(trimmed)) {
+        return {
+          isValid: false,
+          error: "Zip code must be 5 digits (or 9 digits with dash, e.g., '12345' or '12345-6789')."
+        }
+      }
+      return { isValid: true }
+    }
+    
+    if (component === 'full') {
+      // Check if input is purely numeric (like "982")
+      if (/^\d+$/.test(trimmed)) {
+        return {
+          isValid: false,
+          error: "That looks like a number, but I need the full address including the City name (e.g., '123 Main St, Los Altos, CA')."
+        }
+      }
+      // Check if it looks like just a zip code
+      if (/^\d{5}(-\d{4})?$/.test(trimmed)) {
+        return {
+          isValid: false,
+          error: "That looks like a zip code. I need the full address including street, city, and state."
+        }
+      }
+      return { isValid: true }
+    }
+    
+    return { isValid: true }
+  }
+
+  /**
    * Determine the next missing field and question after a successful update
    * Returns next step info or completion message if all fields are complete
    */
@@ -497,9 +575,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     for (const pattern of addressPatterns) {
       const addressMatch = userMessage.match(pattern)
       if (addressMatch && !currentData.identity?.address_or_area) {
-        extracted.address = addressMatch[0].trim()
-        extracted.updated = true
-        break
+        const address = addressMatch[0].trim()
+        // Validate the extracted address
+        const validation = validateAddressComponent(address, 'full')
+        if (validation.isValid) {
+          extracted.address = address
+          extracted.updated = true
+          break
+        }
+        // If validation fails, don't extract (will trigger clarification)
       }
     }
     
@@ -2044,13 +2128,42 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         if (subStep === 'location') {
           const locationInput = userMessage.trim()
           
+          // Validate input first - reject purely numeric input
+          const fullValidation = validateAddressComponent(locationInput, 'full')
+          if (!fullValidation.isValid) {
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: fullValidation.error || "That doesn't look like a valid address. Please provide the full address including street, city, and state.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+          
           // For Brick & Mortar and Appointment Pro, require full street address
           if (archetype === 'BrickAndMortar' || archetype === 'AppointmentPro') {
             // Check if it's just a city name (no numbers, no street name indicators)
             const hasNumber = /\d/.test(locationInput)
             const hasStreetIndicators = /\b(street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|way|court|ct|place|pl)\b/i.test(locationInput)
             
+            // Validate city component if it looks like just a city
             if (!hasNumber || !hasStreetIndicators) {
+              // Validate that it's a valid city (contains letters, not just numbers)
+              const cityValidation = validateAddressComponent(locationInput, 'city')
+              if (!cityValidation.isValid) {
+                const errorMsg: Message = {
+                  id: `assistant_${Date.now()}`,
+                  role: 'assistant',
+                  content: cityValidation.error || "Please provide a valid city name with letters.",
+                  timestamp: new Date()
+                }
+                setMessages(prev => [...prev, errorMsg])
+                setIsLoading(false)
+                return
+              }
+              
               // It's likely just a city, ask for full address
               const updatedData = {
                 ...data,
@@ -2135,9 +2248,25 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         
         if (subStep === 'location_full') {
-          // User provided street address, combine with city
-          const city = data.identity?.address_or_area || ''
+          // User provided street address, validate it first
           const streetAddress = userMessage.trim()
+          
+          // Validate that street address is not purely numeric
+          const streetValidation = validateAddressComponent(streetAddress, 'full')
+          if (!streetValidation.isValid) {
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: streetValidation.error || "That doesn't look like a valid street address. Please provide the house/building number and street name (e.g., '123 Main St').",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Combine street address with city
+          const city = data.identity?.address_or_area || ''
           const fullAddress = `${streetAddress}, ${city}`
           
           // Check if state is included (flexible format detection)
@@ -2195,9 +2324,24 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         
         if (subStep === 'location_state') {
+          // Validate state input first
+          const state = userMessage.trim()
+          const stateValidation = validateAddressComponent(state, 'state')
+          
+          if (!stateValidation.isValid) {
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: stateValidation.error || "That doesn't look like a valid state. Please provide the state name or abbreviation (e.g., 'CA' or 'California').",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+          
           // Combine address with state
           const address = data.identity?.address_or_area || ''
-          const state = userMessage.trim()
           const fullLocation = `${address}, ${state}`
           
           const updatedData = {
