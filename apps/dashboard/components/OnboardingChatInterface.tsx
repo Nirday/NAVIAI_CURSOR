@@ -330,6 +330,88 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   /**
+   * Determine the next missing field and question after a successful update
+   */
+  const determineNextMissingField = (
+    currentData: Partial<BusinessProfileData>,
+    currentPhase: string,
+    currentSubStep: string,
+    currentArchetype: Archetype,
+    currentLockedFields: Set<string>
+  ): { nextSubStep: string; nextQuestion: string; fieldName: string } | null => {
+    const missingFields: string[] = []
+    
+    // Check what's missing in storefront phase
+    if (currentPhase === 'storefront') {
+      if (!currentData.identity?.email && !isFieldLocked('email', currentLockedFields)) {
+        missingFields.push('email address')
+      }
+      if (!currentData.identity?.phone && !isFieldLocked('phone', currentLockedFields)) {
+        missingFields.push('phone number')
+      }
+      if (!currentData.identity?.address_or_area && 
+          (currentArchetype === 'BrickAndMortar' || currentArchetype === 'AppointmentPro') &&
+          !isFieldLocked('address', currentLockedFields)) {
+        missingFields.push('physical address')
+      }
+      
+      if (missingFields.length > 0) {
+        // Determine which field to ask for next (prioritize based on what's missing)
+        if (missingFields.includes('email address') && !currentData.identity?.phone && !isFieldLocked('phone', currentLockedFields)) {
+          return {
+            nextSubStep: 'phone_email',
+            nextQuestion: "What is the best phone number and email address for clients to reach you?",
+            fieldName: 'phone number and email address'
+          }
+        } else if (missingFields.includes('phone number') && !currentData.identity?.email && !isFieldLocked('email', currentLockedFields)) {
+          return {
+            nextSubStep: 'phone_email',
+            nextQuestion: "What is the best phone number and email address for clients to reach you?",
+            fieldName: 'phone number and email address'
+          }
+        } else if (missingFields.includes('phone number')) {
+          return {
+            nextSubStep: 'phone_only',
+            nextQuestion: "What is the main phone number for clients?",
+            fieldName: 'phone number'
+          }
+        } else if (missingFields.includes('email address')) {
+          return {
+            nextSubStep: 'email_only',
+            nextQuestion: "What is the best email address for clients to reach you?",
+            fieldName: 'email address'
+          }
+        } else if (missingFields.includes('physical address')) {
+          let addressQuestion = ''
+          if (currentArchetype === 'BrickAndMortar') {
+            addressQuestion = "And where is the shop located? (Address)"
+          } else if (currentArchetype === 'ServiceOnWheels') {
+            addressQuestion = "And what cities or areas do you travel to?"
+          } else {
+            addressQuestion = "And where is your studio/office located?"
+          }
+          return {
+            nextSubStep: 'location',
+            nextQuestion: addressQuestion,
+            fieldName: 'physical address'
+          }
+        }
+      }
+    }
+    
+    // Check what's missing in menu phase
+    if (currentPhase === 'menu' && !currentData.offering?.core_services?.length) {
+      return {
+        nextSubStep: 'services',
+        nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
+        fieldName: 'services'
+      }
+    }
+    
+    return null // No missing fields in current phase
+  }
+
+  /**
    * Slot Filling: Extract entities (phone, email, address, services) from user input
    * Returns what was found and what's still missing
    */
@@ -804,17 +886,33 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             
             const newLockedFields = lockField('email', lockedFields)
             
+            // Determine next missing field
+            const nextField = determineNextMissingField(
+              updatedData,
+              phase,
+              subStep,
+              archetype,
+              newLockedFields
+            )
+            
+            // Build confirmation message with next question
+            let confirmationContent = `Got it, I've updated the email to ${userMessage.trim()}.`
+            if (nextField) {
+              confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+            }
+            
             setOnboardingState({
               ...onboardingState,
               data: updatedData,
               awaitingCorrectionFor: null, // Clear pending state
-              lockedFields: newLockedFields
+              lockedFields: newLockedFields,
+              ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
             })
             
             const successMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: `Got it, I've updated the email to ${userMessage.trim()}.`,
+              content: confirmationContent,
               timestamp: new Date()
             }
             setMessages(prev => [...prev, successMsg])
@@ -849,17 +947,33 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             
             const newLockedFields = lockField('phone', lockedFields)
             
+            // Determine next missing field
+            const nextField = determineNextMissingField(
+              updatedData,
+              phase,
+              subStep,
+              archetype,
+              newLockedFields
+            )
+            
+            // Build confirmation message with next question
+            let confirmationContent = `Got it, I've updated the phone number to ${userMessage.trim()}.`
+            if (nextField) {
+              confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+            }
+            
             setOnboardingState({
               ...onboardingState,
               data: updatedData,
               awaitingCorrectionFor: null, // Clear pending state
-              lockedFields: newLockedFields
+              lockedFields: newLockedFields,
+              ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
             })
             
             const successMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: `Got it, I've updated the phone number to ${userMessage.trim()}.`,
+              content: confirmationContent,
               timestamp: new Date()
             }
             setMessages(prev => [...prev, successMsg])
@@ -1131,17 +1245,33 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               // Lock the field and clear verification
               const newLockedFields = lockField('email', lockedFields)
               
+              // Determine next missing field
+              const nextField = determineNextMissingField(
+                updatedData,
+                phase,
+                subStep,
+                archetype,
+                newLockedFields
+              )
+              
+              // Build confirmation message with next question
+              let confirmationContent = `Got it, I've updated the email to ${newEmail}.`
+              if (nextField) {
+                confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+              }
+              
               setOnboardingState({
                 ...onboardingState,
                 data: updatedData,
                 needsVerification: null, // Clear verification immediately
-                lockedFields: newLockedFields
+                lockedFields: newLockedFields,
+                ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
               })
               
               const correctionMsg: Message = {
                 id: `assistant_${Date.now()}`,
                 role: 'assistant',
-                content: `Got it, I've updated the email to ${newEmail}.`,
+                content: confirmationContent,
                 timestamp: new Date()
               }
               setMessages(prev => [...prev, correctionMsg])
@@ -1186,17 +1316,33 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               // Lock the field and clear verification
               const newLockedFields = lockField('phone', lockedFields)
               
+              // Determine next missing field
+              const nextField = determineNextMissingField(
+                updatedData,
+                phase,
+                subStep,
+                archetype,
+                newLockedFields
+              )
+              
+              // Build confirmation message with next question
+              let confirmationContent = `Got it, I've updated the phone number to ${newPhone}.`
+              if (nextField) {
+                confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+              }
+              
               setOnboardingState({
                 ...onboardingState,
                 data: updatedData,
                 needsVerification: null, // Clear verification immediately
-                lockedFields: newLockedFields
+                lockedFields: newLockedFields,
+                ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
               })
               
               const correctionMsg: Message = {
                 id: `assistant_${Date.now()}`,
                 role: 'assistant',
-                content: `Got it, I've updated the phone number to ${newPhone}.`,
+                content: confirmationContent,
                 timestamp: new Date()
               }
               setMessages(prev => [...prev, correctionMsg])
