@@ -331,6 +331,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
   /**
    * Determine the next missing field and question after a successful update
+   * Returns next step info or completion message if all fields are complete
    */
   const determineNextMissingField = (
     currentData: Partial<BusinessProfileData>,
@@ -338,7 +339,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     currentSubStep: string,
     currentArchetype: Archetype,
     currentLockedFields: Set<string>
-  ): { nextSubStep: string; nextQuestion: string; fieldName: string } | null => {
+  ): { nextSubStep?: string; nextPhase?: string; nextQuestion: string; fieldName?: string; isComplete?: boolean } | null => {
     const missingFields: string[] = []
     
     // Check what's missing in storefront phase
@@ -396,19 +397,56 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             fieldName: 'physical address'
           }
         }
+      } else {
+        // All storefront fields complete - move to menu phase
+        if (!currentData.offering?.core_services?.length) {
+          return {
+            nextPhase: 'menu',
+            nextSubStep: 'services',
+            nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
+            fieldName: 'services'
+          }
+        }
       }
     }
     
     // Check what's missing in menu phase
-    if (currentPhase === 'menu' && !currentData.offering?.core_services?.length) {
-      return {
-        nextSubStep: 'services',
-        nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
-        fieldName: 'services'
+    if (currentPhase === 'menu') {
+      if (!currentData.offering?.core_services?.length) {
+        return {
+          nextSubStep: 'services',
+          nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
+          fieldName: 'services'
+        }
+      } else {
+        // All menu fields complete - check if we need to move to next phase
+        // For now, if all critical fields are present, show completion message
+        const hasBasicInfo = currentData.identity?.business_name && 
+                            currentData.identity?.phone && 
+                            currentData.identity?.email &&
+                            currentData.offering?.core_services?.length
+        if (hasBasicInfo) {
+          return {
+            isComplete: true,
+            nextQuestion: "Everything looks good! Shall we continue to create your detailed profile?"
+          }
+        }
       }
     }
     
-    return null // No missing fields in current phase
+    // If we're in other phases or all critical info is collected, show completion
+    const hasBasicInfo = currentData.identity?.business_name && 
+                        currentData.identity?.phone && 
+                        currentData.identity?.email &&
+                        currentData.offering?.core_services?.length
+    if (hasBasicInfo && (currentPhase === 'locals' || currentPhase === 'counter' || currentPhase === 'proofread')) {
+      return {
+        isComplete: true,
+        nextQuestion: "Everything looks good! Shall we continue to create your detailed profile?"
+      }
+    }
+    
+    return null // No clear next step
   }
 
   /**
@@ -897,16 +935,32 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             
             // Build confirmation message with next question
             let confirmationContent = `Got it, I've updated the email to ${userMessage.trim()}.`
+            const stateUpdates: Partial<OnboardingState> = {
+              data: updatedData,
+              awaitingCorrectionFor: null, // Clear pending state
+              lockedFields: newLockedFields
+            }
+            
             if (nextField) {
-              confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+              if (nextField.isComplete) {
+                confirmationContent += `\n\n${nextField.nextQuestion}`
+              } else if (nextField.fieldName) {
+                confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+              } else {
+                confirmationContent += `\n\n${nextField.nextQuestion}`
+              }
+              
+              if (nextField.nextSubStep) {
+                stateUpdates.subStep = nextField.nextSubStep
+              }
+              if (nextField.nextPhase) {
+                stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+              }
             }
             
             setOnboardingState({
               ...onboardingState,
-              data: updatedData,
-              awaitingCorrectionFor: null, // Clear pending state
-              lockedFields: newLockedFields,
-              ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
+              ...stateUpdates
             })
             
             const successMsg: Message = {
@@ -958,16 +1012,32 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             
             // Build confirmation message with next question
             let confirmationContent = `Got it, I've updated the phone number to ${userMessage.trim()}.`
+            const stateUpdates: Partial<OnboardingState> = {
+              data: updatedData,
+              awaitingCorrectionFor: null, // Clear pending state
+              lockedFields: newLockedFields
+            }
+            
             if (nextField) {
-              confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+              if (nextField.isComplete) {
+                confirmationContent += `\n\n${nextField.nextQuestion}`
+              } else if (nextField.fieldName) {
+                confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+              } else {
+                confirmationContent += `\n\n${nextField.nextQuestion}`
+              }
+              
+              if (nextField.nextSubStep) {
+                stateUpdates.subStep = nextField.nextSubStep
+              }
+              if (nextField.nextPhase) {
+                stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+              }
             }
             
             setOnboardingState({
               ...onboardingState,
-              data: updatedData,
-              awaitingCorrectionFor: null, // Clear pending state
-              lockedFields: newLockedFields,
-              ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
+              ...stateUpdates
             })
             
             const successMsg: Message = {
@@ -1256,16 +1326,32 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               
               // Build confirmation message with next question
               let confirmationContent = `Got it, I've updated the email to ${newEmail}.`
+              const stateUpdates: Partial<OnboardingState> = {
+                data: updatedData,
+                needsVerification: null, // Clear verification immediately
+                lockedFields: newLockedFields
+              }
+              
               if (nextField) {
-                confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+                if (nextField.isComplete) {
+                  confirmationContent += `\n\n${nextField.nextQuestion}`
+                } else if (nextField.fieldName) {
+                  confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+                } else {
+                  confirmationContent += `\n\n${nextField.nextQuestion}`
+                }
+                
+                if (nextField.nextSubStep) {
+                  stateUpdates.subStep = nextField.nextSubStep
+                }
+                if (nextField.nextPhase) {
+                  stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+                }
               }
               
               setOnboardingState({
                 ...onboardingState,
-                data: updatedData,
-                needsVerification: null, // Clear verification immediately
-                lockedFields: newLockedFields,
-                ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
+                ...stateUpdates
               })
               
               const correctionMsg: Message = {
@@ -1327,16 +1413,32 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               
               // Build confirmation message with next question
               let confirmationContent = `Got it, I've updated the phone number to ${newPhone}.`
+              const stateUpdates: Partial<OnboardingState> = {
+                data: updatedData,
+                needsVerification: null, // Clear verification immediately
+                lockedFields: newLockedFields
+              }
+              
               if (nextField) {
-                confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+                if (nextField.isComplete) {
+                  confirmationContent += `\n\n${nextField.nextQuestion}`
+                } else if (nextField.fieldName) {
+                  confirmationContent += `\n\nNow, moving on: I still need your ${nextField.fieldName}. ${nextField.nextQuestion}`
+                } else {
+                  confirmationContent += `\n\n${nextField.nextQuestion}`
+                }
+                
+                if (nextField.nextSubStep) {
+                  stateUpdates.subStep = nextField.nextSubStep
+                }
+                if (nextField.nextPhase) {
+                  stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+                }
               }
               
               setOnboardingState({
                 ...onboardingState,
-                data: updatedData,
-                needsVerification: null, // Clear verification immediately
-                lockedFields: newLockedFields,
-                ...(nextField && { subStep: nextField.nextSubStep }) // Update subStep if next field found
+                ...stateUpdates
               })
               
               const correctionMsg: Message = {
