@@ -28,20 +28,26 @@ export default function DashboardPage() {
         const userId = session.user.id
         setUserId(userId)
 
-        // Check if user has a business profile
+        // Check if user has a business profile (API uses cookie-based auth, no header needed)
         try {
-          const response = await fetch('/api/profile', {
-            headers: {
-              'x-user-id': userId
-            }
-          })
+          const response = await fetch('/api/profile')
           
           if (response.ok) {
-            setHasProfile(true)
+            const data = await response.json()
+            if (data.profile) {
+              setHasProfile(true)
+            } else {
+              setHasProfile(false)
+            }
           } else if (response.status === 404) {
             setHasProfile(false)
+          } else if (response.status === 401) {
+            // Unauthorized - redirect to login
+            router.push('/login')
+            return
           } else {
             // On error, assume no profile and show onboarding
+            console.warn('Profile check returned status:', response.status)
             setHasProfile(false)
           }
         } catch (error) {
