@@ -1525,6 +1525,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
             // Verify profile was saved before redirecting
             // This prevents redirect loops if the save didn't complete
+            let retryCount = 0
+            const maxRetries = 3
             const verifyProfile = async () => {
               try {
                 const checkResponse = await fetch('/api/profile')
@@ -1547,13 +1549,44 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                     return
                   }
                 }
-                // If profile check fails, wait a bit and retry (max 3 retries)
-                console.warn('Profile not found immediately after save, retrying...')
-                setTimeout(verifyProfile, 1000)
+                
+                // If profile check fails, retry with limit
+                retryCount++
+                if (retryCount < maxRetries) {
+                  console.warn(`Profile not found immediately after save, retrying (${retryCount}/${maxRetries})...`)
+                  setTimeout(verifyProfile, 1000)
+                } else {
+                  // Max retries reached - redirect anyway (profile should be saved)
+                  console.warn('Max retries reached, redirecting anyway...')
+                  const redirectMsg: Message = {
+                    id: `assistant_${Date.now()}`,
+                    role: 'assistant',
+                    content: "Redirecting you to your dashboard...",
+                    timestamp: new Date()
+                  }
+                  setMessages(prev => [...prev, redirectMsg])
+                  setTimeout(() => {
+                    window.location.href = '/dashboard'
+                  }, 500)
+                }
               } catch (error) {
                 console.error('Error verifying profile:', error)
-                // Retry verification (max 3 retries)
-                setTimeout(verifyProfile, 1000)
+                retryCount++
+                if (retryCount < maxRetries) {
+                  setTimeout(verifyProfile, 1000)
+                } else {
+                  // Max retries reached - redirect anyway
+                  const redirectMsg: Message = {
+                    id: `assistant_${Date.now()}`,
+                    role: 'assistant',
+                    content: "Redirecting you to your dashboard...",
+                    timestamp: new Date()
+                  }
+                  setMessages(prev => [...prev, redirectMsg])
+                  setTimeout(() => {
+                    window.location.href = '/dashboard'
+                  }, 500)
+                }
               }
             }
             
@@ -4146,6 +4179,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
             // Verify profile was saved before redirecting
             // This prevents redirect loops if the save didn't complete
+            let retryCount = 0
+            const maxRetries = 3
             const verifyProfile = async () => {
               try {
                 const checkResponse = await fetch('/api/profile')
@@ -4168,13 +4203,44 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                     return
                   }
                 }
-                // If profile check fails, wait a bit and retry (max 3 retries)
-                console.warn('Profile not found immediately after save, retrying...')
-                setTimeout(verifyProfile, 1000)
+                
+                // If profile check fails, retry with limit
+                retryCount++
+                if (retryCount < maxRetries) {
+                  console.warn(`Profile not found immediately after save, retrying (${retryCount}/${maxRetries})...`)
+                  setTimeout(verifyProfile, 1000)
+                } else {
+                  // Max retries reached - redirect anyway (profile should be saved)
+                  console.warn('Max retries reached, redirecting anyway...')
+                  const redirectMsg: Message = {
+                    id: `assistant_${Date.now()}`,
+                    role: 'assistant',
+                    content: "Redirecting you to your dashboard...",
+                    timestamp: new Date()
+                  }
+                  setMessages(prev => [...prev, redirectMsg])
+                  setTimeout(() => {
+                    window.location.href = '/dashboard'
+                  }, 500)
+                }
               } catch (error) {
                 console.error('Error verifying profile:', error)
-                // Retry verification (max 3 retries)
-                setTimeout(verifyProfile, 1000)
+                retryCount++
+                if (retryCount < maxRetries) {
+                  setTimeout(verifyProfile, 1000)
+                } else {
+                  // Max retries reached - redirect anyway
+                  const redirectMsg: Message = {
+                    id: `assistant_${Date.now()}`,
+                    role: 'assistant',
+                    content: "Redirecting you to your dashboard...",
+                    timestamp: new Date()
+                  }
+                  setMessages(prev => [...prev, redirectMsg])
+                  setTimeout(() => {
+                    window.location.href = '/dashboard'
+                  }, 500)
+                }
               }
             }
             

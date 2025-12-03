@@ -17,20 +17,30 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
+    
     const checkAuthAndProfile = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
-          router.push('/login')
+          if (isMounted) {
+            router.push('/login')
+          }
           return
         }
         
         const userId = session.user.id
-        setUserId(userId)
+        if (isMounted) {
+          setUserId(userId)
+        }
 
         // Check if user has a business profile (API uses cookie-based auth, no header needed)
         try {
-          const response = await fetch('/api/profile')
+          const response = await fetch('/api/profile', {
+            cache: 'no-store' // Prevent caching issues
+          })
+          
+          if (!isMounted) return
           
           if (response.ok) {
             const data = await response.json()
@@ -51,17 +61,25 @@ export default function DashboardPage() {
             setHasProfile(false)
           }
         } catch (error) {
+          if (!isMounted) return
           console.error('Error checking profile:', error)
           setHasProfile(false)
         }
       } catch (error) {
+        if (!isMounted) return
         console.error('Auth error:', error)
         router.push('/login')
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
     checkAuthAndProfile()
+    
+    return () => {
+      isMounted = false
+    }
   }, [router])
 
   if (loading || hasProfile === null) {
