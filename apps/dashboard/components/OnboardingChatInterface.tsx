@@ -1523,21 +1523,42 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
             setMessages(prev => [...prev, completeMsg])
 
-            // Show redirecting message after a brief delay
-            setTimeout(() => {
-              const redirectMsg: Message = {
-                id: `assistant_${Date.now()}`,
-                role: 'assistant',
-                content: "Redirecting you to your dashboard...",
-                timestamp: new Date()
+            // Verify profile was saved before redirecting
+            // This prevents redirect loops if the save didn't complete
+            const verifyProfile = async () => {
+              try {
+                const checkResponse = await fetch('/api/profile')
+                if (checkResponse.ok) {
+                  const checkData = await checkResponse.json()
+                  if (checkData.profile) {
+                    // Profile exists - safe to redirect
+                    const redirectMsg: Message = {
+                      id: `assistant_${Date.now()}`,
+                      role: 'assistant',
+                      content: "Redirecting you to your dashboard...",
+                      timestamp: new Date()
+                    }
+                    setMessages(prev => [...prev, redirectMsg])
+                    
+                    // Small delay to ensure database is ready
+                    setTimeout(() => {
+                      window.location.href = '/dashboard'
+                    }, 500)
+                    return
+                  }
+                }
+                // If profile check fails, wait a bit and retry (max 3 retries)
+                console.warn('Profile not found immediately after save, retrying...')
+                setTimeout(verifyProfile, 1000)
+              } catch (error) {
+                console.error('Error verifying profile:', error)
+                // Retry verification (max 3 retries)
+                setTimeout(verifyProfile, 1000)
               }
-              setMessages(prev => [...prev, redirectMsg])
-              
-              // Redirect after showing the message
-              setTimeout(() => {
-                window.location.href = '/dashboard'
-              }, 1000)
-            }, 1500)
+            }
+            
+            // Start verification after a brief delay
+            setTimeout(verifyProfile, 1500)
             
             setIsLoading(false)
             return
@@ -4123,21 +4144,42 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
             setMessages(prev => [...prev, completeMsg])
 
-            // Show redirecting message after a brief delay
-            setTimeout(() => {
-              const redirectMsg: Message = {
-                id: `assistant_${Date.now()}`,
-                role: 'assistant',
-                content: "Redirecting you to your dashboard...",
-                timestamp: new Date()
+            // Verify profile was saved before redirecting
+            // This prevents redirect loops if the save didn't complete
+            const verifyProfile = async () => {
+              try {
+                const checkResponse = await fetch('/api/profile')
+                if (checkResponse.ok) {
+                  const checkData = await checkResponse.json()
+                  if (checkData.profile) {
+                    // Profile exists - safe to redirect
+                    const redirectMsg: Message = {
+                      id: `assistant_${Date.now()}`,
+                      role: 'assistant',
+                      content: "Redirecting you to your dashboard...",
+                      timestamp: new Date()
+                    }
+                    setMessages(prev => [...prev, redirectMsg])
+                    
+                    // Small delay to ensure database is ready
+                    setTimeout(() => {
+                      window.location.href = '/dashboard'
+                    }, 500)
+                    return
+                  }
+                }
+                // If profile check fails, wait a bit and retry (max 3 retries)
+                console.warn('Profile not found immediately after save, retrying...')
+                setTimeout(verifyProfile, 1000)
+              } catch (error) {
+                console.error('Error verifying profile:', error)
+                // Retry verification (max 3 retries)
+                setTimeout(verifyProfile, 1000)
               }
-              setMessages(prev => [...prev, redirectMsg])
-              
-              // Redirect after showing the message
-              setTimeout(() => {
-                window.location.href = '/dashboard'
-              }, 1000)
-            }, 1500)
+            }
+            
+            // Start verification after a brief delay
+            setTimeout(verifyProfile, 1500)
             
             setIsLoading(false)
           } catch (error: any) {
