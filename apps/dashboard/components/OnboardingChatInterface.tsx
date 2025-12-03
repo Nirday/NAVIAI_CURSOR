@@ -512,6 +512,73 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
     }
     
+    // Check what's missing in locals phase
+    if (currentPhase === 'locals') {
+      if (!currentData.credibility?.owner_name) {
+        return {
+          nextSubStep: 'owner_name',
+          nextQuestion: "Who is the owner or lead expert here? (Please check the spelling of the name closely).",
+          fieldName: 'owner name'
+        }
+      }
+    }
+    
+    // Check what's missing in counter phase
+    if (currentPhase === 'counter') {
+      if (!currentData.logistics?.payment_methods?.length) {
+        return {
+          nextSubStep: 'payment',
+          nextQuestion: "How does payment work? Do you take Insurance, Credit Cards, Cash, or Venmo?",
+          fieldName: 'payment methods'
+        }
+      }
+    }
+    
+    // If we're in proofread phase, check if all required fields are present
+    if (currentPhase === 'proofread') {
+      // Required fields: business_name, phone, email, core_services
+      const hasRequiredFields = currentData.identity?.business_name && 
+                                currentData.identity?.phone && 
+                                currentData.identity?.email &&
+                                currentData.offering?.core_services?.length
+      
+      if (!hasRequiredFields) {
+        // Find which required field is missing
+        if (!currentData.identity?.business_name) {
+          return {
+            nextPhase: 'storefront',
+            nextSubStep: 'business_name',
+            nextQuestion: "What is the official Business Name? (Please double-check the spelling/spacing so I get it right!)",
+            fieldName: 'business name'
+          }
+        }
+        if (!currentData.identity?.phone) {
+          return {
+            nextPhase: 'storefront',
+            nextSubStep: 'phone_email',
+            nextQuestion: "What is the best phone number and email address for clients to reach you?",
+            fieldName: 'phone number'
+          }
+        }
+        if (!currentData.identity?.email) {
+          return {
+            nextPhase: 'storefront',
+            nextSubStep: 'phone_email',
+            nextQuestion: "What is the best phone number and email address for clients to reach you?",
+            fieldName: 'email address'
+          }
+        }
+        if (!currentData.offering?.core_services?.length) {
+          return {
+            nextPhase: 'menu',
+            nextSubStep: 'services',
+            nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
+            fieldName: 'services'
+          }
+        }
+      }
+    }
+    
     // If we're in other phases or all critical info is collected, show completion
     const hasBasicInfo = currentData.identity?.business_name && 
                         currentData.identity?.phone && 
@@ -1391,8 +1458,45 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       
       // 5) Handle CONFIRMATION requests (check BEFORE correction to avoid false positives)
       if (userIntent === 'CONFIRMATION') {
-        // If we're in proofread phase, save the profile and complete
+        // If we're in proofread phase, check for missing fields before saving
         if (phase === 'proofread' && (subStep === 'review' || subStep === 'final_review')) {
+          // Check for missing required fields before saving
+          const nextField = determineNextMissingField(
+            data,
+            phase,
+            subStep,
+            archetype,
+            lockedFields
+          )
+          
+          // If there are missing fields, continue asking questions instead of saving
+          if (nextField && !nextField.isComplete) {
+            // Mark current step as done and move to next missing field
+            const stateUpdates: Partial<OnboardingState> = {}
+            if (nextField.nextSubStep) {
+              stateUpdates.subStep = nextField.nextSubStep
+            }
+            if (nextField.nextPhase) {
+              stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              ...stateUpdates
+            })
+            
+            const continueMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Great! Now to finish your profile, I need a few more details. ${nextField.nextQuestion}`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, continueMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // All required fields are present - proceed with save
           // Set loading state immediately
           setIsLoading(true)
           
@@ -3958,7 +4062,43 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                            lowerMessage.includes('sounds good') || lowerMessage === 'ok' || lowerMessage === 'okay'
         
         if (isConfirmed) {
-          // User confirmed - save the profile
+          // User confirmed - check for missing fields before saving
+          const nextField = determineNextMissingField(
+            data,
+            phase,
+            subStep,
+            archetype,
+            lockedFields
+          )
+          
+          // If there are missing fields, continue asking questions instead of saving
+          if (nextField && !nextField.isComplete) {
+            // Mark current step as done and move to next missing field
+            const stateUpdates: Partial<OnboardingState> = {}
+            if (nextField.nextSubStep) {
+              stateUpdates.subStep = nextField.nextSubStep
+            }
+            if (nextField.nextPhase) {
+              stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              ...stateUpdates
+            })
+            
+            const continueMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Great! Now to finish your profile, I need a few more details. ${nextField.nextQuestion}`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, continueMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // All required fields are present - proceed with save
           // Set loading state immediately
           setIsLoading(true)
           
