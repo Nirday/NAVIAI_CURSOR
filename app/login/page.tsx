@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   // Check if we're in mock mode
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -47,20 +48,22 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true)
     // Only check auth once on mount, don't run repeatedly
-    // Add a small delay to prevent race conditions with session sync
+    // BUT: Skip this check if user is actively logging in (prevents redirect loops)
+    // Only redirect if user navigates to login page while already logged in
     let isMounted = true
     const checkAuthOnce = async () => {
       try {
         // Wait a bit for session to sync after page load
-        await new Promise(resolve => setTimeout(resolve, 300))
+        await new Promise(resolve => setTimeout(resolve, 500))
         
-        if (!isMounted) return
+        if (!isMounted || isLoggingIn) return
         
         const { data: { session } } = await supabaseClient.auth.getSession()
-        if (session && isMounted) {
+        if (session && isMounted && !isLoggingIn) {
           // Check if we're already on dashboard to prevent loops
           const currentPath = window.location.pathname
-          if (currentPath !== '/dashboard' && !currentPath.startsWith('/dashboard/')) {
+          if (currentPath === '/login' || currentPath === '/') {
+            // Only redirect if we're on login page, not if we're in the middle of logging in
             // Use window.location for full page reload to ensure middleware runs
             window.location.href = '/dashboard'
           }
@@ -73,12 +76,13 @@ export default function LoginPage() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [isLoggingIn])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
+    setIsLoggingIn(true)
 
     try {
       if (isSignUp) {
@@ -132,6 +136,7 @@ export default function LoginPage() {
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
     setError(null)
     setLoading(true)
+    setIsLoggingIn(true)
 
     try {
       // If in mock mode, use mock credentials directly
