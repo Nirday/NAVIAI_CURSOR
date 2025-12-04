@@ -90,62 +90,48 @@ export async function middleware(request: NextRequest) {
     )
 
     // Use getUser() instead of getSession() for security
+    // This refreshes the session automatically
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    // Handle authentication errors
-    if (authError || !user) {
-      // Clear invalid session cookies (Supabase SSR uses these cookie names)
-      // Note: Supabase SSR manages cookies internally, but we clear them on error
-      const supabaseCookieNames = [
-        `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token`,
-        `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token.0`,
-        `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token.1`,
-      ]
-      
-      // Clear all possible Supabase cookie variations
+    // Check if user is authenticated
+    const isAuthenticated = !authError && user !== null
+    
+    // If on login page and authenticated, redirect to dashboard
+    if (pathname === '/login' && isAuthenticated) {
+      const dashboardUrl = new URL('/dashboard', request.url)
+      return NextResponse.redirect(dashboardUrl)
+    }
+    
+    // If on dashboard route and NOT authenticated, redirect to login
+    if (pathname.startsWith('/dashboard') && !isAuthenticated) {
+      // Clear any invalid cookies
       request.cookies.getAll().forEach(cookie => {
         if (cookie.name.includes('sb-') && cookie.name.includes('auth-token')) {
           response.cookies.delete(cookie.name)
         }
       })
       
-      // If on dashboard route and no session, redirect to login
-      if (pathname.startsWith('/dashboard')) {
-        const loginUrl = new URL('/login', request.url)
-        loginUrl.searchParams.set('redirected', 'true')
-        return NextResponse.redirect(loginUrl)
-      }
-      
-      // For other protected routes (not login), also redirect to login
-      if (pathname !== '/login' && !pathname.startsWith('/api/')) {
-        const loginUrl = new URL('/login', request.url)
-        loginUrl.searchParams.set('redirected', 'true')
-        return NextResponse.redirect(loginUrl)
-      }
-      
-      return response
+      const loginUrl = new URL('/login', request.url)
+      return NextResponse.redirect(loginUrl)
     }
     
-    // User is authenticated
-    // If on login page and has valid session, redirect to dashboard
-    if (pathname === '/login') {
-      const dashboardUrl = new URL('/dashboard', request.url)
-      return NextResponse.redirect(dashboardUrl)
+    // For other protected routes (not login, not dashboard), check auth
+    if (!isPublicRoute && !pathname.startsWith('/dashboard') && !isAuthenticated) {
+      const loginUrl = new URL('/login', request.url)
+      return NextResponse.redirect(loginUrl)
     }
     
   } catch (error) {
-    // If Supabase client creation fails, clear cookies and redirect to login
+    // If Supabase client creation fails, only redirect dashboard routes
+    // Don't redirect login page on error to prevent loops
     console.error('Middleware: Supabase client error:', error)
     
-    // Clear cookies on error
-    response.cookies.delete('sb-access-token')
-    response.cookies.delete('sb-refresh-token')
-    
-    // If on dashboard route, redirect to login
     if (pathname.startsWith('/dashboard')) {
       const loginUrl = new URL('/login', request.url)
       return NextResponse.redirect(loginUrl)
     }
+    
+    // For other errors, just continue (don't redirect login page)
   }
 
   return response
