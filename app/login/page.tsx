@@ -47,13 +47,23 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true)
     // Only check auth once on mount, don't run repeatedly
+    // Add a small delay to prevent race conditions with session sync
     let isMounted = true
     const checkAuthOnce = async () => {
       try {
+        // Wait a bit for session to sync after page load
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        if (!isMounted) return
+        
         const { data: { session } } = await supabaseClient.auth.getSession()
         if (session && isMounted) {
-          // Use window.location for full page reload to ensure middleware runs
-          window.location.href = '/dashboard'
+          // Check if we're already on dashboard to prevent loops
+          const currentPath = window.location.pathname
+          if (currentPath !== '/dashboard' && !currentPath.startsWith('/dashboard/')) {
+            // Use window.location for full page reload to ensure middleware runs
+            window.location.href = '/dashboard'
+          }
         }
       } catch (err) {
         console.error('Auth check error:', err)
@@ -84,7 +94,8 @@ export default function LoginPage() {
 
         if (data.session) {
           // Auto-confirmed, wait a moment for session to sync, then redirect
-          await new Promise(resolve => setTimeout(resolve, 200))
+          await new Promise(resolve => setTimeout(resolve, 500))
+          // Use full page reload to ensure cookies are set and middleware runs
           window.location.href = '/dashboard'
         } else {
           // Email confirmation required
@@ -104,7 +115,8 @@ export default function LoginPage() {
 
         if (data.session) {
           // Successfully signed in, wait a moment for session to sync, then redirect
-          await new Promise(resolve => setTimeout(resolve, 200))
+          await new Promise(resolve => setTimeout(resolve, 500))
+          // Use full page reload to ensure cookies are set and middleware runs
           window.location.href = '/dashboard'
         } else {
           setError('Sign in failed: No session created')
