@@ -3981,7 +3981,45 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                            lowerMessage.includes('sounds good') || lowerMessage === 'ok' || lowerMessage === 'okay'
         
         if (isConfirmed) {
-          // User confirmed - continue to Menu phase
+          // User confirmed scraped data - check for missing fields before proceeding
+          // CRITICAL: Don't save yet if fields are missing
+          const nextField = determineNextMissingField(
+            data,
+            phase,
+            subStep,
+            archetype,
+            lockedFields
+          )
+          
+          // If there are missing fields, continue asking questions instead of moving to next phase
+          if (nextField && !nextField.isComplete) {
+            // Mark current step as done and move to next missing field
+            const stateUpdates: Partial<OnboardingState> = {}
+            if (nextField.nextSubStep) {
+              stateUpdates.subStep = nextField.nextSubStep
+            }
+            if (nextField.nextPhase) {
+              stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
+            }
+            
+            setOnboardingState({
+              ...onboardingState,
+              ...stateUpdates,
+              data: data
+            })
+            
+            const continueMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Great! Now to finish your profile, I need a few more details. ${nextField.nextQuestion}`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, continueMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // All required fields are present - continue to Menu phase
           setOnboardingState({
             ...onboardingState,
             phase: 'menu',
