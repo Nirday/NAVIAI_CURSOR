@@ -21,6 +21,11 @@ export default function DashboardPage() {
     
     const checkAuthAndProfile = async () => {
       try {
+        // Wait a bit for session to sync after page load (especially important after login)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        if (!isMounted) return
+        
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
           if (isMounted) {
