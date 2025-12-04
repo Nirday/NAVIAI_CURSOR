@@ -102,8 +102,7 @@ export default async function DashboardLayout({
           redirect('/dashboard/onboarding/start')
         }
       }
-
-      } catch (error) {
+    } catch (error) {
       // If there's an error checking session/profile, log it but don't crash
       // Middleware handles auth redirects, we just handle profile redirects
       console.error('Dashboard layout profile check error:', error)
