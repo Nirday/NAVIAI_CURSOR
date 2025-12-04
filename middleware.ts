@@ -3,9 +3,11 @@ import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  
   // Set a header with the pathname so layouts can detect the current route
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-pathname', request.nextUrl.pathname)
+  requestHeaders.set('x-pathname', pathname)
   
   // Create a response object
   let response = NextResponse.next({
@@ -28,7 +30,46 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // Create Supabase client for session refresh (only in real mode)
+  // Define public routes that don't require authentication
+  const publicRoutes = [
+    '/login',
+    '/api/auth/callback', // All auth callback routes
+  ]
+  
+  // Check if current path is a public route
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  
+  // If it's a public route, skip auth checks (but still refresh session if possible)
+  if (isPublicRoute) {
+    try {
+      const supabase = createServerClient(
+        supabaseUrl,
+        supabaseAnonKey,
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll()
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                request.cookies.set(name, value)
+                response.cookies.set(name, value, options)
+              })
+            },
+          },
+        }
+      )
+      
+      // Refresh session silently for public routes
+      await supabase.auth.getUser()
+    } catch (error) {
+      // Ignore errors on public routes
+    }
+    
+    return response
+  }
+
+  // For protected routes, check authentication
   try {
     const supabase = createServerClient(
       supabaseUrl,
@@ -48,11 +89,50 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // Refresh session if expired - this ensures cookies are synced
-    await supabase.auth.getUser()
+    // Use getUser() instead of getSession() for security
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    // Handle authentication errors
+    if (authError || !user) {
+      // Clear invalid session cookies
+      response.cookies.delete('sb-access-token')
+      response.cookies.delete('sb-refresh-token')
+      
+      // If on dashboard route and no session, redirect to login
+      if (pathname.startsWith('/dashboard')) {
+        const loginUrl = new URL('/login', request.url)
+        return NextResponse.redirect(loginUrl)
+      }
+      
+      // For other protected routes, also redirect to login
+      if (pathname !== '/login') {
+        const loginUrl = new URL('/login', request.url)
+        return NextResponse.redirect(loginUrl)
+      }
+      
+      return response
+    }
+    
+    // User is authenticated
+    // If on login page and has valid session, redirect to dashboard
+    if (pathname === '/login') {
+      const dashboardUrl = new URL('/dashboard', request.url)
+      return NextResponse.redirect(dashboardUrl)
+    }
+    
   } catch (error) {
-    // If Supabase client creation fails, continue anyway
-    console.warn('Middleware: Supabase client error (might be in mock mode):', error)
+    // If Supabase client creation fails, clear cookies and redirect to login
+    console.error('Middleware: Supabase client error:', error)
+    
+    // Clear cookies on error
+    response.cookies.delete('sb-access-token')
+    response.cookies.delete('sb-refresh-token')
+    
+    // If on dashboard route, redirect to login
+    if (pathname.startsWith('/dashboard')) {
+      const loginUrl = new URL('/login', request.url)
+      return NextResponse.redirect(loginUrl)
+    }
   }
 
   return response
