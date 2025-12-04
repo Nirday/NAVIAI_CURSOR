@@ -76,11 +76,12 @@ export default async function DashboardLayout({
       // 1. Get the user's session (middleware already verified auth, but we need user ID)
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-      // If no session, middleware should have redirected, but double-check
+      // If no session, middleware should have redirected already
+      // But if we're here, it means middleware didn't catch it (maybe mock mode or edge case)
+      // Don't redirect here to prevent loops - just continue and let client-side handle it
       if (sessionError || !session) {
-        // Don't redirect here - middleware handles it to prevent loops
-        // Just return early and let middleware redirect
-        return null
+        // In mock mode or edge cases, let client-side handle redirects
+        // Don't return null as it breaks the layout
       }
 
       // 2. CHECK FOR A BUSINESS PROFILE (THE "GATEKEEPER" LOGIC)

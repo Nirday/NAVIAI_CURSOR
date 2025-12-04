@@ -94,19 +94,32 @@ export async function middleware(request: NextRequest) {
     
     // Handle authentication errors
     if (authError || !user) {
-      // Clear invalid session cookies
-      response.cookies.delete('sb-access-token')
-      response.cookies.delete('sb-refresh-token')
+      // Clear invalid session cookies (Supabase SSR uses these cookie names)
+      // Note: Supabase SSR manages cookies internally, but we clear them on error
+      const supabaseCookieNames = [
+        `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token`,
+        `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token.0`,
+        `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token.1`,
+      ]
+      
+      // Clear all possible Supabase cookie variations
+      request.cookies.getAll().forEach(cookie => {
+        if (cookie.name.includes('sb-') && cookie.name.includes('auth-token')) {
+          response.cookies.delete(cookie.name)
+        }
+      })
       
       // If on dashboard route and no session, redirect to login
       if (pathname.startsWith('/dashboard')) {
         const loginUrl = new URL('/login', request.url)
+        loginUrl.searchParams.set('redirected', 'true')
         return NextResponse.redirect(loginUrl)
       }
       
-      // For other protected routes, also redirect to login
-      if (pathname !== '/login') {
+      // For other protected routes (not login), also redirect to login
+      if (pathname !== '/login' && !pathname.startsWith('/api/')) {
         const loginUrl = new URL('/login', request.url)
+        loginUrl.searchParams.set('redirected', 'true')
         return NextResponse.redirect(loginUrl)
       }
       
