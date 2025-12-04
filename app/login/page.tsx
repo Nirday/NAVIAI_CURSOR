@@ -147,7 +147,8 @@ export default function LoginPage() {
 
         if (data.session) {
           // Wait a moment for session to sync, then redirect with full page reload
-          await new Promise(resolve => setTimeout(resolve, 200))
+          await new Promise(resolve => setTimeout(resolve, 500))
+          // Use full page reload to ensure cookies are set and middleware runs
           window.location.href = '/dashboard'
         } else {
           setError('Demo login failed: No session created')
@@ -184,7 +185,8 @@ export default function LoginPage() {
 
         if (data.session) {
           // Wait a moment for session to sync, then redirect with full page reload
-          await new Promise(resolve => setTimeout(resolve, 200))
+          await new Promise(resolve => setTimeout(resolve, 500))
+          // Use full page reload to ensure cookies are set and middleware runs
           window.location.href = '/dashboard'
         } else {
           setError('Demo login failed: No session created')
