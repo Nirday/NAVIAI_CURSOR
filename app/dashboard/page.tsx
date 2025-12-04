@@ -21,16 +21,14 @@ export default function DashboardPage() {
     
     const checkAuthAndProfile = async () => {
       try {
-        // Wait a bit for session to sync after page load (especially important after login)
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
+        // Don't check auth here - middleware handles it
+        // Just check for profile to determine what to show
         if (!isMounted) return
         
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
-          if (isMounted) {
-            router.push('/login')
-          }
+          // Middleware should have redirected, but if we're here, just wait
+          // Don't redirect to prevent loops
           return
         }
         
@@ -57,8 +55,9 @@ export default function DashboardPage() {
           } else if (response.status === 404) {
             setHasProfile(false)
           } else if (response.status === 401) {
-            // Unauthorized - redirect to login
-            router.push('/login')
+            // Unauthorized - middleware should handle redirect, don't redirect here to prevent loops
+            // Just set hasProfile to false
+            setHasProfile(false)
             return
           } else {
             // On error, assume no profile and show onboarding

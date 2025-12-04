@@ -47,36 +47,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true)
-    // Only check auth once on mount, don't run repeatedly
-    // BUT: Skip this check if user is actively logging in (prevents redirect loops)
-    // Only redirect if user navigates to login page while already logged in
-    let isMounted = true
-    const checkAuthOnce = async () => {
-      try {
-        // Wait a bit for session to sync after page load
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        if (!isMounted || isLoggingIn) return
-        
-        const { data: { session } } = await supabaseClient.auth.getSession()
-        if (session && isMounted && !isLoggingIn) {
-          // Check if we're already on dashboard to prevent loops
-          const currentPath = window.location.pathname
-          if (currentPath === '/login' || currentPath === '/') {
-            // Only redirect if we're on login page, not if we're in the middle of logging in
-            // Use window.location for full page reload to ensure middleware runs
-            window.location.href = '/dashboard'
-          }
-        }
-      } catch (err) {
-        console.error('Auth check error:', err)
-      }
-    }
-    checkAuthOnce()
-    return () => {
-      isMounted = false
-    }
-  }, [isLoggingIn])
+    // Don't check auth here - let middleware handle redirects
+    // This prevents conflicts between client-side and server-side auth checks
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -73,12 +73,14 @@ export default async function DashboardLayout({
         }
       )
 
-      // 1. Get the user's session
+      // 1. Get the user's session (middleware already verified auth, but we need user ID)
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-      // If no session or session error, redirect to login
+      // If no session, middleware should have redirected, but double-check
       if (sessionError || !session) {
-        redirect('/login')
+        // Don't redirect here - middleware handles it to prevent loops
+        // Just return early and let middleware redirect
+        return null
       }
 
       // 2. CHECK FOR A BUSINESS PROFILE (THE "GATEKEEPER" LOGIC)
@@ -100,9 +102,9 @@ export default async function DashboardLayout({
       }
     } catch (error) {
       // If there's an error checking session/profile, log it but don't crash
-      // The client-side will handle redirects if needed
-      console.error('Dashboard layout auth check error:', error)
-      // In case of error, let the client-side handle it
+      // Middleware handles auth redirects, we just handle profile redirects
+      console.error('Dashboard layout profile check error:', error)
+      // In case of error, let middleware handle auth, we'll just show the page
     }
   }
 
