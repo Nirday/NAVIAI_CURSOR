@@ -1625,8 +1625,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   console.warn(`Profile not found immediately after save, retrying (${retryCount}/${maxRetries})...`)
                   setTimeout(verifyProfile, 1000)
                 } else {
-                  // Max retries reached - redirect anyway (profile should be saved)
-                  console.warn('Max retries reached, redirecting anyway...')
+                  // Max retries reached - refresh session before redirecting
+                  console.warn('Max retries reached, refreshing session before redirect...')
+                  try {
+                    await supabase.auth.getUser()
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                  } catch (sessionError) {
+                    console.warn('Session refresh error (non-fatal):', sessionError)
+                  }
+                  
                   const redirectMsg: Message = {
                     id: `assistant_${Date.now()}`,
                     role: 'assistant',
@@ -1644,7 +1651,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 if (retryCount < maxRetries) {
                   setTimeout(verifyProfile, 1000)
                 } else {
-                  // Max retries reached - redirect anyway
+                  // Max retries reached - refresh session before redirecting
+                  try {
+                    await supabase.auth.getUser()
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                  } catch (sessionError) {
+                    console.warn('Session refresh error (non-fatal):', sessionError)
+                  }
+                  
                   const redirectMsg: Message = {
                     id: `assistant_${Date.now()}`,
                     role: 'assistant',
@@ -4356,8 +4370,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   console.warn(`Profile not found immediately after save, retrying (${retryCount}/${maxRetries})...`)
                   setTimeout(verifyProfile, 1000)
                 } else {
-                  // Max retries reached - redirect anyway (profile should be saved)
-                  console.warn('Max retries reached, redirecting anyway...')
+                  // Max retries reached - refresh session before redirecting
+                  console.warn('Max retries reached, refreshing session before redirect...')
+                  try {
+                    await supabase.auth.getUser()
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                  } catch (sessionError) {
+                    console.warn('Session refresh error (non-fatal):', sessionError)
+                  }
+                  
                   const redirectMsg: Message = {
                     id: `assistant_${Date.now()}`,
                     role: 'assistant',
@@ -4375,7 +4396,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 if (retryCount < maxRetries) {
                   setTimeout(verifyProfile, 1000)
                 } else {
-                  // Max retries reached - redirect anyway
+                  // Max retries reached - refresh session before redirecting
+                  try {
+                    await supabase.auth.getUser()
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                  } catch (sessionError) {
+                    console.warn('Session refresh error (non-fatal):', sessionError)
+                  }
+                  
                   const redirectMsg: Message = {
                     id: `assistant_${Date.now()}`,
                     role: 'assistant',
