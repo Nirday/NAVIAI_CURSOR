@@ -14,11 +14,18 @@ interface OnboardingChatInterfaceProps {
   className?: string
 }
 
+interface MessageAction {
+  label: string
+  value: string
+}
+
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  actions?: MessageAction[] // Optional action buttons
+  actionsUsed?: boolean // Track if actions have been used
 }
 
 type Archetype = 'BrickAndMortar' | 'ServiceOnWheels' | 'AppointmentPro' | null
@@ -78,6 +85,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [usedActionMessages, setUsedActionMessages] = useState<Set<string>>(new Set()) // Track messages with used actions
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
     phase: 'website_check',
     subStep: 'has_website',
@@ -1029,7 +1037,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         id: `assistant_${Date.now()}`,
         role: 'assistant',
         content: summary,
-        timestamp: new Date()
+        timestamp: new Date(),
+        actions: [
+          { label: 'Looks Perfect', value: 'CONFIRM' },
+          { label: 'Make Changes', value: 'EDIT' }
+        ]
       }
       setMessages(prev => [...prev, reviewMsg])
     } catch (error: any) {
@@ -3303,7 +3315,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             id: `assistant_${Date.now()}`,
             role: 'assistant',
             content: summary,
-            timestamp: new Date()
+            timestamp: new Date(),
+            actions: [
+              { label: 'Looks Perfect', value: 'CONFIRM' },
+              { label: 'Make Changes', value: 'EDIT' }
+            ]
           }
           setMessages(prev => [...prev, reviewMsg])
           setIsLoading(false)
@@ -3634,7 +3650,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             id: `assistant_${Date.now()}`,
             role: 'assistant',
             content: summary,
-            timestamp: new Date()
+            timestamp: new Date(),
+            actions: [
+              { label: 'Looks Perfect', value: 'CONFIRM' },
+              { label: 'Make Changes', value: 'EDIT' }
+            ]
           }
           setMessages(prev => [...prev, reviewMsg])
           setIsLoading(false)
@@ -3664,7 +3684,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             id: `assistant_${Date.now()}`,
             role: 'assistant',
             content: summary,
-            timestamp: new Date()
+            timestamp: new Date(),
+            actions: [
+              { label: 'Looks Perfect', value: 'CONFIRM' },
+              { label: 'Make Changes', value: 'EDIT' }
+            ]
           }
           setMessages(prev => [...prev, reviewMsg])
           setIsLoading(false)
@@ -4487,7 +4511,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           id: `assistant_${Date.now()}`,
           role: 'assistant',
           content: summary,
-          timestamp: new Date()
+          timestamp: new Date(),
+          actions: [
+            { label: 'Looks Perfect', value: 'CONFIRM' },
+            { label: 'Make Changes', value: 'EDIT' }
+          ]
         }
         setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
@@ -4529,7 +4557,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           id: `assistant_${Date.now()}`,
           role: 'assistant',
           content: summary,
-          timestamp: new Date()
+          timestamp: new Date(),
+          actions: [
+            { label: 'Looks Perfect', value: 'CONFIRM' },
+            { label: 'Make Changes', value: 'EDIT' }
+          ]
         }
         setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
@@ -4572,7 +4604,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           id: `assistant_${Date.now()}`,
           role: 'assistant',
           content: summary,
-          timestamp: new Date()
+          timestamp: new Date(),
+          actions: [
+            { label: 'Looks Perfect', value: 'CONFIRM' },
+            { label: 'Make Changes', value: 'EDIT' }
+          ]
         }
         setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
@@ -4681,7 +4717,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           id: `assistant_${Date.now()}`,
           role: 'assistant',
           content: summary,
-          timestamp: new Date()
+          timestamp: new Date(),
+          actions: [
+            { label: 'Looks Perfect', value: 'CONFIRM' },
+            { label: 'Make Changes', value: 'EDIT' }
+          ]
         }
         setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
@@ -4741,7 +4781,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           id: `assistant_${Date.now()}`,
           role: 'assistant',
           content: summary,
-          timestamp: new Date()
+          timestamp: new Date(),
+          actions: [
+            { label: 'Looks Perfect', value: 'CONFIRM' },
+            { label: 'Make Changes', value: 'EDIT' }
+          ]
         }
         setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
@@ -4774,7 +4818,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           id: `assistant_${Date.now()}`,
           role: 'assistant',
           content: summary,
-          timestamp: new Date()
+          timestamp: new Date(),
+          actions: [
+            { label: 'Looks Perfect', value: 'CONFIRM' },
+            { label: 'Make Changes', value: 'EDIT' }
+          ]
         }
         setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
@@ -4808,7 +4856,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           id: `assistant_${Date.now()}`,
           role: 'assistant',
           content: summary,
-          timestamp: new Date()
+          timestamp: new Date(),
+          actions: [
+            { label: 'Looks Perfect', value: 'CONFIRM' },
+            { label: 'Make Changes', value: 'EDIT' }
+          ]
         }
         setMessages(prev => [...prev, reviewMsg])
         setIsLoading(false)
@@ -4919,6 +4971,37 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     handleSend(inputValue)
   }
 
+  // Handle action button clicks
+  const handleActionClick = async (messageId: string, actionValue: string) => {
+    // Mark this message's actions as used
+    setUsedActionMessages(prev => new Set(prev).add(messageId))
+    
+    // Update the message to hide actions
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, actionsUsed: true } : msg
+    ))
+
+    if (actionValue === 'CONFIRM') {
+      // Simulate CONFIRMATION intent
+      await handleSend('looks perfect')
+    } else if (actionValue === 'EDIT') {
+      // Trigger edit mode
+      const editMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: "No problem! What would you like to update? (e.g., Phone, Address, Email, Business Name, Social Links)",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, editMsg])
+      
+      // Update state to wait for correction
+      setOnboardingState(prev => ({
+        ...prev,
+        subStep: 'correction_pending'
+      }))
+    }
+  }
+
   return (
     <div className={`onboarding-chat flex flex-col h-full ${className}`}>
       {/* Messages Container */}
@@ -4936,6 +5019,30 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               }`}
             >
               <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              
+              {/* Action Buttons - only show for assistant messages with actions that haven't been used */}
+              {message.role === 'assistant' && message.actions && !usedActionMessages.has(message.id) && (
+                <div className="flex flex-wrap gap-3 mt-4">
+                  {message.actions.map((action, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleActionClick(message.id, action.value)}
+                      disabled={isLoading || isComplete}
+                      className={`
+                        px-6 py-2.5 rounded-xl font-medium text-sm transition-all transform hover:scale-105
+                        ${action.value === 'CONFIRM'
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-md hover:shadow-lg'
+                          : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg'
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                      `}
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              
               <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
