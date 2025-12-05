@@ -104,9 +104,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Initialize with website check message
+  // Initialize with website check message (only on mount, not when messages are cleared)
   useEffect(() => {
-    if (messages.length === 0) {
+    if (messages.length === 0 && onboardingState.phase === 'website_check' && onboardingState.subStep === 'has_website') {
       const welcomeMsg: Message = {
         id: 'welcome',
         role: 'assistant',
@@ -115,7 +115,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
       setMessages([welcomeMsg])
     }
-  }, [])
+  }, []) // Only run on mount
 
   // Scroll to bottom
   const scrollToBottom = () => {
