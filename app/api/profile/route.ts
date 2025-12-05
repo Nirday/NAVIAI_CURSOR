@@ -29,31 +29,31 @@ export async function GET() {
       }
     )
 
-    // Verify session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
-    if (sessionError || !session?.user) {
+    // Verify session using getUser() which refreshes the session automatically
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
-    try {
-      const profile = await getProfile(userId)
-      
-      if (!profile) {
-        return NextResponse.json(
-          { error: 'Profile not found' },
-          { status: 404 }
-        )
-      }
-
-      return NextResponse.json({ profile })
-    } catch (error: any) {
-      console.error('Error fetching profile:', error)
+  try {
+    const profile = await getProfile(userId)
+    
+    if (!profile) {
       return NextResponse.json(
-        { error: error?.message || 'Failed to fetch profile' },
-        { status: 500 }
+        { error: 'Profile not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ profile })
+  } catch (error: any) {
+    console.error('Error fetching profile:', error)
+    return NextResponse.json(
+      { error: error?.message || 'Failed to fetch profile' },
+      { status: 500 }
       )
     }
   } catch (error: any) {
@@ -89,14 +89,14 @@ export async function PATCH(req: NextRequest) {
       }
     )
 
-    // Verify session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    // Verify session using getUser() which refreshes the session automatically
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     
-    if (sessionError || !session?.user) {
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     try {
       const updates: PartialBusinessProfile = await req.json()

@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 interface OnboardingChatInterfaceProps {
   userId: string
@@ -1572,9 +1573,19 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 })
                 
                 // Handle 401 errors specifically - might be session issue
-                // But profile was already saved, so proceed with redirect and let middleware handle auth
+                // Refresh session before redirecting
                 if (checkResponse.status === 401) {
-                  console.warn('Session expired or invalid during profile verification, but profile was saved - proceeding with redirect')
+                  console.warn('Session expired or invalid during profile verification, but profile was saved - refreshing session before redirect')
+                  try {
+                    // Force session refresh to ensure cookies are set
+                    await supabase.auth.getUser()
+                    // Wait 1 second to ensure cookie is set
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                  } catch (sessionError) {
+                    console.warn('Session refresh error (non-fatal):', sessionError)
+                    // Continue with redirect anyway
+                  }
+                  
                   const redirectMsg: Message = {
                     id: `assistant_${Date.now()}`,
                     role: 'assistant',
