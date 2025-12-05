@@ -1567,7 +1567,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                     // Small delay to ensure database is ready
                     setTimeout(() => {
                       window.location.href = '/dashboard'
-                    }, 500)
+                    }, 1500)
                     return
                   }
                 }
@@ -4282,7 +4282,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                     // Small delay to ensure database is ready
                     setTimeout(() => {
                       window.location.href = '/dashboard'
-                    }, 500)
+                    }, 1500)
                     return
                   }
                 }
