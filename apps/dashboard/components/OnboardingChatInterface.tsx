@@ -1504,13 +1504,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // 5) Handle CONFIRMATION requests (check BEFORE correction to avoid false positives)
       if (userIntent === 'CONFIRMATION') {
         // If we're in proofread phase, check for missing REQUIRED fields before saving
-        // CRITICAL: Only check for truly required fields (business_name, phone, email, core_services)
-        // Optional fields (owner_name, address, etc.) can be skipped if user confirms
+        // CRITICAL: Only check for truly required fields (business_name, core_services)
+        // Optional fields (owner_name, address, phone, email if not provided) can be skipped if user confirms
         if (phase === 'proofread' && (subStep === 'review' || subStep === 'final_review')) {
-          // Check only for truly required fields (not optional ones like owner_name)
+          // Check only for truly required fields (business_name and core_services)
+          // Phone and email are nice to have but can be empty if user confirms
           const hasRequiredFields = data.identity?.business_name && 
-                                  data.identity?.phone && 
-                                  data.identity?.email &&
                                   data.offering?.core_services?.length
           
           // If required fields are missing, ask for them
@@ -1518,10 +1517,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             let missingFieldMsg = ''
             if (!data.identity?.business_name) {
               missingFieldMsg = "I need your business name to complete the profile. What is the official Business Name?"
-            } else if (!data.identity?.phone) {
-              missingFieldMsg = "I need your phone number. What is the best phone number for clients to reach you?"
-            } else if (!data.identity?.email) {
-              missingFieldMsg = "I need your email address. What is the best email address for clients to reach you?"
             } else if (!data.offering?.core_services?.length) {
               missingFieldMsg = "I need to know your services. What are the top 3 services you offer?"
             }
@@ -1537,7 +1532,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             return
           }
           
-          // All REQUIRED fields are present - proceed with save (optional fields can be empty)
+          // All REQUIRED fields are present - proceed with save (optional fields like owner_name, address can be empty)
           // Set loading state immediately
           setIsLoading(true)
           
