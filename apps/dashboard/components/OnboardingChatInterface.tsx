@@ -1053,11 +1053,25 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       summaryContent += `**Tone:** ${profile.brand?.tone || 'N/A'}\n`
       summaryContent += `**Value Proposition:** ${profile.brand?.uvp || 'N/A'}\n\n`
       
+      if (profile.local_context) {
+        summaryContent += `**Primary City:** ${profile.local_context.primary_city || 'N/A'}\n`
+        if (profile.local_context.service_radius && profile.local_context.service_radius.length > 0) {
+          summaryContent += `**Service Radius:** ${profile.local_context.service_radius.join(', ')}\n`
+        }
+        if (profile.local_context.region) {
+          summaryContent += `**Region:** ${profile.local_context.region}\n`
+        }
+        summaryContent += `\n`
+      }
+      
       if (profile.commercial) {
         summaryContent += `**Pricing Tier:** ${profile.commercial.pricing_tier || 'N/A'}\n`
         summaryContent += `**Friction Score:** ${profile.commercial.friction_score || 'N/A'}\n`
         if (profile.commercial.friction_notes) {
           summaryContent += `**Friction Notes:** ${profile.commercial.friction_notes}\n`
+        }
+        if (profile.commercial.top_3_services && profile.commercial.top_3_services.length > 0) {
+          summaryContent += `**Top Services:** ${profile.commercial.top_3_services.join(', ')}\n`
         }
         summaryContent += `\n`
       }
@@ -1065,8 +1079,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (profile.growth_plan && profile.growth_plan.length > 0) {
         summaryContent += `## 🚀 Your 3-Step Growth Plan:\n\n`
         profile.growth_plan.forEach((step: any) => {
-          summaryContent += `**Step ${step.step}: ${step.action}** (${step.timeline})\n`
+          const actionTitle = step.action_title || step.action || 'N/A'
+          summaryContent += `**Step ${step.step}: ${actionTitle}** (${step.timeline})\n`
           summaryContent += `   Phase: ${step.phase}\n`
+          if (step.description) {
+            summaryContent += `   Description: ${step.description}\n`
+          }
           summaryContent += `   Impact: ${step.impact}\n\n`
         })
       }
@@ -1312,6 +1330,58 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               id: `assistant_${Date.now()}`,
               role: 'assistant',
               content: "That doesn't look like a valid phone number. Please type just the phone number (e.g., 555-123-4567).",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+            setIsLoading(false)
+            return
+          }
+        }
+      }
+
+      // 0.5) QUESTION DETECTION - If profile exists and user asks a question, answer it instead of treating as correction
+      const { deepProfile } = onboardingState
+      const hasProfile = deepProfile !== null && deepProfile !== undefined
+      const isEditing = phase === 'proofread' && (subStep === 'correction_pending' || subStep?.startsWith('correct_'))
+      
+      if (hasProfile && !isEditing && !awaitingCorrectionFor) {
+        // Simple heuristic to detect if user is asking a question about the profile
+        const isQuestion = userMessage.trim().endsWith('?') || /^(what|how|why|can you|tell me|explain|describe)/i.test(userMessage.trim())
+        
+        if (isQuestion) {
+          try {
+            // Call the profile question API endpoint
+            const response = await fetch('/api/chat/profile-question', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                question: userMessage,
+                profileData: deepProfile,
+              }),
+            })
+            
+            if (!response.ok) {
+              throw new Error('Failed to get answer')
+            }
+            
+            const result = await response.json()
+            const answerMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: result.answer || "I'm sorry, I couldn't generate an answer. Please try again.",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, answerMsg])
+            setIsLoading(false)
+            return
+          } catch (error) {
+            console.error('Error answering profile question:', error)
+            const errorMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "I had trouble answering that question. Could you rephrase it?",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, errorMsg])
