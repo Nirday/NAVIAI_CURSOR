@@ -83,6 +83,12 @@ interface OnboardingState {
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
   const router = useRouter()
+  
+  // Initialize Supabase client for client-side use with cookie support
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key'
+  const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
+  
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -1628,7 +1634,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   // Max retries reached - refresh session before redirecting
                   console.warn('Max retries reached, refreshing session before redirect...')
                   try {
-                    await supabase.auth.getUser()
+                    const { error } = await supabase.auth.getUser()
+                    if (error) {
+                      console.warn('Session refresh error:', error)
+                    }
                     await new Promise(resolve => setTimeout(resolve, 1000))
                   } catch (sessionError) {
                     console.warn('Session refresh error (non-fatal):', sessionError)
@@ -4373,7 +4382,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   // Max retries reached - refresh session before redirecting
                   console.warn('Max retries reached, refreshing session before redirect...')
                   try {
-                    await supabase.auth.getUser()
+                    const { error } = await supabase.auth.getUser()
+                    if (error) {
+                      console.warn('Session refresh error:', error)
+                    }
                     await new Promise(resolve => setTimeout(resolve, 1000))
                   } catch (sessionError) {
                     console.warn('Session refresh error (non-fatal):', sessionError)
