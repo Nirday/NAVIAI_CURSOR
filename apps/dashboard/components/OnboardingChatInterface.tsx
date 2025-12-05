@@ -1536,10 +1536,19 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 })
                 
                 // Handle 401 errors specifically - might be session issue
+                // But profile was already saved, so proceed with redirect and let middleware handle auth
                 if (checkResponse.status === 401) {
-                  console.warn('Session expired or invalid during profile verification')
-                  // Redirect to login if unauthorized
-                  window.location.href = '/login'
+                  console.warn('Session expired or invalid during profile verification, but profile was saved - proceeding with redirect')
+                  const redirectMsg: Message = {
+                    id: `assistant_${Date.now()}`,
+                    role: 'assistant',
+                    content: "Redirecting you to your dashboard...",
+                    timestamp: new Date()
+                  }
+                  setMessages(prev => [...prev, redirectMsg])
+                  setTimeout(() => {
+                    window.location.href = '/dashboard'
+                  }, 500)
                   return
                 }
                 
