@@ -4234,7 +4234,30 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             const maxRetries = 3
             const verifyProfile = async () => {
               try {
-                const checkResponse = await fetch('/api/profile')
+                // Include credentials to ensure cookies are sent with the request
+                const checkResponse = await fetch('/api/profile', {
+                  credentials: 'include',
+                  cache: 'no-store'
+                })
+                
+                // Handle 401 errors specifically - might be session issue
+                if (checkResponse.status === 401) {
+                  console.warn('Session expired or invalid during profile verification')
+                  // Don't redirect to login - just redirect to dashboard and let middleware handle it
+                  // The profile was saved, so we should proceed
+                  const redirectMsg: Message = {
+                    id: `assistant_${Date.now()}`,
+                    role: 'assistant',
+                    content: "Redirecting you to your dashboard...",
+                    timestamp: new Date()
+                  }
+                  setMessages(prev => [...prev, redirectMsg])
+                  setTimeout(() => {
+                    window.location.href = '/dashboard'
+                  }, 500)
+                  return
+                }
+                
                 if (checkResponse.ok) {
                   const checkData = await checkResponse.json()
                   if (checkData.profile) {
@@ -4255,7 +4278,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   }
                 }
                 
-                // If profile check fails, retry with limit
+                // If profile check fails (404 or other), retry with limit
                 retryCount++
                 if (retryCount < maxRetries) {
                   console.warn(`Profile not found immediately after save, retrying (${retryCount}/${maxRetries})...`)
