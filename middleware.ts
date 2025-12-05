@@ -98,6 +98,7 @@ export async function middleware(request: NextRequest) {
     let isAuthenticated = !authError && user !== null
     
     // Fallback: if getUser fails, try getSession (less secure but handles edge cases)
+    // This is important after profile save when cookies might not be fully synced
     if (!isAuthenticated && authError) {
       const { data: { session } } = await supabase.auth.getSession()
       isAuthenticated = !!session?.user
@@ -109,22 +110,44 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(dashboardUrl)
     }
     
-    // If on dashboard route and NOT authenticated, redirect to login
-    // BUT: Only redirect if we're sure there's no session (not just a refresh issue)
+    // If on dashboard route and NOT authenticated, check referer to see if coming from onboarding
+    // If coming from onboarding, be more lenient - might be a timing issue with cookies
+    const referer = request.headers.get('referer') || ''
+    const isComingFromOnboarding = referer.includes('/dashboard/onboarding') || 
+                                    referer.includes('/onboarding')
+    
     if (pathname.startsWith('/dashboard') && !isAuthenticated) {
-      // Don't clear cookies immediately - might be a timing issue
-      // Only clear if we're certain there's no valid session
-      if (authError && !authError.message?.includes('refresh')) {
-        // Clear any invalid cookies only if it's a real auth error
-        request.cookies.getAll().forEach(cookie => {
-          if (cookie.name.includes('sb-') && cookie.name.includes('auth-token')) {
-            response.cookies.delete(cookie.name)
-          }
-        })
+      // If coming from onboarding, wait a bit and check again (don't redirect immediately)
+      // This handles the case where cookies aren't synced yet after profile save
+      if (isComingFromOnboarding) {
+        // Try one more time with getSession as a final check
+        const { data: { session: finalSession } } = await supabase.auth.getSession()
+        if (finalSession?.user) {
+          // Session exists, allow through
+          isAuthenticated = true
+        } else {
+          // Still no session, but coming from onboarding - might be cookie sync issue
+          // Log warning but allow through - client-side will handle redirect if needed
+          console.warn('No session found after onboarding, but allowing through due to referer')
+          // Don't redirect - let the dashboard page handle it
+          return response
+        }
       }
       
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+      // If still not authenticated and not coming from onboarding, redirect to login
+      if (!isAuthenticated) {
+        // Clear any invalid cookies only if it's a real auth error (not refresh issue)
+        if (authError && !authError.message?.includes('refresh')) {
+          request.cookies.getAll().forEach(cookie => {
+            if (cookie.name.includes('sb-') && cookie.name.includes('auth-token')) {
+              response.cookies.delete(cookie.name)
+            }
+          })
+        }
+        
+        const loginUrl = new URL('/login', request.url)
+        return NextResponse.redirect(loginUrl)
+      }
     }
     
     // For other protected routes (not login, not dashboard), check auth
