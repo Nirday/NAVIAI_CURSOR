@@ -25,7 +25,7 @@ interface Message {
   content: string
   timestamp: Date
   actions?: MessageAction[] // Optional action buttons
-  actionsUsed?: boolean // Track if actions have been used
+  actionClicked?: string // Track which action was clicked (to hide buttons)
 }
 
 type Archetype = 'BrickAndMortar' | 'ServiceOnWheels' | 'AppointmentPro' | null
@@ -85,7 +85,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [usedActionMessages, setUsedActionMessages] = useState<Set<string>>(new Set()) // Track messages with used actions
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
     phase: 'website_check',
     subStep: 'has_website',
@@ -104,9 +103,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Initialize with website check message (only on mount, not when messages are cleared)
+  // Initialize with website check message
   useEffect(() => {
-    if (messages.length === 0 && onboardingState.phase === 'website_check' && onboardingState.subStep === 'has_website') {
+    if (messages.length === 0) {
       const welcomeMsg: Message = {
         id: 'welcome',
         role: 'assistant',
@@ -115,7 +114,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
       setMessages([welcomeMsg])
     }
-  }, []) // Only run on mount
+  }, [])
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -1069,6 +1068,40 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     }
   }
 
+  // Handle action button clicks
+  const handleActionClick = async (messageId: string, actionValue: string) => {
+    if (isLoading || isComplete) return
+    
+    // Mark the action as clicked to hide the buttons
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId 
+        ? { ...msg, actionClicked: actionValue }
+        : msg
+    ))
+    
+    setIsLoading(true)
+    
+    try {
+      if (actionValue === 'CONFIRM') {
+        // Simulate CONFIRMATION intent
+        await handleSend('looks perfect')
+      } else if (actionValue === 'EDIT') {
+        // Show edit prompt
+        const editMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "No problem! What would you like to update? (e.g., Phone, Email, Address, Business Name)",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, editMsg])
+        setIsLoading(false)
+      }
+    } catch (error) {
+      console.error('Error handling action click:', error)
+      setIsLoading(false)
+    }
+  }
+
   // Handle user message
   const handleSend = async (userMessage: string) => {
     if (!userMessage.trim() || isLoading || isComplete) return
@@ -1484,17 +1517,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           // If there are missing fields, continue asking questions instead of saving
           if (nextField && !nextField.isComplete) {
             // Mark current step as done and move to next missing field
-            // IMPORTANT: Preserve all existing state (data, archetype, fromWebsite, etc.)
-            const stateUpdates: Partial<OnboardingState> = {
-              // Preserve existing data
-              data: data,
-              archetype: archetype,
-              fromWebsite: onboardingState.fromWebsite,
-              lastWebsiteUrl: onboardingState.lastWebsiteUrl,
-              missing_data_report: onboardingState.missing_data_report,
-              scrapedWebsiteData: onboardingState.scrapedWebsiteData,
-              lockedFields: lockedFields
-            }
+            const stateUpdates: Partial<OnboardingState> = {}
             if (nextField.nextSubStep) {
               stateUpdates.subStep = nextField.nextSubStep
             }
@@ -1502,10 +1525,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
             }
             
-            setOnboardingState(prev => ({
-              ...prev,
+            setOnboardingState({
+              ...onboardingState,
               ...stateUpdates
-            }))
+            })
             
             const continueMsg: Message = {
               id: `assistant_${Date.now()}`,
@@ -4018,7 +4041,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             id: `assistant_${Date.now()}`,
             role: 'assistant',
             content: summary,
-            timestamp: new Date()
+            timestamp: new Date(),
+            actions: [
+              { label: 'Looks Perfect', value: 'CONFIRM' },
+              { label: 'Make Changes', value: 'EDIT' }
+            ]
           }
           setMessages(prev => [...prev, proofreadMsg])
           setIsLoading(false)
@@ -4981,37 +5008,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     handleSend(inputValue)
   }
 
-  // Handle action button clicks
-  const handleActionClick = async (messageId: string, actionValue: string) => {
-    // Mark this message's actions as used
-    setUsedActionMessages(prev => new Set(prev).add(messageId))
-    
-    // Update the message to hide actions
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, actionsUsed: true } : msg
-    ))
-
-    if (actionValue === 'CONFIRM') {
-      // Simulate CONFIRMATION intent
-      await handleSend('looks perfect')
-    } else if (actionValue === 'EDIT') {
-      // Trigger edit mode
-      const editMsg: Message = {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content: "No problem! What would you like to update? (e.g., Phone, Address, Email, Business Name, Social Links)",
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, editMsg])
-      
-      // Update state to wait for correction
-      setOnboardingState(prev => ({
-        ...prev,
-        subStep: 'correction_pending'
-      }))
-    }
-  }
-
   return (
     <div className={`onboarding-chat flex flex-col h-full ${className}`}>
       {/* Messages Container */}
@@ -5030,22 +5026,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             >
               <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
               
-              {/* Action Buttons - only show for assistant messages with actions that haven't been used */}
-              {message.role === 'assistant' && message.actions && !usedActionMessages.has(message.id) && (
-                <div className="flex flex-wrap gap-3 mt-4">
-                  {message.actions.map((action, idx) => (
+              {/* Action Buttons - only show for assistant messages with actions that haven't been clicked */}
+              {message.role === 'assistant' && message.actions && !message.actionClicked && (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {message.actions.map((action) => (
                     <button
-                      key={idx}
+                      key={action.value}
                       onClick={() => handleActionClick(message.id, action.value)}
                       disabled={isLoading || isComplete}
-                      className={`
-                        px-6 py-2.5 rounded-xl font-medium text-sm transition-all transform hover:scale-105
-                        ${action.value === 'CONFIRM'
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-md hover:shadow-lg'
-                          : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg'
-                        }
-                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                      `}
+                      className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-sm"
                     >
                       {action.label}
                     </button>
