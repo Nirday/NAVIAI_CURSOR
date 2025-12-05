@@ -94,7 +94,14 @@ export async function middleware(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     // Check if user is authenticated
-    const isAuthenticated = !authError && user !== null
+    // If authError exists but it's just a token refresh issue, try getSession as fallback
+    let isAuthenticated = !authError && user !== null
+    
+    // Fallback: if getUser fails, try getSession (less secure but handles edge cases)
+    if (!isAuthenticated && authError) {
+      const { data: { session } } = await supabase.auth.getSession()
+      isAuthenticated = !!session?.user
+    }
     
     // If on login page and authenticated, redirect to dashboard
     if (pathname === '/login' && isAuthenticated) {
@@ -103,13 +110,18 @@ export async function middleware(request: NextRequest) {
     }
     
     // If on dashboard route and NOT authenticated, redirect to login
+    // BUT: Only redirect if we're sure there's no session (not just a refresh issue)
     if (pathname.startsWith('/dashboard') && !isAuthenticated) {
-      // Clear any invalid cookies
-      request.cookies.getAll().forEach(cookie => {
-        if (cookie.name.includes('sb-') && cookie.name.includes('auth-token')) {
-          response.cookies.delete(cookie.name)
-        }
-      })
+      // Don't clear cookies immediately - might be a timing issue
+      // Only clear if we're certain there's no valid session
+      if (authError && !authError.message?.includes('refresh')) {
+        // Clear any invalid cookies only if it's a real auth error
+        request.cookies.getAll().forEach(cookie => {
+          if (cookie.name.includes('sb-') && cookie.name.includes('auth-token')) {
+            response.cookies.delete(cookie.name)
+          }
+        })
+      }
       
       const loginUrl = new URL('/login', request.url)
       return NextResponse.redirect(loginUrl)
