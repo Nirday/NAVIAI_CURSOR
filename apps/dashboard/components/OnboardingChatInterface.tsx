@@ -1484,7 +1484,17 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           // If there are missing fields, continue asking questions instead of saving
           if (nextField && !nextField.isComplete) {
             // Mark current step as done and move to next missing field
-            const stateUpdates: Partial<OnboardingState> = {}
+            // IMPORTANT: Preserve all existing state (data, archetype, fromWebsite, etc.)
+            const stateUpdates: Partial<OnboardingState> = {
+              // Preserve existing data
+              data: data,
+              archetype: archetype,
+              fromWebsite: onboardingState.fromWebsite,
+              lastWebsiteUrl: onboardingState.lastWebsiteUrl,
+              missing_data_report: onboardingState.missing_data_report,
+              scrapedWebsiteData: onboardingState.scrapedWebsiteData,
+              lockedFields: lockedFields
+            }
             if (nextField.nextSubStep) {
               stateUpdates.subStep = nextField.nextSubStep
             }
@@ -1492,10 +1502,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               stateUpdates.phase = nextField.nextPhase as OnboardingState['phase']
             }
             
-            setOnboardingState({
-              ...onboardingState,
+            setOnboardingState(prev => ({
+              ...prev,
               ...stateUpdates
-            })
+            }))
             
             const continueMsg: Message = {
               id: `assistant_${Date.now()}`,
