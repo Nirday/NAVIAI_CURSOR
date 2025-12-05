@@ -573,22 +573,22 @@ export async function scrapeWebsiteForProfile(url: string): Promise<ScrapedProfi
       console.log('Multi-page fetch failed, trying single-page Cheerio:', message)
       
       // Fall back to single-page scraping
-      try {
-        content = await scrapeWithCheerio(url)
-        extractionMethod = 'cheerio'
-      } catch (cheerioError) {
+    try {
+      content = await scrapeWithCheerio(url)
+      extractionMethod = 'cheerio'
+    } catch (cheerioError) {
         const cheerioMsg = cheerioError instanceof Error ? cheerioError.message : String(cheerioError)
         console.log('Cheerio failed, trying Puppeteer:', cheerioMsg)
-        
-        // Fall back to Puppeteer for dynamic content
-        content = await scrapeWithPuppeteer(url)
-        extractionMethod = 'puppeteer'
-      }
+      
+      // Fall back to Puppeteer for dynamic content
+      content = await scrapeWithPuppeteer(url)
+      extractionMethod = 'puppeteer'
+    }
     }
 
     // Step B: LLM Processing (The Brain) - Uses Universal System Prompt
     const extractionResult = await extractProfileWithAI(content)
-    
+
     // Handle both old format (just PartialBusinessProfile) and new format (with missingDataReport)
     const extractedProfile = (extractionResult as any).transformed || extractionResult
     const missingDataReport = (extractionResult as any).missingDataReport || []

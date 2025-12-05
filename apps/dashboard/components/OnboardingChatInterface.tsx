@@ -79,6 +79,11 @@ interface OnboardingState {
   scrapedWebsiteData?: any // Store original scraped data for suggestions
   lockedFields?: Set<string> // Fields that are verified and should NOT be asked about again
   awaitingCorrectionFor?: 'email' | 'phone' | null // Track when we're waiting for a field value after fallback
+  deepProfile?: {
+    brand: { name: string; archetype: string; tone: string; uvp: string }
+    commercial: { pricing_tier: string; friction_score: string; friction_notes: string }
+    growth_plan: Array<{ step: number; timeline: string; phase: string; action: string; impact: string }>
+  } | null
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -105,7 +110,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     questionRepeatCount: 0,
     scrapedWebsiteData: undefined,
     lockedFields: new Set<string>(),
-    awaitingCorrectionFor: null
+    awaitingCorrectionFor: null,
+    deepProfile: null
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -963,53 +969,54 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
   // Shared helper to perform website scraping and update state
   const scrapeWebsiteAndApply = async (url: string) => {
+    // Normalize URL
+    let normalizedUrl = url.trim()
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = `https://${normalizedUrl}`
+    }
+
     // Show scanning message
     const scanningMsg: Message = {
       id: `assistant_${Date.now()}`,
       role: 'assistant',
-      content: `Jackpot! 🕵️‍♀️ I'm scanning ${url} now...`,
+      content: `Jackpot! 🕵️‍♀️ I'm scanning ${normalizedUrl} now...`,
       timestamp: new Date()
     }
     setMessages(prev => [...prev, scanningMsg])
 
     try {
-      const response = await fetch('/api/onboarding/scrape-website', {
+      // Call the new Deep Profile API
+      const response = await fetch('/api/generate-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url: normalizedUrl })
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        const msg = errorData?.error || 'Failed to scrape website'
+        const msg = errorData?.error || 'Failed to analyze website'
         throw new Error(msg)
       }
 
       const result = await response.json()
-      const scrapedData = result.data
+      const profile = result.profile
 
-      // Fill in data from scraped website (resetting any previous manual data)
+      // Fill in data from deep profile analysis
       const updatedData: Partial<BusinessProfileData> = {
-        archetype: detectArchetype(scrapedData.industry || ''),
+        archetype: detectArchetype(profile.brand?.name || ''),
         identity: {
-          business_name: scrapedData.businessName || '',
-          address_or_area: scrapedData.location
-            ? [scrapedData.location.address, scrapedData.location.city, scrapedData.location.state]
-                .filter(Boolean)
-                .join(', ')
-            : '',
-          phone: scrapedData.contactInfo?.phone || '',
-          email: scrapedData.contactInfo?.email || '',
-          website: url,
-          hours: scrapedData.hours
-            ? scrapedData.hours.map((h: any) => `${h.day}: ${h.open}-${h.close}`).join(', ')
-            : '',
+          business_name: profile.brand?.name || '',
+          address_or_area: '',
+          phone: '',
+          email: '',
+          website: normalizedUrl,
+          hours: '',
           social_links: []
         },
         offering: {
-          core_services: scrapedData.services?.map((s: any) => s.name) || [],
-          target_audience: scrapedData.targetAudience || '',
-          vibe_mission: scrapedData.brandVoice || ''
+          core_services: [],
+          target_audience: profile.brand?.target_audience || '',
+          vibe_mission: `${profile.brand?.tone || ''} - ${profile.brand?.uvp || ''}`
         },
         credibility: {
           owner_name: '',
@@ -1025,7 +1032,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // Jump straight to Proofread phase with website data
+      // Store deep profile data
       setOnboardingState(prev => ({
         phase: 'proofread',
         subStep: 'review',
@@ -1033,16 +1040,43 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         data: updatedData,
         needsVerification: null,
         fromWebsite: true,
-        lastWebsiteUrl: url,
-        missing_data_report: scrapedData.missing_data_report || [],
-        scrapedWebsiteData: scrapedData // Store original scraped data for suggestions
+        lastWebsiteUrl: normalizedUrl,
+        missing_data_report: [],
+        scrapedWebsiteData: profile,
+        deepProfile: profile
       }))
 
-      const summary = formatProofreadSummary(updatedData, true, scrapedData.missing_data_report)
+      // Build summary message with growth plan
+      let summaryContent = `✅ **Deep Analysis Complete!**\n\n`
+      summaryContent += `**Brand:** ${profile.brand?.name || 'Unknown'}\n`
+      summaryContent += `**Archetype:** ${profile.brand?.archetype || 'N/A'}\n`
+      summaryContent += `**Tone:** ${profile.brand?.tone || 'N/A'}\n`
+      summaryContent += `**Value Proposition:** ${profile.brand?.uvp || 'N/A'}\n\n`
+      
+      if (profile.commercial) {
+        summaryContent += `**Pricing Tier:** ${profile.commercial.pricing_tier || 'N/A'}\n`
+        summaryContent += `**Friction Score:** ${profile.commercial.friction_score || 'N/A'}\n`
+        if (profile.commercial.friction_notes) {
+          summaryContent += `**Friction Notes:** ${profile.commercial.friction_notes}\n`
+        }
+        summaryContent += `\n`
+      }
+
+      if (profile.growth_plan && profile.growth_plan.length > 0) {
+        summaryContent += `## 🚀 Your 3-Step Growth Plan:\n\n`
+        profile.growth_plan.forEach((step: any) => {
+          summaryContent += `**Step ${step.step}: ${step.action}** (${step.timeline})\n`
+          summaryContent += `   Phase: ${step.phase}\n`
+          summaryContent += `   Impact: ${step.impact}\n\n`
+        })
+      }
+
+      summaryContent += `\nWould you like to proceed with this profile, or make changes?`
+
       const reviewMsg: Message = {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
-        content: summary,
+        content: summaryContent,
         timestamp: new Date(),
         actions: [
           { label: 'Looks Perfect', value: 'CONFIRM' },
@@ -1051,12 +1085,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
       setMessages(prev => [...prev, reviewMsg])
     } catch (error: any) {
-      console.error('Website scraping failed:', error)
+      console.error('Website analysis failed:', error)
       const errorMsg: Message = {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
         content:
-          `Scraping that link failed: ${error?.message || 'unable to reach the website.'} ` +
+          `Analysis failed: ${error?.message || 'unable to reach the website.'} ` +
           "Do you want to try a different URL, or enter your business details manually?",
         timestamp: new Date()
       }
@@ -1070,7 +1104,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         data: {},
         needsVerification: null,
         fromWebsite: false,
-        lastWebsiteUrl: url
+        lastWebsiteUrl: normalizedUrl
       }))
     }
   }

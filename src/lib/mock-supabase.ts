@@ -176,13 +176,13 @@ class MockSupabaseClient {
         items.forEach(item => {
           const existingIndex = tableData.findIndex((existing: any) => {
             return existing[conflictKey] === item[conflictKey]
-          })
+        })
 
-          if (existingIndex >= 0) {
+        if (existingIndex >= 0) {
             // Update existing item
             tableData[existingIndex] = { ...tableData[existingIndex], ...item }
             processedItems.push(tableData[existingIndex])
-          } else {
+        } else {
             // Insert new item
             // Generate a simple ID if not present
             if (!item.id && !item.user_id && conflictKey === 'id') {
@@ -190,9 +190,9 @@ class MockSupabaseClient {
             }
             tableData.push(item)
             processedItems.push(item)
-          }
+        }
         })
-        
+
         this.data.set(table, tableData)
         
         // Return chainable object that supports .select() and .single() (matching real Supabase API)

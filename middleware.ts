@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = [
     '/login',
     '/api/auth/callback', // All auth callback routes
+    '/api/generate-profile', // Deep profile generation endpoint
   ]
   
   // Check if current path is a public route

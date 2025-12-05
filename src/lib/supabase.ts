@@ -33,15 +33,15 @@ export const supabaseAdmin = useMockData
   : (() => {
       try {
         const client = createClient(
-          supabaseUrl,
+      supabaseUrl,
           serviceRoleKey || 'mock-service-key',
-          {
-            auth: {
-              autoRefreshToken: false,
-              persistSession: false
-            }
-          }
-        )
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
         
         // Verify the client is properly initialized
         if (!client || typeof client.from !== 'function') {

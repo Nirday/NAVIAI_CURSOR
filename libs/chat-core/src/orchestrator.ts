@@ -315,7 +315,7 @@ Respond naturally and helpfully. If you need the new value, ask for it specifica
     return aiResponse || "My apologies for the mistake! Thanks for catching that. What should I change it to?"
   } catch (error) {
     console.error('Error handling user correction:', error)
-    return "My apologies for the mistake! Thanks for catching that. What should I change it to?"
+  return "My apologies for the mistake! Thanks for catching that. What should I change it to?"
   }
 }
 

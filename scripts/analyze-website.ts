@@ -144,7 +144,7 @@ async function analyzeWebsite(url: string) {
   }
 }
 
-async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnalysis> {
+export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnalysis> {
   const startTime = Date.now()
   
   const response = await fetch(url, {

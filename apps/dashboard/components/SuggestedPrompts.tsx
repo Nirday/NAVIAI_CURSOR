@@ -79,15 +79,15 @@ export default function SuggestedPrompts({
       <p className="text-xs text-gray-500 mb-2 font-medium">💡 Quick suggestions:</p>
       <div className="flex flex-wrap gap-2">
         {suggestions.slice(0, 3).map((suggestion) => (
-          <button
-            key={suggestion.id}
-            onClick={() => handleSuggestionClick(suggestion)}
+            <button
+              key={suggestion.id}
+              onClick={() => handleSuggestionClick(suggestion)}
             className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
           >
             {simplifyText(suggestion.text)}
-          </button>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
     </div>
   )
 }

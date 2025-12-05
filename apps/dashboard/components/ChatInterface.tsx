@@ -100,15 +100,15 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
     } else {
       // New message
       userMessage = {
-        messageId: `temp_${Date.now()}`,
-        userId,
-        role: 'user',
-        content: messageText.trim(),
-        timestamp: new Date(),
-        status: 'sending'
-      }
-      setMessages(prev => [...prev, userMessage])
-      setInputValue('')
+      messageId: `temp_${Date.now()}`,
+      userId,
+      role: 'user',
+      content: messageText.trim(),
+      timestamp: new Date(),
+      status: 'sending'
+    }
+    setMessages(prev => [...prev, userMessage])
+    setInputValue('')
     }
 
     setIsLoading(true)
@@ -294,43 +294,43 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div className={`max-w-2xl ${message.role === 'user' ? 'ml-auto' : 'mr-auto'}`}>
-              <div
-                className={`
+            <div
+              className={`
                   px-5 py-4 rounded-3xl relative group shadow-lg
-                  ${message.role === 'user' 
+                ${message.role === 'user' 
                     ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-br-md' 
                     : 'bg-white text-gray-900 border-2 border-purple-100 rounded-bl-md shadow-md'
-                  }
+                }
                   ${message.status === 'error' ? 'border-2 border-red-400' : ''}
                   transform transition-transform hover:scale-[1.02]
-                `}
-              >
+              `}
+            >
                 <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
                   {message.content}
                 </p>
-                
+              
                 {/* Timestamp and actions */}
                 <div className={`flex items-center justify-between mt-2 ${
-                  message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                }`}>
+                message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+              }`}>
                   <span className="text-xs">
-                    {formatTimestamp(message.timestamp)}
+                {formatTimestamp(message.timestamp)}
                   </span>
                   
                   {/* Copy button - always visible on mobile, hover on desktop */}
-                  <button
-                    onClick={() => copyMessage(message.content)}
+              <button
+                onClick={() => copyMessage(message.content)}
                     className={`ml-2 opacity-70 hover:opacity-100 transition-opacity p-1 rounded ${
                       message.role === 'user' 
                         ? 'hover:bg-blue-700' 
                         : 'hover:bg-gray-100'
                     }`}
-                    title="Copy message"
-                  >
+                title="Copy message"
+              >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </button>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
                 </div>
                 
                 {/* Error state with retry button */}
@@ -380,13 +380,13 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
       {error && (
         <div className="px-4 sm:px-6 py-3 bg-red-50 border-t border-red-200">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
-            <p className="text-red-600 text-sm">{error}</p>
-            <button
-              onClick={() => setError(null)}
+          <p className="text-red-600 text-sm">{error}</p>
+          <button
+            onClick={() => setError(null)}
               className="text-red-500 hover:text-red-700 text-sm font-medium underline ml-4"
-            >
-              Dismiss
-            </button>
+          >
+            Dismiss
+          </button>
           </div>
         </div>
       )}
@@ -395,30 +395,30 @@ export default function ChatInterface({ userId, className = '' }: ChatInterfaceP
       <div className="border-t-2 border-purple-200 bg-white/90 backdrop-blur-sm p-4 sm:p-6 shadow-lg">
         <div className="max-w-2xl mx-auto">
           <form onSubmit={handleSubmit} className="flex gap-3">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask me anything about your business... 💬"
-              disabled={isLoading}
+            disabled={isLoading}
               className="flex-1 px-5 py-4 text-base border-2 border-purple-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all shadow-sm"
-            />
-            <button
-              type="submit"
-              disabled={!inputValue.trim() || isLoading}
+          />
+          <button
+            type="submit"
+            disabled={!inputValue.trim() || isLoading}
               className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-2xl hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
-            >
+          >
               Send ✨
-            </button>
-          </form>
-          
+          </button>
+        </form>
+        
           {/* Suggested Prompts - only show if there are messages */}
           {messages.length > 0 && (
-            <SuggestedPrompts
-              userId={userId}
-              onSuggestionClick={handleSuggestionClick}
+        <SuggestedPrompts
+          userId={userId}
+          onSuggestionClick={handleSuggestionClick}
               className="mt-4"
-            />
+        />
           )}
         </div>
       </div>

@@ -10,65 +10,26 @@ const openai = new OpenAI({
 })
 
 // System prompt for Navi AI Business Strategist
-const NAVI_AI_SYSTEM_PROMPT = `You are the "Navi AI" Lead Business Strategist. 
-Your goal is to analyze raw website content and generate a structured "Deep Analytical Business Profile" JSON object.
+const NAVI_AI_SYSTEM_PROMPT = `You are the "Navi AI" Lead Business Strategist.
 
-### INSTRUCTIONS:
-
-1.  **Analyze** the provided website text deeply.
-
-2.  **Infer** missing data (e.g., if no price is shown, infer "High" or "Call-to-Quote" based on visual cues/tone).
-
-3.  **Construct** a strategic growth plan with 3 distinct execution steps.
-
-4.  **Output** strictly valid JSON.
-
-### OUTPUT JSON STRUCTURE:
+Analyze the website text and return a strict JSON object with this structure:
 
 {
   "brand": {
-    "name": "Business Name",
-    "archetype": "The Hero / The Sage / The Caregiver / The Ruler (Pick one & explain why)",
-    "tone": "List 3 adjectives (e.g., Professional, Warm, Urgent)",
-    "uvp": "The one specific promise they make (Unique Value Proposition)",
-    "target_audience": "Specific demographic inference (e.g., 'Affluent Homeowners in [City]')"
+    "name": "String",
+    "archetype": "The Hero / Sage / Caregiver (explain why)",
+    "tone": "String",
+    "uvp": "String"
   },
   "commercial": {
-    "primary_services": ["Service A", "Service B", "Service C"],
-    "pricing_tier": "Budget / Mid-Range / Luxury",
-    "transactional_friction": "Low / Medium / High",
-    "friction_notes": "Why is friction high? (e.g., 'No booking button, phone only')"
-  },
-  "seo_content": {
-    "local_focus": "City or Neighborhoods detected",
-    "sentiment_analysis": "Summary of reviews/trust signals",
-    "keyword_gaps": ["Keyword 1 they miss", "Keyword 2 they miss"]
+    "pricing_tier": "Budget / Mid / Luxury (infer if missing)",
+    "friction_score": "Low / High",
+    "friction_notes": "String"
   },
   "growth_plan": [
-    {
-      "step": 1,
-      "phase": "Immediate Fix",
-      "timeline": "Week 1",
-      "action_title": "Title of the technical/conversion fix",
-      "description": "Specific instruction (e.g., 'Add a Book Now button to header').",
-      "expected_impact": "Why this matters (e.g., 'Increase conversion by 20%')"
-    },
-    {
-      "step": 2,
-      "phase": "Traffic Expansion",
-      "timeline": "Month 1",
-      "action_title": "Title of content strategy",
-      "description": "Specific content idea (e.g., 'Create landing page for [Service] in [City]').",
-      "expected_impact": "Capture [Specific Keyword] traffic"
-    },
-    {
-      "step": 3,
-      "phase": "Scale & Retention",
-      "timeline": "Month 2-3",
-      "action_title": "Title of automation/ad strategy",
-      "description": "Specific campaign idea (e.g., 'Run SMS blast for seasonal offer').",
-      "expected_impact": "Increase Lifetime Value (LTV)"
-    }
+    { "step": 1, "timeline": "Week 1", "phase": "Quick Win", "action": "String", "impact": "String" },
+    { "step": 2, "timeline": "Month 1", "phase": "Traffic", "action": "String", "impact": "String" },
+    { "step": 3, "timeline": "Month 3", "phase": "Scale", "action": "String", "impact": "String" }
   ]
 }`
 
@@ -112,7 +73,7 @@ export async function POST(request: NextRequest) {
     // Step 3: Call OpenAI to generate the business profile
     try {
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
