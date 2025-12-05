@@ -110,32 +110,36 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(dashboardUrl)
     }
     
-    // If on dashboard route and NOT authenticated, check referer to see if coming from onboarding
-    // If coming from onboarding, be more lenient - might be a timing issue with cookies
+    // If on dashboard route and NOT authenticated, check if we have auth cookies
+    // If cookies exist, be more lenient - might be a timing/sync issue
+    const hasAuthCookies = request.cookies.getAll().some(cookie => 
+      cookie.name.includes('sb-') && cookie.name.includes('auth-token')
+    )
+    
+    // Check referer to see if coming from onboarding
     const referer = request.headers.get('referer') || ''
     const isComingFromOnboarding = referer.includes('/dashboard/onboarding') || 
                                     referer.includes('/onboarding')
     
     if (pathname.startsWith('/dashboard') && !isAuthenticated) {
-      // If coming from onboarding, wait a bit and check again (don't redirect immediately)
-      // This handles the case where cookies aren't synced yet after profile save
-      if (isComingFromOnboarding) {
+      // If we have auth cookies OR coming from onboarding, be lenient
+      // This handles cookie sync timing issues after profile save
+      if (hasAuthCookies || isComingFromOnboarding) {
         // Try one more time with getSession as a final check
         const { data: { session: finalSession } } = await supabase.auth.getSession()
         if (finalSession?.user) {
           // Session exists, allow through
           isAuthenticated = true
-        } else {
-          // Still no session, but coming from onboarding - might be cookie sync issue
-          // Log warning but allow through - client-side will handle redirect if needed
-          console.warn('No session found after onboarding, but allowing through due to referer')
-          // Don't redirect - let the dashboard page handle it
+        } else if (hasAuthCookies) {
+          // We have cookies but can't read session - might be timing issue
+          // Allow through and let client-side handle it (don't redirect to login)
+          console.warn('Auth cookies present but session not readable - allowing through (might be timing issue)')
           return response
         }
       }
       
-      // If still not authenticated and not coming from onboarding, redirect to login
-      if (!isAuthenticated) {
+      // If still not authenticated and no cookies/referer, redirect to login
+      if (!isAuthenticated && !hasAuthCookies && !isComingFromOnboarding) {
         // Clear any invalid cookies only if it's a real auth error (not refresh issue)
         if (authError && !authError.message?.includes('refresh')) {
           request.cookies.getAll().forEach(cookie => {
