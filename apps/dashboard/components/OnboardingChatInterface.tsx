@@ -1665,7 +1665,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 } else {
                   // Max retries reached - refresh session before redirecting
                   try {
-                    await supabase.auth.getUser()
+                    const { error } = await supabase.auth.getUser()
+                    if (error) {
+                      console.warn('Session refresh error:', error)
+                    }
                     await new Promise(resolve => setTimeout(resolve, 1000))
                   } catch (sessionError) {
                     console.warn('Session refresh error (non-fatal):', sessionError)
@@ -4413,7 +4416,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 } else {
                   // Max retries reached - refresh session before redirecting
                   try {
-                    await supabase.auth.getUser()
+                    const { error } = await supabase.auth.getUser()
+                    if (error) {
+                      console.warn('Session refresh error:', error)
+                    }
                     await new Promise(resolve => setTimeout(resolve, 1000))
                   } catch (sessionError) {
                     console.warn('Session refresh error (non-fatal):', sessionError)
