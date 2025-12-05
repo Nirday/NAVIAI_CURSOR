@@ -1584,7 +1584,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   console.warn('Session expired or invalid during profile verification, but profile was saved - refreshing session before redirect')
                   try {
                     // Force session refresh to ensure cookies are set
-                    await supabase.auth.getUser()
+                    const { error } = await supabase.auth.getUser()
+                    if (error) {
+                      console.warn('Session refresh error:', error)
+                    }
                     // Wait 1 second to ensure cookie is set
                     await new Promise(resolve => setTimeout(resolve, 1000))
                   } catch (sessionError) {
