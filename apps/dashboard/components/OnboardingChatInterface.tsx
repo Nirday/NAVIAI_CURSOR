@@ -81,8 +81,10 @@ interface OnboardingState {
   awaitingCorrectionFor?: 'email' | 'phone' | null // Track when we're waiting for a field value after fallback
   deepProfile?: {
     brand: { name: string; archetype: string; tone: string; uvp: string }
-    commercial: { pricing_tier: string; friction_score: string; friction_notes: string }
-    growth_plan: Array<{ step: number; timeline: string; phase: string; action: string; impact: string }>
+    contact_info?: { phone: string; email: string; address: string }
+    local_context?: { primary_city: string; service_radius: string[]; region: string }
+    commercial: { pricing_tier: string; friction_score: string; friction_notes?: string; top_3_services?: string[] }
+    growth_plan: Array<{ step: number; timeline: string; phase: string; action?: string; action_title?: string; description?: string; impact: string }>
   } | null
 }
 
@@ -1340,8 +1342,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
 
       // 0.5) QUESTION DETECTION - If profile exists and user asks a question, answer it instead of treating as correction
-      const { deepProfile } = onboardingState
-      const hasProfile = deepProfile !== null && deepProfile !== undefined
+      const profileContext = onboardingState.deepProfile || onboardingState.scrapedWebsiteData
+      const hasProfile = profileContext !== null && profileContext !== undefined
       const isEditing = phase === 'proofread' && (subStep === 'correction_pending' || subStep?.startsWith('correct_'))
       
       if (hasProfile && !isEditing && !awaitingCorrectionFor) {
@@ -1358,7 +1360,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               },
               body: JSON.stringify({
                 question: userMessage,
-                profileData: deepProfile,
+                profileData: profileContext,
               }),
             })
             

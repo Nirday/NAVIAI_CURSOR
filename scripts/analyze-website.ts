@@ -20,6 +20,11 @@ interface BasicSEOAnalysis {
   hasSitemap: boolean
   pageLoadTime: number
   statusCode: number
+  contact_info: {
+    email: string[]
+    phone: string[]
+    address: string[]
+  }
 }
 
 export interface WebsiteScrapeData {
@@ -184,6 +189,47 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
       imagesWithoutAlt++
     }
   })
+
+  // Extract contact info
+  const emailRegex = /[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g
+  const phoneRegex = /(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g
+
+  const emailsFromLinks = $('a[href^="mailto:"]')
+    .map((_, el) => $(el).attr('href')?.replace('mailto:', '').trim() || '')
+    .get()
+
+  const phonesFromLinks = $('a[href^="tel:"]')
+    .map((_, el) => $(el).attr('href')?.replace('tel:', '').trim() || '')
+    .get()
+
+  const emailsFromText = html.match(emailRegex) || []
+  const phonesFromText = html.match(phoneRegex) || []
+
+  // Address extraction: prioritize footer/contact sections and <address> tags
+  const addressBlocks: string[] = []
+  $('address').each((_, el) => {
+    const addr = $(el).text().replace(/\s+/g, ' ').trim()
+    if (addr) addressBlocks.push(addr)
+  })
+
+  const footerText = $('footer').text()
+  const contactSectionText = $('[id*=contact], [class*=contact]').text()
+  const combinedAddressText = `${footerText}\n${contactSectionText}`
+    .split(/\n+/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+
+  combinedAddressText.forEach(line => {
+    if (/address|location/i.test(line)) {
+      addressBlocks.push(line)
+    }
+  })
+
+  const contact_info = {
+    email: Array.from(new Set([...emailsFromLinks, ...emailsFromText].map(e => e.trim()).filter(Boolean))),
+    phone: Array.from(new Set([...phonesFromLinks, ...phonesFromText].map(p => p.trim()).filter(Boolean))),
+    address: Array.from(new Set(addressBlocks.map(addr => addr.trim()).filter(Boolean)))
+  }
   
   // Check robots.txt
   const urlObj = new URL(url)
@@ -219,7 +265,8 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
     hasRobotsTxt,
     hasSitemap,
     pageLoadTime,
-    statusCode
+    statusCode,
+    contact_info
   }
 }
 
