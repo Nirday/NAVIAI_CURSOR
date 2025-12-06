@@ -44,6 +44,7 @@ export interface WebsiteScrapeData {
   hasRobotsTxt: boolean
   hasSitemap: boolean
   rawText: string
+  mainContent: string // Body text, cleaned, limited to 15k chars
   contact_signals: {
     emails: string[]
     phones: string[]
@@ -318,6 +319,8 @@ if (require.main === module) {
  * Scrapes a website and returns comprehensive data for LLM analysis
  * "Sherlock Holmes" extraction logic - hunts for hidden data like a detective
  * This is the main export for use in API routes
+ * 
+ * Returns structured object with contact_signals for deep business analysis
  */
 export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrapeData> {
   const startTime = Date.now()
@@ -339,20 +342,21 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   const html = await response.text()
   const $ = cheerio.load(html)
   
-  // Extract text content (remove scripts, styles, etc.)
+  // Remove scripts, styles, noscript for clean text extraction
   $('script, style, noscript').remove()
-  const text = $('body').text().replace(/\s+/g, ' ').trim()
   
-  // Extract raw text (limited to 10000 chars for AI analysis)
-  const rawText = $('body').text().substring(0, 10000)
-  
-  // Extract meta tags
+  // Extract meta data
   const title = $('title').text().trim() || null
   const metaDescription = $('meta[name="description"]').attr('content') || null
   const metaKeywords = $('meta[name="keywords"]').attr('content') || null
   
-  // Extract headings
+  // Extract H1
   const h1 = $('h1').first().text().trim() || null
+  
+  // Extract main content (body text, cleaned, limited to 15k chars)
+  const mainContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 15000)
+  
+  // Extract headings for context
   const h2s: string[] = []
   $('h2').each((_, el) => {
     const text = $(el).text().trim()
@@ -371,7 +375,6 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     const href = $(el).attr('href')
     if (href) {
       try {
-        // Resolve relative URLs
         const absoluteUrl = new URL(href, url).href
         links.push(absoluteUrl)
       } catch {
@@ -395,13 +398,14 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     }
   })
   
-  // ===== SHERLOCK HOLMES EXTRACTION: Hidden Contacts =====
+  // ===== SHERLOCK HOLMES EXTRACTION: Phone/Email Hunting =====
   
-  // Extract emails from mailto: links (primary method)
+  // Extract emails from mailto: links (DOM search - primary method)
   const emailsFromMailto: string[] = []
   $('a[href^="mailto:"]').each((_, el) => {
     const href = $(el).attr('href')
     if (href) {
+      // Extract raw value from mailto: link
       const email = href.replace(/^mailto:/i, '').split('?')[0].trim()
       if (email && email.includes('@')) {
         emailsFromMailto.push(email.toLowerCase())
@@ -416,12 +420,13 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   // Combine and deduplicate emails
   const allEmails = Array.from(new Set([...emailsFromMailto, ...emailsFromText]))
   
-  // Extract phones from tel: links (primary method)
+  // Extract phones from tel: links (DOM search - primary method)
   const phonesFromTel: string[] = []
   $('a[href^="tel:"]').each((_, el) => {
     const href = $(el).attr('href')
     if (href) {
-      const phone = href.replace(/^tel:/i, '').replace(/[^\d+()-]/g, '').trim()
+      // Extract raw value from tel: link (e.g., tel:+15105550199)
+      const phone = href.replace(/^tel:/i, '').trim()
       if (phone) {
         phonesFromTel.push(phone)
       }
@@ -446,7 +451,7 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     ...phonesFromText
   ]))
   
-  // Extract social media links
+  // Extract social media links (scan all hrefs)
   const socials: string[] = []
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href')
@@ -470,8 +475,8 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     }
   })
   
-  // Extract footer text explicitly for local context analysis
-  const addressText = footerText.trim()
+  // Extract footer text explicitly (where physical addresses usually live)
+  const footerTextCleaned = footerText.replace(/\s+/g, ' ').trim()
   
   // ===== END SHERLOCK HOLMES EXTRACTION =====
   
@@ -499,10 +504,11 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     hasSitemap = false
   }
   
+  // Return structured object for deep business analysis
   return {
     url,
     html,
-    text,
+    text: mainContent, // Keep for backward compatibility
     title,
     metaDescription,
     metaKeywords,
@@ -515,12 +521,13 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     pageLoadTime,
     hasRobotsTxt,
     hasSitemap,
-    rawText,
+    rawText: mainContent, // Main content limited to 15k chars
+    mainContent, // Body text, cleaned, limited to 15k chars
     contact_signals: {
       emails: allEmails,
       phones: allPhones,
       socials,
-      address_text: addressText
+      address_text: footerTextCleaned // Explicit footer text for address analysis
     }
   }
 }

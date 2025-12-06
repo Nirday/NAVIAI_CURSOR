@@ -10,17 +10,18 @@ const openai = new OpenAI({
 })
 
 // System prompt for Navi AI Business Strategist - "Sherlock Holmes" Detective Mode
-const NAVI_AI_SYSTEM_PROMPT = `You are the "Navi AI" Lead Local Business Strategist operating in "Sherlock Holmes" Detective Mode.
+const NAVI_AI_SYSTEM_PROMPT = `You are the "Navi AI" Deep Business Analyst operating in "Sherlock Holmes" Detective Mode.
 
-Your goal is to analyze a website and generate a Hyper-Local Business Profile JSON by DEDUCING location and context like a detective.
+Your goal is to transform from a "Text Summarizer" to a "Deep Business Analyst" by analyzing a website and generating a comprehensive Hyper-Local Business Profile JSON through DETECTIVE INFERENCE.
 
 ### CRITICAL DETECTIVE RULES:
 
-1. **Hyper-Local First:** Always anchor recommendations to the specific city/area you detect (city, county, metro). Prefer precise city names over broad regions.
-
-2. **INFERENCE LOGIC (Detective Mode):**
-   - **Phone Area Code Analysis:** If explicit city names are missing, analyze the Phone Number Area Code to deduce the region:
-     * 415, 628 = San Francisco Bay Area
+1. **You are a Detective:** If explicit City/State is missing in the text, you MUST look at the Area Code in contact_signals.phones to deduce the Service Region.
+   - Extract the area code from phone numbers (e.g., 510, 415, 212)
+   - Map area codes to regions:
+     * 510, 925 = East Bay (Hayward, Oakland, Fremont)
+     * 415, 628 = San Francisco
+     * 408, 650 = South Bay (San Jose, Palo Alto)
      * 212, 646, 917 = New York City
      * 310, 323, 424, 818 = Los Angeles
      * 312, 773, 872 = Chicago
@@ -28,65 +29,77 @@ Your goal is to analyze a website and generate a Hyper-Local Business Profile JS
      * 214, 469, 972 = Dallas
      * 206, 253, 360, 425 = Seattle
      * 305, 786, 954, 561 = South Florida
-     * And other common area codes - use your knowledge to map area codes to regions.
-   - **Contact Signals Priority:** ALWAYS look at the 'contact_signals' JSON field specifically for Phone/Email before saying 'Unknown'. This field contains extracted data from mailto: and tel: links.
-   - **Hyper-Local Landmark Rules:**
-     * If the business mentions "Airport Transfer to SFO/OAK" or "SFO/OAK Airport", the Region is "San Francisco Bay Area"
-     * If mentions "JFK/LGA/EWR", the Region is "New York Metro Area"
-     * If mentions "LAX", the Region is "Los Angeles Area"
-     * Connect these dots - landmarks reveal location even when city names are missing.
-   - **Footer/Address Text Analysis:** The 'address_text' field contains footer content. Parse it for city names, "Serving [City]" patterns, or service area mentions.
+     * Use your knowledge to map other area codes to regions.
 
-3. **Contact Clarity:** 
-   - Prioritize local area codes over 800/toll-free numbers if possible
-   - Pick the best, most business-facing phone/email/address from contact_signals
-   - If address is missing but business is virtual, state "Virtual"
+2. **Contact Signals Analysis:**
+   - ALWAYS analyze the contact_signals object explicitly provided in the context
+   - The contact_signals.phones array contains raw tel: values extracted from the DOM
+   - The contact_signals.emails array contains mailto: values extracted from the DOM
+   - The contact_signals.footer_text contains footer content where physical addresses usually live
+   - NEVER say "Unknown" without first checking contact_signals
 
-4. **Never Say "Unknown":** Use inference before defaulting to "Unknown". Analyze area codes, landmarks, service mentions, and footer text.
+3. **Footer Text Analysis:**
+   - Analyze the footer_text specifically for physical addresses
+   - Look for patterns like "Serving [City]", "Located in [City]", or explicit street addresses
+   - Footer text is explicitly provided in contact_signals.footer_text
 
-### OUTPUT JSON STRUCTURE:
+4. **Brand Archetype Analysis:**
+   - Choose ONE archetype: "The Ruler", "The Caregiver", or "The Hero"
+   - Explain WHY you chose that archetype based on the business's messaging, tone, and services
+
+5. **Commercial Analysis Depth:**
+   - Distinguish between "high_ticket_services" (premium, one-time, high-value) and "volume_services" (recurring, lower-ticket, high-frequency)
+   - Assess "friction_rating" by looking for booking buttons, contact forms, clear CTAs - explain why (e.g., "No booking button" = High friction)
+
+6. **Growth Plan Specificity:**
+   - Step 1: Must be technical/conversion related (e.g., "Add booking button", "Fix mobile responsiveness")
+   - Step 2: Must mention Specific City + Service (e.g., "Create 'Limousine Service in Hayward' landing page")
+   - Step 3: Focus on scale and automation
+
+### OUTPUT JSON STRUCTURE (STRICTLY ENFORCE THIS FORMAT):
 
 {
   "brand": {
     "name": "String",
-    "archetype": "String",
+    "archetype": "The Ruler / Caregiver / Hero (Pick one & Explain why)",
     "tone": "String",
     "uvp": "String"
   },
-  "contact_info": {
-    "phone": "String (Prioritize local area codes over 800 numbers if possible)",
-    "email": "String",
-    "social_links": ["String"],
-    "address_context": "String (Extracted from footer or inferred)"
+  "contact_intelligence": {
+    "phones": ["String (Clean formatting)"],
+    "emails": ["String"],
+    "address_found": "String (or 'Virtual/Hidden')",
+    "social_presence": ["String"]
   },
-  "local_intelligence": {
+  "local_context": {
     "primary_city": "String (e.g. Hayward)",
-    "service_region": "String (e.g. SF Bay Area)",
-    "key_landmarks": ["SFO Airport", "Levi's Stadium"]
+    "inferred_region": "String (e.g. SF Bay Area - based on 510 area code)",
+    "service_radius": ["City A", "City B"]
   },
-  "commercial": {
-    "services": ["Service A", "Service B", "Service C"],
-    "pricing": "String",
-    "friction": "String"
+  "commercial_analysis": {
+    "high_ticket_services": ["Service A", "Service B"],
+    "volume_services": ["Service C"],
+    "pricing_tier": "Budget / Mid / Luxury",
+    "friction_rating": "Low / High (Explain why, e.g., 'No booking button')"
   },
   "growth_plan": [
     {
       "step": 1,
-      "phase": "Quick Win",
+      "phase": "Immediate Fix",
       "timeline": "Week 1",
-      "action": "String",
+      "action": "String (Must be technical/conversion related)",
       "impact": "String"
     },
     {
       "step": 2,
-      "phase": "Local SEO",
+      "phase": "Hyper-Local SEO",
       "timeline": "Month 1",
-      "action": "String",
+      "action": "String (Must mention Specific City + Service)",
       "impact": "String"
     },
     {
       "step": 3,
-      "phase": "Scale",
+      "phase": "Scale & Automation",
       "timeline": "Month 3",
       "action": "String",
       "impact": "String"
@@ -188,7 +201,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * Converts scraped website data into a formatted context string for the LLM
- * Includes "Sherlock Holmes" contact_signals for detective inference
+ * Explicitly passes contact_signals and footer_text for detective inference
  */
 function buildContextString(data: Awaited<ReturnType<typeof scrapeWebsiteForProfile>>): string {
   const parts: string[] = []
@@ -197,7 +210,7 @@ function buildContextString(data: Awaited<ReturnType<typeof scrapeWebsiteForProf
   parts.push(`Status Code: ${data.statusCode}`)
   parts.push(`Page Load Time: ${data.pageLoadTime}ms`)
 
-  // Extract Local Context Zones (Title, Meta Description separately)
+  // Meta Data (Title, Meta Description)
   if (data.title) {
     parts.push(`\nTitle: ${data.title}`)
   }
@@ -222,42 +235,44 @@ function buildContextString(data: Awaited<ReturnType<typeof scrapeWebsiteForProf
     parts.push(`\nSubsection Headings (H3):\n${data.h3s.slice(0, 10).map((h, i) => `  ${i + 1}. ${h}`).join('\n')}`)
   }
 
-  // Include raw text (limited to 10000 chars as per scraper)
-  parts.push(`\nRaw Text Content:\n${data.rawText}`)
+  // Main Content (Body text, cleaned, limited to 15k chars)
+  parts.push(`\nMain Content:\n${data.mainContent || data.rawText || data.text}`)
 
-  // ===== CONTACT SIGNALS (Sherlock Holmes Extraction) =====
-  parts.push(`\n=== CONTACT SIGNALS (Extracted from mailto:/tel: links and patterns) ===`)
+  // ===== CONTACT SIGNALS (Explicitly Passed for Detective Inference) =====
+  parts.push(`\n=== CONTACT SIGNALS (Extracted from DOM: mailto:/tel: links) ===`)
+  parts.push(`\nIMPORTANT: Analyze these signals to infer location via area codes and extract addresses from footer_text.`)
+  
+  // Pass contact_signals as structured JSON for clarity
+  parts.push(`\ncontact_signals: {`)
   
   if (data.contact_signals.emails.length > 0) {
-    parts.push(`\nEmails Found:`)
-    data.contact_signals.emails.forEach((email, i) => {
-      parts.push(`  ${i + 1}. ${email}`)
-    })
+    parts.push(`  "emails": [${data.contact_signals.emails.map(e => `"${e}"`).join(', ')}],`)
   } else {
-    parts.push(`\nEmails Found: None detected`)
+    parts.push(`  "emails": [],`)
   }
 
   if (data.contact_signals.phones.length > 0) {
-    parts.push(`\nPhones Found:`)
-    data.contact_signals.phones.forEach((phone, i) => {
-      parts.push(`  ${i + 1}. ${phone}`)
-    })
+    parts.push(`  "phones": [${data.contact_signals.phones.map(p => `"${p}"`).join(', ')}],`)
+    parts.push(`  // NOTE: Extract area codes from phones to infer region (e.g., 510=East Bay, 415=SF)`)
   } else {
-    parts.push(`\nPhones Found: None detected`)
+    parts.push(`  "phones": [],`)
   }
 
   if (data.contact_signals.socials.length > 0) {
-    parts.push(`\nSocial Media Links:`)
-    data.contact_signals.socials.forEach((social, i) => {
-      parts.push(`  ${i + 1}. ${social}`)
-    })
+    parts.push(`  "socials": [${data.contact_signals.socials.map(s => `"${s}"`).join(', ')}],`)
+  } else {
+    parts.push(`  "socials": [],`)
   }
 
+  // Footer text explicitly passed for address analysis
   if (data.contact_signals.address_text) {
-    parts.push(`\nFooter/Address Text (for local context analysis):`)
-    parts.push(`${data.contact_signals.address_text.substring(0, 2000)}${data.contact_signals.address_text.length > 2000 ? '... [truncated]' : ''}`)
+    parts.push(`  "footer_text": "${data.contact_signals.address_text.substring(0, 2000).replace(/"/g, '\\"')}${data.contact_signals.address_text.length > 2000 ? '... [truncated]' : ''}"`)
+    parts.push(`  // NOTE: Analyze footer_text specifically for physical addresses and "Serving [City]" patterns`)
+  } else {
+    parts.push(`  "footer_text": ""`)
   }
 
+  parts.push(`}`)
   parts.push(`\n=== END CONTACT SIGNALS ===`)
 
   // Include key links (internal and external)
