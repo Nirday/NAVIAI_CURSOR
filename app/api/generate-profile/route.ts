@@ -10,77 +10,106 @@ const openai = new OpenAI({
 })
 
 const SYSTEM_PROMPT = `
-You are the Navi AI Lead Consultant. Analyze the provided website JSON data.
+You are the Navi AI Lead Consultant.
 
-### 1. ARCHETYPE LOGIC MAP (Do NOT Guess)
+Your goal is to generate a "Deep Analytical Business Profile" (The Master Dossier).
 
-Assign the brand archetype based on these strict keywords found in the text:
+### INPUT DATA:
+
+- Website Text, Meta Tags, Tech Stack, Contact Signals.
+
+### YOUR OUTPUT FORMAT (Strict Markdown):
+
+You must output a single JSON object where the \`content\` field contains a beautifully formatted Markdown report following this EXACT structure:
+
+# 📊 Deep Analytical Profile: [Business Name]
+
+## 1. Brand Core & Identity
+
+* **Archetype:** [The Ruler / The Caregiver / The Hero / The Jester / The Everyman] - *Why? [Explanation based on keywords found]*
+
+* **Tone of Voice:** [e.g., Professional, Elite, Urgent, Friendly]
+
+* **Unique Value Proposition (UVP):** [The one distinct promise they make]
+
+* **Target Audience:** [Inferred demographics, e.g., "Affluent Homeowners in [City]"]
+
+## 2. Commercial & Offer Analysis
+
+* **Core Revenue Drivers:**
+
+    1. [Service A]
+
+    2. [Service B]
+
+    3. [Service C]
+
+* **Pricing Tier:** [Budget / Mid-Range / Luxury] - *Inferred from: [Visuals/Text]*
+
+* **Transactional Friction:** [Low / Medium / High]
+
+    * *Notes:* [e.g., "High because there is no 'Book Now' button, only a contact form."]
+
+## 3. SEO & Technical Health
+
+* **Tech Stack:** [e.g., WordPress, Wix, Custom]
+
+* **Local Visibility:**
+
+    * **Primary City:** [City Name - MUST be specific, use area codes or footer text]
+
+    * **Service Radius:** [List of Cities found in footer/text]
+
+* **Missed Opportunities:**
+
+    * [e.g., "Missing Schema Markup"]
+
+    * [e.g., "Copyright Date is 2021 (Outdated)"]
+
+## 4. 🚀 The Growth Engine (3-Step Plan)
+
+### Step 1: The Quick Win (Week 1)
+
+* **Action:** [Specific Technical Fix]
+
+* **Why:** [Impact on Conversion]
+
+### Step 2: Traffic Expansion (Month 1)
+
+* **Action:** [Specific Content Strategy, e.g., "Create Landing Page for [City] + [Service]"]
+
+* **Why:** [Capture high-intent local searchers]
+
+### Step 3: Scale & Retention (Month 3)
+
+* **Action:** [Specific Automation/Ad Campaign]
+
+* **Why:** [Increase Lifetime Value]
+
+---
+
+*End of Report*
+
+### ARCHETYPE LOGIC MAP (Do NOT Guess):
 
 - **"Luxury", "Executive", "Exclusive", "Elite"** -> Archetype: **The Ruler**
-
 - **"Family", "Care", "Health", "Gentle", "Safe"** -> Archetype: **The Caregiver**
-
 - **"Fast", "Fix", "Repair", "Emergency", "Save"** -> Archetype: **The Hero**
-
 - **"Fun", "Party", "Adventure", "Experience"** -> Archetype: **The Jester**
-
 - **"Affordable", "Local", "Community", "Simple"** -> Archetype: **The Everyman**
 
-### 2. LOCATION INFERENCE RULES
+### LOCATION INFERENCE RULES:
 
-1.  **Check Footer:** Look at 'footer_text' for City/State/Zip.
-
-2.  **Check Phones:** Use Area Codes in 'contacts.phones' (e.g., 510=East Bay, 415=SF, 305=Miami).
-
-3.  **Check H1/Title:** Look for "City Name" in the title tag.
+1. **Check Footer:** Look at 'footer_text' for City/State/Zip.
+2. **Check Phones:** Use Area Codes in 'contacts.phones' (e.g., 510=East Bay, 415=SF, 305=Miami).
+3. **Check H1/Title:** Look for "City Name" in the title tag.
 
 *Result:* You MUST output a specific "Primary City" and "Service Region". Do not say "Unknown".
 
-### 3. OUTPUT JSON STRUCTURE
+### OUTPUT JSON STRUCTURE:
 
 {
-  "brand": {
-    "name": "String",
-    "archetype": "String (Selected from Logic Map)",
-    "tone": "String (3 adjectives)",
-    "uvp": "String (The one thing they promise)"
-  },
-  "tech_stack": {
-    "cms": "String (e.g. WordPress, Wix, or Custom)",
-    "health_score": "Number (0-100)",
-    "mobile_optimized": "Boolean"
-  },
-  "local_intelligence": {
-    "primary_city": "String",
-    "service_region": "String",
-    "geo_inference_source": "String (e.g. 'Footer Address' or 'Phone Area Code')"
-  },
-  "growth_plan": [
-    {
-      "step": 1,
-      "phase": "Quick Win",
-      "timeline": "Week 1",
-      "action_title": "String",
-      "description": "String (Be specific: 'Fix the H1 tag to include [City]')",
-      "expected_impact": "String"
-    },
-    {
-      "step": 2,
-      "phase": "Local SEO",
-      "timeline": "Month 1",
-      "action_title": "String",
-      "description": "String (Be specific: 'Create landing page for [Service] in [City]')",
-      "expected_impact": "String"
-    },
-    {
-      "step": 3,
-      "phase": "Scale",
-      "timeline": "Month 3",
-      "action_title": "String",
-      "description": "String",
-      "expected_impact": "String"
-    }
-  ]
+  "content": "[The full Markdown report as described above]"
 }
 `
 
@@ -132,7 +161,7 @@ export async function POST(request: NextRequest) {
           },
           {
             role: 'user',
-            content: `Analyze this website content and generate the Deep Analytical Business Profile JSON:\n\n${contextString}`,
+            content: `Analyze this website content and generate the Deep Analytical Business Profile (Master Dossier) as a JSON object with a 'content' field containing the full Markdown report:\n\n${contextString}`,
           },
         ],
         response_format: { type: 'json_object' },
@@ -146,11 +175,16 @@ export async function POST(request: NextRequest) {
       }
 
       // Parse and validate JSON
-      const profile = JSON.parse(aiContent)
+      const profileResponse = JSON.parse(aiContent)
+      const profileReport = profileResponse.content || aiContent
+
+      // Also parse the profile data for backward compatibility (extract structured data if needed)
+      const profile = profileResponse
 
       return NextResponse.json({
         success: true,
         profile,
+        profile_report: profileReport,
         scrapeMetadata: {
           url: scrapeData.url,
           statusCode: scrapeData.statusCode,

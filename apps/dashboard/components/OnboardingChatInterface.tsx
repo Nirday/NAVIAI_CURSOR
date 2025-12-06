@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
+import ReactMarkdown from 'react-markdown'
 
 interface OnboardingChatInterfaceProps {
   userId: string
@@ -27,6 +28,7 @@ interface Message {
   timestamp: Date
   actions?: MessageAction[] // Optional action buttons
   actionClicked?: string // Track which action was clicked (to hide buttons)
+  isProfileReport?: boolean // Flag to indicate this is a full profile report (markdown)
 }
 
 type Archetype = 'BrickAndMortar' | 'ServiceOnWheels' | 'AppointmentPro' | null
@@ -1002,10 +1004,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       const result = await response.json()
       const profile = result.profile
+      const profileReport = result.profile_report || result.profile?.content
 
-      // Fill in data from deep profile analysis
+      // Fill in data from deep profile analysis (for backward compatibility)
       const updatedData: Partial<BusinessProfileData> = {
-        archetype: detectArchetype(profile.brand?.name || ''),
+        archetype: detectArchetype(profile.brand?.name || profile.content?.match(/# 📊 Deep Analytical Profile: (.+)/)?.[1] || ''),
         identity: {
           business_name: profile.brand?.name || '',
           address_or_area: '',
@@ -1048,56 +1051,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         deepProfile: profile
       }))
 
-      // Build summary message with growth plan
-      let summaryContent = `✅ **Deep Analysis Complete!**\n\n`
-      summaryContent += `**Brand:** ${profile.brand?.name || 'Unknown'}\n`
-      summaryContent += `**Archetype:** ${profile.brand?.archetype || 'N/A'}\n`
-      summaryContent += `**Tone:** ${profile.brand?.tone || 'N/A'}\n`
-      summaryContent += `**Value Proposition:** ${profile.brand?.uvp || 'N/A'}\n\n`
-      
-      if (profile.local_context) {
-        summaryContent += `**Primary City:** ${profile.local_context.primary_city || 'N/A'}\n`
-        if (profile.local_context.service_radius && profile.local_context.service_radius.length > 0) {
-          summaryContent += `**Service Radius:** ${profile.local_context.service_radius.join(', ')}\n`
-        }
-        if (profile.local_context.region) {
-          summaryContent += `**Region:** ${profile.local_context.region}\n`
-        }
-        summaryContent += `\n`
-      }
-      
-      if (profile.commercial) {
-        summaryContent += `**Pricing Tier:** ${profile.commercial.pricing_tier || 'N/A'}\n`
-        summaryContent += `**Friction Score:** ${profile.commercial.friction_score || 'N/A'}\n`
-        if (profile.commercial.friction_notes) {
-          summaryContent += `**Friction Notes:** ${profile.commercial.friction_notes}\n`
-        }
-        if (profile.commercial.top_3_services && profile.commercial.top_3_services.length > 0) {
-          summaryContent += `**Top Services:** ${profile.commercial.top_3_services.join(', ')}\n`
-        }
-        summaryContent += `\n`
-      }
-
-      if (profile.growth_plan && profile.growth_plan.length > 0) {
-        summaryContent += `## 🚀 Your 3-Step Growth Plan:\n\n`
-        profile.growth_plan.forEach((step: any) => {
-          const actionTitle = step.action_title || step.action || 'N/A'
-          summaryContent += `**Step ${step.step}: ${actionTitle}** (${step.timeline})\n`
-          summaryContent += `   Phase: ${step.phase}\n`
-          if (step.description) {
-            summaryContent += `   Description: ${step.description}\n`
-          }
-          summaryContent += `   Impact: ${step.impact}\n\n`
-        })
-      }
-
-      summaryContent += `\nWould you like to proceed with this profile, or make changes?`
+      // Use the full profile report markdown if available, otherwise fall back to summary
+      const reportContent = profileReport || `✅ **Deep Analysis Complete!**\n\nI've analyzed your website and generated a comprehensive business profile.`
 
       const reviewMsg: Message = {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
-        content: summaryContent,
+        content: reportContent,
         timestamp: new Date(),
+        isProfileReport: !!profileReport, // Mark as profile report if we have the markdown
         actions: [
           { label: 'Looks Perfect', value: 'CONFIRM' },
           { label: 'Make Changes', value: 'EDIT' }
@@ -5173,13 +5135,34 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-2xl rounded-3xl px-5 py-4 shadow-lg transform transition-transform hover:scale-[1.02] ${
+              className={`${message.isProfileReport ? 'max-w-5xl w-full' : 'max-w-2xl'} rounded-3xl px-5 py-4 shadow-lg transform transition-transform hover:scale-[1.02] ${
                 message.role === 'user'
                   ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-br-md'
                   : 'bg-white text-gray-800 border-2 border-purple-100 rounded-bl-md'
               }`}
             >
-              <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              {message.isProfileReport ? (
+                <div className="prose prose-sm sm:prose-base max-w-none markdown-report">
+                  <ReactMarkdown
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-6 mt-2 text-gray-900 border-b-2 border-purple-200 pb-2" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-xl font-semibold mt-8 mb-4 text-gray-800" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-6 mb-3 text-gray-700" {...props} />,
+                      p: ({node, ...props}) => <p className="mb-4 text-gray-700 leading-relaxed" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc list-outside mb-4 ml-6 space-y-2 text-gray-700" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal list-outside mb-4 ml-6 space-y-2 text-gray-700" {...props} />,
+                      li: ({node, ...props}) => <li className="ml-2" {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
+                      em: ({node, ...props}) => <em className="italic text-gray-600" {...props} />,
+                      hr: ({node, ...props}) => <hr className="my-6 border-gray-300" {...props} />,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              )}
               
               {/* Action Buttons - only show for assistant messages with actions that haven't been clicked */}
               {message.role === 'assistant' && message.actions && !message.actionClicked && (
