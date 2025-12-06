@@ -51,6 +51,15 @@ export interface WebsiteScrapeData {
     socials: string[]
     address_text: string
   }
+  tech_xray: {
+    schema_found: boolean
+    schema_types: string[]
+    heading_structure: string[]
+    copyright_year: string
+    mobile_viewport: boolean
+    internal_links_count: number
+    external_links_count: number
+  }
 }
 
 async function analyzeWebsite(url: string) {
@@ -342,6 +351,43 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   const html = await response.text()
   const $ = cheerio.load(html)
   
+  // ===== X-RAY MODE: Extract Technical Data Before Removing Scripts =====
+  
+  // Extract JSON-LD Schema (crucial for LocalBusiness SEO)
+  const schemaData: any[] = []
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const schemaText = $(el).html()
+      if (schemaText) {
+        const parsed = JSON.parse(schemaText)
+        schemaData.push(parsed)
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+  })
+  
+  // Extract heading hierarchy (H1-H6 full tree)
+  const headingStructure: string[] = []
+  $('h1, h2, h3, h4, h5, h6').each((_, el) => {
+    const $el = $(el)
+    const tag = $el.prop('tagName')?.toLowerCase() || 'unknown'
+    const text = $el.text().trim()
+    if (text) {
+      headingStructure.push(`${tag}: ${text}`)
+    }
+  })
+  
+  // Extract copyright year from footer (detect staleness)
+  const footerTextForCopyright = $('footer').text()
+  const copyrightMatch = footerTextForCopyright.match(/20[0-9]{2}/)
+  const copyrightYear = copyrightMatch ? copyrightMatch[0] : 'Unknown'
+  
+  // Check mobile viewport (mobile ready check)
+  const mobileViewport = !!$('meta[name="viewport"]').attr('content')
+  
+  // ===== END X-RAY MODE =====
+  
   // Remove scripts, styles, noscript for clean text extraction
   $('script, style, noscript').remove()
   
@@ -369,14 +415,27 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     if (text) h3s.push(text)
   })
   
-  // Extract links
+  // Extract links and categorize (internal vs external - signals Authority vs Leakage)
   const links: string[] = []
+  let internalLinksCount = 0
+  let externalLinksCount = 0
+  const urlObj = new URL(url)
+  const baseHostname = urlObj.hostname
+  
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href')
     if (href) {
       try {
         const absoluteUrl = new URL(href, url).href
         links.push(absoluteUrl)
+        
+        // Categorize as internal or external
+        const linkUrl = new URL(absoluteUrl)
+        if (linkUrl.hostname === baseHostname || linkUrl.hostname === '') {
+          internalLinksCount++
+        } else {
+          externalLinksCount++
+        }
       } catch {
         // Skip invalid URLs
       }
@@ -481,7 +540,6 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   // ===== END SHERLOCK HOLMES EXTRACTION =====
   
   // Check robots.txt and sitemap.xml
-  const urlObj = new URL(url)
   const base = `${urlObj.protocol}//${urlObj.host}`
   
   let hasRobotsTxt = false
@@ -504,7 +562,7 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     hasSitemap = false
   }
   
-  // Return structured object for deep business analysis
+  // Return structured object for "God Mode" deep business analysis
   return {
     url,
     html,
@@ -528,6 +586,15 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
       phones: allPhones,
       socials,
       address_text: footerTextCleaned // Explicit footer text for address analysis
+    },
+    tech_xray: {
+      schema_found: schemaData.length > 0,
+      schema_types: schemaData.map(s => s['@type'] || 'Unknown').filter(Boolean),
+      heading_structure: headingStructure,
+      copyright_year: copyrightYear,
+      mobile_viewport: mobileViewport,
+      internal_links_count: internalLinksCount,
+      external_links_count: externalLinksCount
     }
   }
 }
