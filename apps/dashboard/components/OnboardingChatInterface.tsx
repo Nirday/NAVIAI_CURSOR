@@ -1341,55 +1341,53 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // 0.5) QUESTION DETECTION - If profile exists and user asks a question, answer it instead of treating as correction
+      // 0.5) CONTEXT AWARENESS - If profileData exists, treat ALL messages as questions about the profile
+      // This prevents the chat loop from continuing to ask onboarding questions after profile is generated
       const profileContext = onboardingState.deepProfile || onboardingState.scrapedWebsiteData
       const hasProfile = profileContext !== null && profileContext !== undefined
       const isEditing = phase === 'proofread' && (subStep === 'correction_pending' || subStep?.startsWith('correct_'))
       
+      // CRITICAL: If profile exists and we're not in editing mode, route ALL messages to profile question API
+      // This fixes the chat loop issue where onboarding questions continue after profile generation
       if (hasProfile && !isEditing && !awaitingCorrectionFor) {
-        // Simple heuristic to detect if user is asking a question about the profile
-        const isQuestion = userMessage.trim().endsWith('?') || /^(what|how|why|can you|tell me|explain|describe)/i.test(userMessage.trim())
-        
-        if (isQuestion) {
-          try {
-            // Call the profile question API endpoint
-            const response = await fetch('/api/chat/profile-question', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                question: userMessage,
-                profileData: profileContext,
-              }),
-            })
-            
-            if (!response.ok) {
-              throw new Error('Failed to get answer')
-            }
-            
-            const result = await response.json()
-            const answerMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: result.answer || "I'm sorry, I couldn't generate an answer. Please try again.",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, answerMsg])
-            setIsLoading(false)
-            return
-          } catch (error) {
-            console.error('Error answering profile question:', error)
-            const errorMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "I had trouble answering that question. Could you rephrase it?",
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, errorMsg])
-            setIsLoading(false)
-            return
+        try {
+          // Call the profile question API endpoint with profileData as System Context
+          const response = await fetch('/api/chat/profile-question', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              question: userMessage,
+              profileData: profileContext, // Pass the full profile JSON as context
+            }),
+          })
+          
+          if (!response.ok) {
+            throw new Error('Failed to get answer')
           }
+          
+          const result = await response.json()
+          const answerMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: result.answer || "I'm sorry, I couldn't generate an answer. Please try again.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, answerMsg])
+          setIsLoading(false)
+          return // Exit early - don't continue with onboarding logic
+        } catch (error) {
+          console.error('Error answering profile question:', error)
+          const errorMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "I had trouble answering that question. Could you rephrase it?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, errorMsg])
+          setIsLoading(false)
+          return // Exit early - don't continue with onboarding logic
         }
       }
 

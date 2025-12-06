@@ -14,17 +14,17 @@ interface BasicSEOAnalysis {
   title: string | null
   metaDescription: string | null
   h1: string | null
-  body_text: string
-  technical: {
-    schema: any | null
+  body_content: string
+  technical_signals: {
+    has_schema: boolean
     mobile_friendly: boolean
     copyright_year: string | null
   }
-  contacts: {
+  contact_signals: {
     phones: string[]
     emails: string[]
     socials: string[]
-    address_text: string
+    footer_text: string
   }
 }
 
@@ -101,36 +101,36 @@ async function analyzeWebsite(url: string) {
     }
     
     console.log(`   H1 Tag: ${seoAnalysis.h1 || '❌ MISSING'}`)
-    console.log(`   Body Text Length: ${seoAnalysis.body_text.length} chars`)
+    console.log(`   Body Text Length: ${seoAnalysis.body_content.length} chars`)
     
     // Technical X-Ray Data
     console.log(`\n   🔬 Technical X-Ray:`)
-    console.log(`     Schema: ${seoAnalysis.technical.schema ? '✅ Found' : '❌ Missing'}`)
-    console.log(`     Mobile Friendly: ${seoAnalysis.technical.mobile_friendly ? '✅ Yes' : '❌ No'}`)
-    console.log(`     Copyright Year: ${seoAnalysis.technical.copyright_year || 'Unknown'}`)
+    console.log(`     Schema: ${seoAnalysis.technical_signals.has_schema ? '✅ Found' : '❌ Missing'}`)
+    console.log(`     Mobile Friendly: ${seoAnalysis.technical_signals.mobile_friendly ? '✅ Yes' : '❌ No'}`)
+    console.log(`     Copyright Year: ${seoAnalysis.technical_signals.copyright_year || 'Unknown'}`)
     
     // Contact Signals
     console.log(`\n   📞 Contact Signals:`)
-    console.log(`     Phones: ${seoAnalysis.contacts.phones.length} found`)
-    if (seoAnalysis.contacts.phones.length > 0) {
-      seoAnalysis.contacts.phones.forEach((phone, idx) => {
+    console.log(`     Phones: ${seoAnalysis.contact_signals.phones.length} found`)
+    if (seoAnalysis.contact_signals.phones.length > 0) {
+      seoAnalysis.contact_signals.phones.forEach((phone, idx) => {
         console.log(`       ${idx + 1}. ${phone}`)
       })
     }
-    console.log(`     Emails: ${seoAnalysis.contacts.emails.length} found`)
-    if (seoAnalysis.contacts.emails.length > 0) {
-      seoAnalysis.contacts.emails.forEach((email, idx) => {
+    console.log(`     Emails: ${seoAnalysis.contact_signals.emails.length} found`)
+    if (seoAnalysis.contact_signals.emails.length > 0) {
+      seoAnalysis.contact_signals.emails.forEach((email, idx) => {
         console.log(`       ${idx + 1}. ${email}`)
       })
     }
-    console.log(`     Social Links: ${seoAnalysis.contacts.socials.length} found`)
-    if (seoAnalysis.contacts.socials.length > 0) {
-      seoAnalysis.contacts.socials.forEach((social, idx) => {
+    console.log(`     Social Links: ${seoAnalysis.contact_signals.socials.length} found`)
+    if (seoAnalysis.contact_signals.socials.length > 0) {
+      seoAnalysis.contact_signals.socials.forEach((social, idx) => {
         console.log(`       ${idx + 1}. ${social}`)
       })
     }
-    if (seoAnalysis.contacts.address_text) {
-      console.log(`     Address Text: ${seoAnalysis.contacts.address_text.substring(0, 100)}...`)
+    if (seoAnalysis.contact_signals.footer_text) {
+      console.log(`     Footer Text: ${seoAnalysis.contact_signals.footer_text.substring(0, 100)}...`)
     }
     
     // Step 2: Summary
@@ -152,17 +152,17 @@ async function analyzeWebsite(url: string) {
     
     if (!seoAnalysis.h1) issues.push('Missing H1 tag')
     
-    if (!seoAnalysis.technical.schema) {
+    if (!seoAnalysis.technical_signals.has_schema) {
       issues.push('Missing JSON-LD schema')
       recommendations.push('Add structured data (JSON-LD) to improve SEO and rich snippets')
     }
     
-    if (!seoAnalysis.technical.mobile_friendly) {
+    if (!seoAnalysis.technical_signals.mobile_friendly) {
       issues.push('Missing mobile viewport meta tag')
       recommendations.push('Add viewport meta tag for mobile responsiveness')
     }
     
-    if (seoAnalysis.contacts.phones.length === 0 && seoAnalysis.contacts.emails.length === 0) {
+    if (seoAnalysis.contact_signals.phones.length === 0 && seoAnalysis.contact_signals.emails.length === 0) {
       issues.push('No contact information found')
       recommendations.push('Add phone numbers or email addresses to improve local SEO')
     }
@@ -207,6 +207,8 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
   const html = await response.text()
   const $ = cheerio.load(html)
   
+  // ===== X-RAY MODE: Technical Signal Extraction =====
+  
   // 1. Extract Schema: Find script[type="application/ld+json"] and parse it
   let schemaData: any | null = null
   $('script[type="application/ld+json"]').each((_, el) => {
@@ -227,15 +229,22 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
       // Skip invalid JSON
     }
   })
+  const has_schema = schemaData !== null
   
   // 2. Extract Viewport: Check meta[name="viewport"] to calculate mobile_friendly boolean
   const mobile_friendly = !!$('meta[name="viewport"]').attr('content')
   
-  // 3. Regex Hunting for emails and phones
-  const emailRegex = /[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g
+  // 3. Copyright Check: Regex the footer for 202[0-9] to determine copyright_year
+  const footerText = $('footer').text()
+  const copyrightYear = footerText.match(/202[0-9]/)?.[0] || null
+  
+  // ===== SHERLOCK HOLMES MODE: Contact Signal Hunting =====
+  
+  // Regex patterns for hunting emails and phones in entire HTML
+  const emailRegex = /[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/gi
   const phoneRegex = /(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g
   
-  // Extract emails
+  // Extract emails from mailto: links (DOM search - primary method)
   const emailsFromLinks: string[] = []
   $('a[href^="mailto:"]').each((_, el) => {
     const href = $(el).attr('href')
@@ -246,10 +255,11 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
       }
     }
   })
+  // Also scan entire HTML for email patterns (secondary method)
   const emailsFromText = (html.match(emailRegex) || []).map(e => e.toLowerCase())
   const uniqueEmails = Array.from(new Set([...emailsFromLinks, ...emailsFromText]))
   
-  // Extract phones - specifically check footer and a[href^="tel:"]
+  // Extract phones from tel: links (DOM search - primary method)
   const phonesFromTel: string[] = []
   $('a[href^="tel:"]').each((_, el) => {
     const href = $(el).attr('href')
@@ -261,7 +271,7 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
     }
   })
   
-  const footerText = $('footer').text()
+  // Also scan entire HTML for phone patterns (secondary method)
   const phonesFromFooter = (footerText.match(phoneRegex) || [])
   const phonesFromText = (html.match(phoneRegex) || [])
   const uniquePhones = Array.from(new Set([...phonesFromTel, ...phonesFromFooter, ...phonesFromText]))
@@ -294,34 +304,31 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
     }
   })
   
-  // 4. Copyright Check: Regex the footer for 202[0-9] to determine copyright_year
-  const copyrightYear = footerText.match(/202[0-9]/)?.[0] || null
+  // Extract footer text explicitly (crucial for physical addresses)
+  const footer_text = footerText.replace(/\s+/g, ' ').trim()
   
   // Extract basic SEO elements
   const title = $('title').text().trim() || null
   const metaDescription = $('meta[name="description"]').attr('content') || null
   const h1 = $('h1').first().text().trim() || null
-  const body_text = $('body').text().replace(/\s+/g, ' ').substring(0, 15000)
-  
-  // Extract footer text for address context (limited to 500 chars)
-  const address_text = $('footer').text().substring(0, 500)
+  const body_content = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 15000)
   
   return {
     url,
     title,
     metaDescription,
     h1,
-    body_text,
-    technical: {
-      schema: schemaData || null,
+    body_content,
+    technical_signals: {
+      has_schema,
       mobile_friendly,
       copyright_year: copyrightYear
     },
-    contacts: {
+    contact_signals: {
       phones: uniquePhones,
       emails: uniqueEmails,
       socials: uniqueSocials,
-      address_text
+      footer_text
     }
   }
 }
@@ -338,11 +345,11 @@ function calculateHealthScore(issues: string[], seoAnalysis: BasicSEOAnalysis): 
   
   if (!seoAnalysis.h1) score -= 10
   
-  if (!seoAnalysis.technical.schema) score -= 10
+  if (!seoAnalysis.technical_signals.has_schema) score -= 10
   
-  if (!seoAnalysis.technical.mobile_friendly) score -= 10
+  if (!seoAnalysis.technical_signals.mobile_friendly) score -= 10
   
-  if (seoAnalysis.contacts.phones.length === 0 && seoAnalysis.contacts.emails.length === 0) score -= 10
+  if (seoAnalysis.contact_signals.phones.length === 0 && seoAnalysis.contact_signals.emails.length === 0) score -= 10
   
   return Math.max(0, score)
 }

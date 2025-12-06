@@ -29,12 +29,19 @@ export async function POST(request: NextRequest) {
     }
     
     // Build system prompt with profile context
-    const systemPrompt = `You are a helpful assistant for Navi AI. The user has generated a business profile, and they're asking questions about it.
+    const systemPrompt = `You are a helpful assistant for Navi AI. The user has generated a deep business intelligence profile, and they're asking questions about it.
 
 Here is the generated profile data:
 ${JSON.stringify(profileData, null, 2)}
 
-Answer their question helpfully and concisely based on the profile information. If the question is about something not in the profile, politely let them know.`
+Answer their question helpfully and concisely based on the profile information. You can reference:
+- Brand archetype and reasoning
+- Local intelligence (city, service region, how it was inferred)
+- Technical health score and issues
+- Growth plan steps and recommendations
+- Any other details in the profile
+
+If the question is about something not in the profile, politely let them know. Be specific and reference the actual data from the profile when answering.`
     
     // Call OpenAI to answer the question
     const completion = await openai.chat.completions.create({
