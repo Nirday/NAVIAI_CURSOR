@@ -10,20 +10,21 @@ import * as cheerio from 'cheerio'
 const WEBSITE_URL = 'https://angellimo.com'
 
 interface BasicSEOAnalysis {
+  url: string
   title: string | null
   metaDescription: string | null
   h1: string | null
-  h2Count: number
-  imageCount: number
-  imagesWithoutAlt: number
-  hasRobotsTxt: boolean
-  hasSitemap: boolean
-  pageLoadTime: number
-  statusCode: number
-  contact_info: {
-    email: string[]
-    phone: string[]
-    address: string[]
+  body_text: string
+  technical: {
+    schema: any | null
+    mobile_friendly: boolean
+    copyright_year: string | null
+  }
+  contacts: {
+    phones: string[]
+    emails: string[]
+    socials: string[]
+    address_text: string
   }
 }
 
@@ -74,8 +75,7 @@ async function analyzeWebsite(url: string) {
     const seoAnalysis = await performBasicSEOAnalysis(url)
     
     console.log('\n✅ SEO Analysis Results:')
-    console.log(`   Status Code: ${seoAnalysis.statusCode}`)
-    console.log(`   Page Load Time: ${seoAnalysis.pageLoadTime}ms`)
+    console.log(`   URL: ${seoAnalysis.url}`)
     console.log(`   Title Tag: ${seoAnalysis.title || '❌ MISSING'}`)
     if (seoAnalysis.title) {
       const titleLength = seoAnalysis.title.length
@@ -101,14 +101,37 @@ async function analyzeWebsite(url: string) {
     }
     
     console.log(`   H1 Tag: ${seoAnalysis.h1 || '❌ MISSING'}`)
-    console.log(`   H2 Tags: ${seoAnalysis.h2Count} found`)
-    console.log(`   Images: ${seoAnalysis.imageCount} total, ${seoAnalysis.imagesWithoutAlt} without alt text`)
-    if (seoAnalysis.imagesWithoutAlt > 0) {
-      console.log(`     ⚠️  ${seoAnalysis.imagesWithoutAlt} images missing alt text`)
-    }
+    console.log(`   Body Text Length: ${seoAnalysis.body_text.length} chars`)
     
-    console.log(`   robots.txt: ${seoAnalysis.hasRobotsTxt ? '✅ Found' : '❌ Missing'}`)
-    console.log(`   sitemap.xml: ${seoAnalysis.hasSitemap ? '✅ Found' : '❌ Missing'}`)
+    // Technical X-Ray Data
+    console.log(`\n   🔬 Technical X-Ray:`)
+    console.log(`     Schema: ${seoAnalysis.technical.schema ? '✅ Found' : '❌ Missing'}`)
+    console.log(`     Mobile Friendly: ${seoAnalysis.technical.mobile_friendly ? '✅ Yes' : '❌ No'}`)
+    console.log(`     Copyright Year: ${seoAnalysis.technical.copyright_year || 'Unknown'}`)
+    
+    // Contact Signals
+    console.log(`\n   📞 Contact Signals:`)
+    console.log(`     Phones: ${seoAnalysis.contacts.phones.length} found`)
+    if (seoAnalysis.contacts.phones.length > 0) {
+      seoAnalysis.contacts.phones.forEach((phone, idx) => {
+        console.log(`       ${idx + 1}. ${phone}`)
+      })
+    }
+    console.log(`     Emails: ${seoAnalysis.contacts.emails.length} found`)
+    if (seoAnalysis.contacts.emails.length > 0) {
+      seoAnalysis.contacts.emails.forEach((email, idx) => {
+        console.log(`       ${idx + 1}. ${email}`)
+      })
+    }
+    console.log(`     Social Links: ${seoAnalysis.contacts.socials.length} found`)
+    if (seoAnalysis.contacts.socials.length > 0) {
+      seoAnalysis.contacts.socials.forEach((social, idx) => {
+        console.log(`       ${idx + 1}. ${social}`)
+      })
+    }
+    if (seoAnalysis.contacts.address_text) {
+      console.log(`     Address Text: ${seoAnalysis.contacts.address_text.substring(0, 100)}...`)
+    }
     
     // Step 2: Summary
     console.log('\n\n📊 Analysis Summary...')
@@ -129,16 +152,19 @@ async function analyzeWebsite(url: string) {
     
     if (!seoAnalysis.h1) issues.push('Missing H1 tag')
     
-    if (seoAnalysis.imagesWithoutAlt > 0) issues.push(`${seoAnalysis.imagesWithoutAlt} images missing alt text`)
-    
-    if (!seoAnalysis.hasRobotsTxt) {
-      issues.push('Missing robots.txt')
-      recommendations.push('Create a robots.txt file to guide search engine crawlers')
+    if (!seoAnalysis.technical.schema) {
+      issues.push('Missing JSON-LD schema')
+      recommendations.push('Add structured data (JSON-LD) to improve SEO and rich snippets')
     }
     
-    if (!seoAnalysis.hasSitemap) {
-      issues.push('Missing sitemap.xml')
-      recommendations.push('Create a sitemap.xml file to help search engines discover your pages')
+    if (!seoAnalysis.technical.mobile_friendly) {
+      issues.push('Missing mobile viewport meta tag')
+      recommendations.push('Add viewport meta tag for mobile responsiveness')
+    }
+    
+    if (seoAnalysis.contacts.phones.length === 0 && seoAnalysis.contacts.emails.length === 0) {
+      issues.push('No contact information found')
+      recommendations.push('Add phone numbers or email addresses to improve local SEO')
     }
     
     console.log(`\n📈 Overall Health Score: ${calculateHealthScore(issues, seoAnalysis)}/100`)
@@ -167,8 +193,6 @@ async function analyzeWebsite(url: string) {
 }
 
 export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnalysis> {
-  const startTime = Date.now()
-  
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; NaviAI-Analysis-Bot/1.0; +https://naviai.com/bot)'
@@ -176,114 +200,129 @@ export async function performBasicSEOAnalysis(url: string): Promise<BasicSEOAnal
     signal: AbortSignal.timeout(30000)
   })
   
-  const pageLoadTime = Date.now() - startTime
-  const statusCode = response.status
-  
   if (!response.ok) {
-    throw new Error(`HTTP ${statusCode}: ${response.statusText}`)
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
   
   const html = await response.text()
   const $ = cheerio.load(html)
   
+  // 1. Extract Schema: Find script[type="application/ld+json"] and parse it
+  let schemaData: any | null = null
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const schemaText = $(el).html()
+      if (schemaText) {
+        const parsed = JSON.parse(schemaText)
+        // If multiple schemas, use the first one or combine them
+        if (!schemaData) {
+          schemaData = parsed
+        } else if (Array.isArray(schemaData)) {
+          schemaData.push(parsed)
+        } else {
+          schemaData = [schemaData, parsed]
+        }
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+  })
+  
+  // 2. Extract Viewport: Check meta[name="viewport"] to calculate mobile_friendly boolean
+  const mobile_friendly = !!$('meta[name="viewport"]').attr('content')
+  
+  // 3. Regex Hunting for emails and phones
+  const emailRegex = /[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g
+  const phoneRegex = /(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g
+  
+  // Extract emails
+  const emailsFromLinks: string[] = []
+  $('a[href^="mailto:"]').each((_, el) => {
+    const href = $(el).attr('href')
+    if (href) {
+      const email = href.replace(/^mailto:/i, '').split('?')[0].trim()
+      if (email && email.includes('@')) {
+        emailsFromLinks.push(email.toLowerCase())
+      }
+    }
+  })
+  const emailsFromText = (html.match(emailRegex) || []).map(e => e.toLowerCase())
+  const uniqueEmails = Array.from(new Set([...emailsFromLinks, ...emailsFromText]))
+  
+  // Extract phones - specifically check footer and a[href^="tel:"]
+  const phonesFromTel: string[] = []
+  $('a[href^="tel:"]').each((_, el) => {
+    const href = $(el).attr('href')
+    if (href) {
+      const phone = href.replace(/^tel:/i, '').trim()
+      if (phone) {
+        phonesFromTel.push(phone)
+      }
+    }
+  })
+  
+  const footerText = $('footer').text()
+  const phonesFromFooter = (footerText.match(phoneRegex) || [])
+  const phonesFromText = (html.match(phoneRegex) || [])
+  const uniquePhones = Array.from(new Set([...phonesFromTel, ...phonesFromFooter, ...phonesFromText]))
+  
+  // Extract social media links
+  const uniqueSocials: string[] = []
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href')
+    if (href) {
+      const lowerHref = href.toLowerCase()
+      if (
+        lowerHref.includes('facebook.com') ||
+        lowerHref.includes('instagram.com') ||
+        lowerHref.includes('linkedin.com') ||
+        lowerHref.includes('twitter.com') ||
+        lowerHref.includes('x.com') ||
+        lowerHref.includes('yelp.com') ||
+        lowerHref.includes('tiktok.com') ||
+        lowerHref.includes('youtube.com')
+      ) {
+        try {
+          const absoluteUrl = new URL(href, url).href
+          if (!uniqueSocials.includes(absoluteUrl)) {
+            uniqueSocials.push(absoluteUrl)
+          }
+        } catch {
+          // Skip invalid URLs
+        }
+      }
+    }
+  })
+  
+  // 4. Copyright Check: Regex the footer for 202[0-9] to determine copyright_year
+  const copyrightYear = footerText.match(/202[0-9]/)?.[0] || null
+  
+  // Extract basic SEO elements
   const title = $('title').text().trim() || null
   const metaDescription = $('meta[name="description"]').attr('content') || null
   const h1 = $('h1').first().text().trim() || null
-  const h2Count = $('h2').length
-  const images = $('img').toArray()
-  const imageCount = images.length
+  const body_text = $('body').text().replace(/\s+/g, ' ').substring(0, 15000)
   
-  let imagesWithoutAlt = 0
-  images.forEach((img) => {
-    const $img = $(img)
-    const alt = $img.attr('alt')
-    const src = $img.attr('src') || ''
-    const isDecorative = src.includes('spacer') || src.includes('pixel') || 
-                       (parseInt($img.attr('width') || '0') < 10) ||
-                       (parseInt($img.attr('height') || '0') < 10)
-    
-    if (!isDecorative && (!alt || alt === '')) {
-      imagesWithoutAlt++
-    }
-  })
-
-  // Extract contact info
-  const emailRegex = /[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g
-  const phoneRegex = /(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g
-
-  const emailsFromLinks = $('a[href^="mailto:"]')
-    .map((_, el) => $(el).attr('href')?.replace('mailto:', '').trim() || '')
-    .get()
-
-  const phonesFromLinks = $('a[href^="tel:"]')
-    .map((_, el) => $(el).attr('href')?.replace('tel:', '').trim() || '')
-    .get()
-
-  const emailsFromText = html.match(emailRegex) || []
-  const phonesFromText = html.match(phoneRegex) || []
-
-  // Address extraction: prioritize footer/contact sections and <address> tags
-  const addressBlocks: string[] = []
-  $('address').each((_, el) => {
-    const addr = $(el).text().replace(/\s+/g, ' ').trim()
-    if (addr) addressBlocks.push(addr)
-  })
-
-  const footerText = $('footer').text()
-  const contactSectionText = $('[id*=contact], [class*=contact]').text()
-  const combinedAddressText = `${footerText}\n${contactSectionText}`
-    .split(/\n+/)
-    .map(line => line.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-
-  combinedAddressText.forEach(line => {
-    if (/address|location/i.test(line)) {
-      addressBlocks.push(line)
-    }
-  })
-
-  const contact_info = {
-    email: Array.from(new Set([...emailsFromLinks, ...emailsFromText].map(e => e.trim()).filter(Boolean))),
-    phone: Array.from(new Set([...phonesFromLinks, ...phonesFromText].map(p => p.trim()).filter(Boolean))),
-    address: Array.from(new Set(addressBlocks.map(addr => addr.trim()).filter(Boolean)))
-  }
-  
-  // Check robots.txt
-  const urlObj = new URL(url)
-  const base = `${urlObj.protocol}//${urlObj.host}`
-  let hasRobotsTxt = false
-  try {
-    const robotsResponse = await fetch(`${base}/robots.txt`, {
-      signal: AbortSignal.timeout(5000)
-    })
-    hasRobotsTxt = robotsResponse.ok && robotsResponse.status !== 404
-  } catch {
-    hasRobotsTxt = false
-  }
-  
-  // Check sitemap.xml
-  let hasSitemap = false
-  try {
-    const sitemapResponse = await fetch(`${base}/sitemap.xml`, {
-      signal: AbortSignal.timeout(5000)
-    })
-    hasSitemap = sitemapResponse.ok && sitemapResponse.status !== 404
-  } catch {
-    hasSitemap = false
-  }
+  // Extract footer text for address context (limited to 500 chars)
+  const address_text = $('footer').text().substring(0, 500)
   
   return {
+    url,
     title,
     metaDescription,
     h1,
-    h2Count,
-    imageCount,
-    imagesWithoutAlt,
-    hasRobotsTxt,
-    hasSitemap,
-    pageLoadTime,
-    statusCode,
-    contact_info
+    body_text,
+    technical: {
+      schema: schemaData || null,
+      mobile_friendly,
+      copyright_year: copyrightYear
+    },
+    contacts: {
+      phones: uniquePhones,
+      emails: uniqueEmails,
+      socials: uniqueSocials,
+      address_text
+    }
   }
 }
 
@@ -299,17 +338,11 @@ function calculateHealthScore(issues: string[], seoAnalysis: BasicSEOAnalysis): 
   
   if (!seoAnalysis.h1) score -= 10
   
-  if (seoAnalysis.imagesWithoutAlt > 0) {
-    const altPenalty = Math.min(seoAnalysis.imagesWithoutAlt * 2, 15)
-    score -= altPenalty
-  }
+  if (!seoAnalysis.technical.schema) score -= 10
   
-  if (!seoAnalysis.hasRobotsTxt) score -= 5
-  if (!seoAnalysis.hasSitemap) score -= 5
+  if (!seoAnalysis.technical.mobile_friendly) score -= 10
   
-  // Performance penalty
-  if (seoAnalysis.pageLoadTime > 3000) score -= 10
-  else if (seoAnalysis.pageLoadTime > 2000) score -= 5
+  if (seoAnalysis.contacts.phones.length === 0 && seoAnalysis.contacts.emails.length === 0) score -= 10
   
   return Math.max(0, score)
 }
