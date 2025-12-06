@@ -1004,7 +1004,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       const result = await response.json()
       const profile = result.profile
-      const profileReport = result.profile_report || result.profile?.content
+      // Extract markdown_report from the new API structure (primary field)
+      const profileReport = result.markdown_report || result.profile_report || result.profile?.markdown_report || result.profile?.content
 
       // Fill in data from deep profile analysis (for backward compatibility)
       const updatedData: Partial<BusinessProfileData> = {
@@ -5138,11 +5139,21 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               className={`${message.isProfileReport ? 'max-w-5xl w-full' : 'max-w-2xl'} rounded-3xl px-5 py-4 shadow-lg transform transition-transform hover:scale-[1.02] ${
                 message.role === 'user'
                   ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-br-md'
+                  : message.isProfileReport
+                  ? 'bg-gradient-to-br from-white to-purple-50 text-gray-800 border-2 border-purple-200 rounded-bl-md shadow-xl'
                   : 'bg-white text-gray-800 border-2 border-purple-100 rounded-bl-md'
               }`}
             >
               {message.isProfileReport ? (
                 <div className="prose prose-sm sm:prose-base max-w-none markdown-report">
+                  <div className="mb-4 pb-3 border-b-2 border-purple-200">
+                    <div className="flex items-center gap-2 text-purple-600">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm font-semibold uppercase tracking-wide">Master Dossier</span>
+                    </div>
+                  </div>
                   <ReactMarkdown
                     components={{
                       h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-6 mt-2 text-gray-900 border-b-2 border-purple-200 pb-2" {...props} />,
