@@ -23,92 +23,48 @@ export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData>
   console.log(`🔍 X-Ray Scanning: ${url}`);
   
   try {
+    // 1. ANTI-BLOCKING HEADERS (Crucial Fix)
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Compatible; NaviAI/1.0)' }
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5'
+      },
+      redirect: 'follow'
     });
     
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // 1. Tech Stack Detection
+    // 2. Tech Stack Detection
     let cms = null;
     if (html.includes('wp-content')) cms = 'WordPress';
     else if (html.includes('wix.com')) cms = 'Wix';
     else if (html.includes('shopify.com')) cms = 'Shopify';
     else if (html.includes('squarespace')) cms = 'Squarespace';
 
-    // 2. Regex Extraction - Enhanced phone and email detection
+    // 3. Regex Extraction (The "X-Ray")
     const extract = (regex: RegExp) => [...new Set((html.match(regex) || []))];
-    
-    // Phone patterns: (XXX) XXX-XXXX, XXX-XXX-XXXX, XXX.XXX.XXXX, etc.
-    const phonePatterns = [
-      /(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g,
-      /(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})/g
-    ];
-    const phones: string[] = [];
-    phonePatterns.forEach(pattern => {
-      const matches = html.match(pattern) || [];
-      phones.push(...matches);
-    });
-    
-    // Email pattern
+    // Improved Phone Regex to catch (555) 555-5555 and 555.555.5555
+    const phones = extract(/(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g);
     const emails = extract(/[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g);
 
-    // Also extract from tel: and mailto: links (CRITICAL for contact extraction)
-    const telPhones = $('a[href^="tel:"]').map((i, el) => {
-      const href = $(el).attr('href');
-      return href?.replace(/^tel:/, '').replace(/[^\d]/g, '');
-    }).get().filter(Boolean).map(p => {
-      // Format phone numbers consistently
-      if (p.length === 10) return `(${p.slice(0, 3)}) ${p.slice(3, 6)}-${p.slice(6)}`;
-      if (p.length === 11 && p.startsWith('1')) return `(${p.slice(1, 4)}) ${p.slice(4, 7)}-${p.slice(7)}`;
-      return p;
-    });
-    
-    const mailtoEmails = $('a[href^="mailto:"]').map((i, el) => {
-      const href = $(el).attr('href');
-      return href?.replace(/^mailto:/, '').split('?')[0]; // Remove query params
-    }).get().filter(Boolean);
-    
-    const allPhones = [...new Set([...phones, ...telPhones])].filter(p => p && p.length >= 10);
-    const allEmails = [...new Set([...emails, ...mailtoEmails])].filter(e => e && e.includes('@'));
+    // 4. Social Graph (For Task 17.5)
+    const social_graph = $('a').map((i, el) => $(el).attr('href')).get()
+      .filter(h => h && (h.includes('facebook.com') || h.includes('instagram.com') || h.includes('linkedin.com') || h.includes('twitter.com') || h.includes('x.com')));
 
-    // 3. Social Graph - Extract Facebook/Instagram/LinkedIn/Twitter links (CRITICAL for Task 17.5)
-    const socialLinks: string[] = [];
-    $('a[href]').each((i, el) => {
-      const href = $(el).attr('href');
-      if (!href) return;
-      
-      const normalizedHref = href.toLowerCase();
-      if (
-        normalizedHref.includes('facebook.com') || 
-        normalizedHref.includes('instagram.com') || 
-        normalizedHref.includes('linkedin.com') || 
-        normalizedHref.includes('twitter.com') ||
-        normalizedHref.includes('x.com') ||
-        normalizedHref.includes('youtube.com') ||
-        normalizedHref.includes('tiktok.com')
-      ) {
-        // Resolve relative URLs
-        try {
-          const absoluteUrl = new URL(href, url).href;
-          socialLinks.push(absoluteUrl);
-        } catch {
-          socialLinks.push(href);
-        }
-      }
-    });
-    const social_graph = [...new Set(socialLinks)];
+    // 5. Fallback Data (If site blocks title)
+    const domain = new URL(url).hostname.replace('www.', '');
+    const title = $('title').text().trim() || domain;
 
     return {
       url,
-      title: $('title').text().trim(),
+      title,
       metaDescription: $('meta[name="description"]').attr('content') || '',
-      h1: $('h1').first().text().trim(),
+      h1: $('h1').first().text().trim() || title, // Fallback to title if H1 missing
       body_content: $('body').text().replace(/\s+/g, ' ').substring(0, 15000),
-      footer_text: $('footer').text().replace(/\s+/g, ' ').trim() || 
-                   $('[class*="footer"], [id*="footer"]').text().replace(/\s+/g, ' ').trim(), // Fallback to footer-like elements
+      footer_text: $('footer').text().replace(/\s+/g, ' ').trim(),
       technical: {
         cms,
         has_schema: !!$('script[type="application/ld+json"]').length,
@@ -116,8 +72,8 @@ export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData>
       },
       social_graph: [...new Set(social_graph)],
       contacts: { 
-        phones: allPhones, 
-        emails: allEmails 
+        phones: [...new Set(phones)], 
+        emails: [...new Set(emails)] 
       }
     };
   } catch (error) {
