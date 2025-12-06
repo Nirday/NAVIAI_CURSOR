@@ -38,27 +38,68 @@ export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData>
     else if (html.includes('shopify.com')) cms = 'Shopify';
     else if (html.includes('squarespace')) cms = 'Squarespace';
 
-    // 2. Regex Extraction
+    // 2. Regex Extraction - Enhanced phone and email detection
     const extract = (regex: RegExp) => [...new Set((html.match(regex) || []))];
-    const phones = extract(/(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g);
+    
+    // Phone patterns: (XXX) XXX-XXXX, XXX-XXX-XXXX, XXX.XXX.XXXX, etc.
+    const phonePatterns = [
+      /(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g,
+      /(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})/g
+    ];
+    const phones: string[] = [];
+    phonePatterns.forEach(pattern => {
+      const matches = html.match(pattern) || [];
+      phones.push(...matches);
+    });
+    
+    // Email pattern
     const emails = extract(/[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g);
 
-    // Also extract from tel: and mailto: links
-    const telPhones = $('a[href^="tel:"]').map((i, el) => $(el).attr('href')?.replace('tel:', '')).get().filter(Boolean);
-    const mailtoEmails = $('a[href^="mailto:"]').map((i, el) => $(el).attr('href')?.replace('mailto:', '')).get().filter(Boolean);
+    // Also extract from tel: and mailto: links (CRITICAL for contact extraction)
+    const telPhones = $('a[href^="tel:"]').map((i, el) => {
+      const href = $(el).attr('href');
+      return href?.replace(/^tel:/, '').replace(/[^\d]/g, '');
+    }).get().filter(Boolean).map(p => {
+      // Format phone numbers consistently
+      if (p.length === 10) return `(${p.slice(0, 3)}) ${p.slice(3, 6)}-${p.slice(6)}`;
+      if (p.length === 11 && p.startsWith('1')) return `(${p.slice(1, 4)}) ${p.slice(4, 7)}-${p.slice(7)}`;
+      return p;
+    });
     
-    const allPhones = [...new Set([...phones, ...telPhones])];
-    const allEmails = [...new Set([...emails, ...mailtoEmails])];
+    const mailtoEmails = $('a[href^="mailto:"]').map((i, el) => {
+      const href = $(el).attr('href');
+      return href?.replace(/^mailto:/, '').split('?')[0]; // Remove query params
+    }).get().filter(Boolean);
+    
+    const allPhones = [...new Set([...phones, ...telPhones])].filter(p => p && p.length >= 10);
+    const allEmails = [...new Set([...emails, ...mailtoEmails])].filter(e => e && e.includes('@'));
 
-    // 3. Social Graph - Extract Facebook/Instagram/LinkedIn/Twitter links
-    const social_graph = $('a').map((i, el) => $(el).attr('href')).get()
-      .filter(h => h && (
-        h.includes('facebook') || 
-        h.includes('instagram') || 
-        h.includes('linkedin') || 
-        h.includes('twitter') ||
-        h.includes('x.com')
-      ));
+    // 3. Social Graph - Extract Facebook/Instagram/LinkedIn/Twitter links (CRITICAL for Task 17.5)
+    const socialLinks: string[] = [];
+    $('a[href]').each((i, el) => {
+      const href = $(el).attr('href');
+      if (!href) return;
+      
+      const normalizedHref = href.toLowerCase();
+      if (
+        normalizedHref.includes('facebook.com') || 
+        normalizedHref.includes('instagram.com') || 
+        normalizedHref.includes('linkedin.com') || 
+        normalizedHref.includes('twitter.com') ||
+        normalizedHref.includes('x.com') ||
+        normalizedHref.includes('youtube.com') ||
+        normalizedHref.includes('tiktok.com')
+      ) {
+        // Resolve relative URLs
+        try {
+          const absoluteUrl = new URL(href, url).href;
+          socialLinks.push(absoluteUrl);
+        } catch {
+          socialLinks.push(href);
+        }
+      }
+    });
+    const social_graph = [...new Set(socialLinks)];
 
     return {
       url,
@@ -66,7 +107,8 @@ export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData>
       metaDescription: $('meta[name="description"]').attr('content') || '',
       h1: $('h1').first().text().trim(),
       body_content: $('body').text().replace(/\s+/g, ' ').substring(0, 15000),
-      footer_text: $('footer').text().replace(/\s+/g, ' ').trim(),
+      footer_text: $('footer').text().replace(/\s+/g, ' ').trim() || 
+                   $('[class*="footer"], [id*="footer"]').text().replace(/\s+/g, ' ').trim(), // Fallback to footer-like elements
       technical: {
         cms,
         has_schema: !!$('script[type="application/ld+json"]').length,

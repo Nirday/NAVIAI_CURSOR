@@ -1012,10 +1012,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       const result = await response.json()
       const profile = result.profile
       
-      // Extract module_config (the new "Operating System" structure)
+      // PART 3: Extract module_config (the new "Operating System" structure)
+      // This is the Source of Truth for Website Builder (17.2), Blog Engine (17.3), and Social Scheduler (17.5)
       const moduleConfig = result.module_config || profile?.module_config || null
       
-      // Extract markdown_report from the new API structure (primary field)
+      // PART 3: Extract markdown_report (the human-readable Deep Analytical Dossier for Task 17.1)
+      // This is displayed to the user in the chat interface
       const profileReport = result.markdown_report || result.profile_report || result.profile?.markdown_report || result.profile?.content
 
       // Fill in data from deep profile analysis (for backward compatibility)
@@ -1051,7 +1053,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // Store deep profile data AND module_config (for future use in Website/Blog tabs)
+      // PART 3: Store deep profile data AND module_config (for future use in Website/Blog tabs)
+      // The module_config serves as the "Source of Truth" for initializing:
+      // - Website Builder (Task 17.2): hero_headline, subheadline, services_list, colors
+      // - Blog Engine (Task 17.3): content_pillars, local_keywords
+      // - Social Scheduler (Task 17.5): social_graph from scraped data
       setOnboardingState(prev => ({
         phase: 'proofread',
         subStep: 'review',
@@ -1063,10 +1069,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         missing_data_report: [],
         scrapedWebsiteData: profile,
         deepProfile: profile,
-        module_config: moduleConfig // Store for Website Builder, Blog Engine, Social Scheduler
+        module_config: moduleConfig // CRITICAL: Store for Website Builder, Blog Engine, Social Scheduler
       }))
 
-      // 1. Render the Human-Readable Report
+      // PART 3: Render the Human-Readable Report (Task 17.1 - Deep Markdown Dossier)
+      // Display the markdown_report as a formatted chat message
       const reportContent = profileReport || `✅ **Deep Analysis Complete!**\n\nI've analyzed your website and generated a comprehensive business profile.`
 
       const reviewMsg: Message = {
@@ -1074,7 +1081,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         role: 'assistant',
         content: reportContent,
         timestamp: new Date(),
-        isProfileReport: !!profileReport, // Mark as profile report if we have the markdown
+        isProfileReport: !!profileReport, // Mark as profile report to enable markdown rendering
         actions: [
           { label: 'Looks Perfect', value: 'CONFIRM' },
           { label: 'Make Changes', value: 'EDIT' }
@@ -1082,12 +1089,17 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
       setMessages(prev => [...prev, reviewMsg])
       
-      // 2. Hydrate the OS (Future-proofing)
+      // PART 3: Hydrate the OS (Operating System Brain)
       // The module_config is now stored in onboardingState.module_config
+      // Access it later via: onboardingState.module_config
       // This data will be used when the user clicks "Website" or "Content" tabs
       if (moduleConfig) {
-        console.log('✅ Module Config Stored:', moduleConfig)
-        // Future: You can persist this to database or pass to Website/Blog components
+        console.log('✅ Module Config Stored (Source of Truth):', moduleConfig)
+        console.log('  - Brand:', moduleConfig.brand)
+        console.log('  - Website Builder:', moduleConfig.website_builder)
+        console.log('  - Blog Engine:', moduleConfig.blog_engine)
+        console.log('  - CRM Data:', moduleConfig.crm_data)
+        // TODO: Optionally persist module_config to database for cross-session access
       }
     } catch (error: any) {
       console.error('Website analysis failed:', error)
