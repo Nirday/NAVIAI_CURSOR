@@ -88,6 +88,12 @@ interface OnboardingState {
     commercial: { pricing_tier: string; friction_score: string; friction_notes?: string; top_3_services?: string[] }
     growth_plan: Array<{ step: number; timeline: string; phase: string; action?: string; action_title?: string; description?: string; impact: string }>
   } | null
+  module_config?: {
+    brand: { name: string; archetype: string; colors: string[] }
+    website_builder: { hero_headline: string; subheadline: string; services_list: string[] }
+    blog_engine: { content_pillars: string[]; local_keywords: string[] }
+    crm_data: { email: string; phone: string; address: string }
+  } | null
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -115,7 +121,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     scrapedWebsiteData: undefined,
     lockedFields: new Set<string>(),
     awaitingCorrectionFor: null,
-    deepProfile: null
+    deepProfile: null,
+    module_config: null
   })
   const [isComplete, setIsComplete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -1004,25 +1011,31 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
       const result = await response.json()
       const profile = result.profile
+      
+      // Extract module_config (the new "Operating System" structure)
+      const moduleConfig = result.module_config || profile?.module_config || null
+      
       // Extract markdown_report from the new API structure (primary field)
       const profileReport = result.markdown_report || result.profile_report || result.profile?.markdown_report || result.profile?.content
 
       // Fill in data from deep profile analysis (for backward compatibility)
+      // Use module_config if available, otherwise fall back to profile structure
+      const brandName = moduleConfig?.brand?.name || profile?.brand?.name || profile?.content?.match(/# 📊 Deep Analytical (?:Profile|Dossier): (.+)/)?.[1] || ''
       const updatedData: Partial<BusinessProfileData> = {
-        archetype: detectArchetype(profile.brand?.name || profile.content?.match(/# 📊 Deep Analytical Profile: (.+)/)?.[1] || ''),
+        archetype: detectArchetype(brandName),
         identity: {
-          business_name: profile.brand?.name || '',
-          address_or_area: '',
-          phone: '',
-          email: '',
+          business_name: brandName,
+          address_or_area: moduleConfig?.crm_data?.address || '',
+          phone: moduleConfig?.crm_data?.phone || '',
+          email: moduleConfig?.crm_data?.email || '',
           website: normalizedUrl,
           hours: '',
           social_links: []
         },
         offering: {
-          core_services: [],
-          target_audience: profile.brand?.target_audience || '',
-          vibe_mission: `${profile.brand?.tone || ''} - ${profile.brand?.uvp || ''}`
+          core_services: moduleConfig?.website_builder?.services_list || [],
+          target_audience: profile?.brand?.target_audience || '',
+          vibe_mission: `${profile?.brand?.tone || ''} - ${profile?.brand?.uvp || moduleConfig?.brand?.archetype || ''}`
         },
         credibility: {
           owner_name: '',
@@ -1038,7 +1051,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // Store deep profile data
+      // Store deep profile data AND module_config (for future use in Website/Blog tabs)
       setOnboardingState(prev => ({
         phase: 'proofread',
         subStep: 'review',
@@ -1049,10 +1062,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         lastWebsiteUrl: normalizedUrl,
         missing_data_report: [],
         scrapedWebsiteData: profile,
-        deepProfile: profile
+        deepProfile: profile,
+        module_config: moduleConfig // Store for Website Builder, Blog Engine, Social Scheduler
       }))
 
-      // Use the full profile report markdown if available, otherwise fall back to summary
+      // 1. Render the Human-Readable Report
       const reportContent = profileReport || `✅ **Deep Analysis Complete!**\n\nI've analyzed your website and generated a comprehensive business profile.`
 
       const reviewMsg: Message = {
@@ -1067,6 +1081,14 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         ]
       }
       setMessages(prev => [...prev, reviewMsg])
+      
+      // 2. Hydrate the OS (Future-proofing)
+      // The module_config is now stored in onboardingState.module_config
+      // This data will be used when the user clicks "Website" or "Content" tabs
+      if (moduleConfig) {
+        console.log('✅ Module Config Stored:', moduleConfig)
+        // Future: You can persist this to database or pass to Website/Blog components
+      }
     } catch (error: any) {
       console.error('Website analysis failed:', error)
       const errorMsg: Message = {

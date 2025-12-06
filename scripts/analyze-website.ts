@@ -8,74 +8,78 @@ export interface ScrapedData {
   body_content: string;
   footer_text: string;
   technical: {
-    cms: string | null;
-    has_schema: boolean;
+    cms: string | null; // 'WordPress', 'Squarespace', etc.
+    has_schema: boolean; // For Task 17.4
     mobile_viewport: boolean;
   };
+  social_graph: string[]; // For Task 17.5 - Facebook/Instagram/LinkedIn/Twitter links
   contacts: {
     phones: string[];
     emails: string[];
-    socials: string[];
   };
 }
 
 export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData> {
-  console.log(`🔍 Deep Scanning: ${url}`);
+  console.log(`🔍 X-Ray Scanning: ${url}`);
   
   try {
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+      headers: { 'User-Agent': 'Mozilla/5.0 (Compatible; NaviAI/1.0)' }
     });
     
-    if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+    if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // 1. CMS Detection (The "Tech Stack" Hunter)
+    // 1. Tech Stack Detection
     let cms = null;
     if (html.includes('wp-content')) cms = 'WordPress';
-    else if (html.includes('shopify.com')) cms = 'Shopify';
     else if (html.includes('wix.com')) cms = 'Wix';
+    else if (html.includes('shopify.com')) cms = 'Shopify';
     else if (html.includes('squarespace')) cms = 'Squarespace';
 
-    // 2. Extraction Helpers
-    const unique = (arr: string[]) => [...new Set(arr)];
-    const extractRegex = (regex: RegExp) => (html.match(regex) || []);
+    // 2. Regex Extraction
+    const extract = (regex: RegExp) => [...new Set((html.match(regex) || []))];
+    const phones = extract(/(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g);
+    const emails = extract(/[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g);
 
-    // 3. Contact Hunting
-    const phones = unique([
-      ...extractRegex(/(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g),
-      ...$('a[href^="tel:"]').map((i, el) => $(el).attr('href')?.replace('tel:', '')).get()
-    ]);
+    // Also extract from tel: and mailto: links
+    const telPhones = $('a[href^="tel:"]').map((i, el) => $(el).attr('href')?.replace('tel:', '')).get().filter(Boolean);
+    const mailtoEmails = $('a[href^="mailto:"]').map((i, el) => $(el).attr('href')?.replace('mailto:', '')).get().filter(Boolean);
+    
+    const allPhones = [...new Set([...phones, ...telPhones])];
+    const allEmails = [...new Set([...emails, ...mailtoEmails])];
 
-    const emails = unique([
-      ...extractRegex(/[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g),
-      ...$('a[href^="mailto:"]').map((i, el) => $(el).attr('href')?.replace('mailto:', '')).get()
-    ]);
+    // 3. Social Graph - Extract Facebook/Instagram/LinkedIn/Twitter links
+    const social_graph = $('a').map((i, el) => $(el).attr('href')).get()
+      .filter(h => h && (
+        h.includes('facebook') || 
+        h.includes('instagram') || 
+        h.includes('linkedin') || 
+        h.includes('twitter') ||
+        h.includes('x.com')
+      ));
 
-    // 4. Return Structured Data
     return {
       url,
       title: $('title').text().trim(),
       metaDescription: $('meta[name="description"]').attr('content') || '',
       h1: $('h1').first().text().trim(),
       body_content: $('body').text().replace(/\s+/g, ' ').substring(0, 15000),
-      footer_text: $('footer').text().replace(/\s+/g, ' ').trim(), // Crucial for address
+      footer_text: $('footer').text().replace(/\s+/g, ' ').trim(),
       technical: {
         cms,
         has_schema: !!$('script[type="application/ld+json"]').length,
         mobile_viewport: !!$('meta[name="viewport"]').length
       },
-      contacts: {
-        phones,
-        emails,
-        socials: $('a').map((i, el) => $(el).attr('href')).get().filter(href => href && (href.includes('facebook') || href.includes('instagram') || href.includes('linkedin')))
+      social_graph: [...new Set(social_graph)],
+      contacts: { 
+        phones: allPhones, 
+        emails: allEmails 
       }
     };
   } catch (error) {
-    console.error('Scraper Error:', error);
+    console.error('X-Ray Failed:', error);
     throw error;
   }
 }
@@ -271,7 +275,7 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     contact_signals: {
       emails: scraped.contacts.emails,
       phones: scraped.contacts.phones,
-      socials: scraped.contacts.socials,
+      socials: scraped.social_graph, // Use social_graph from new structure
       address_text: scraped.footer_text
     },
     tech_xray: {
