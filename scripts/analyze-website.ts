@@ -43,6 +43,13 @@ export interface WebsiteScrapeData {
   pageLoadTime: number
   hasRobotsTxt: boolean
   hasSitemap: boolean
+  rawText: string
+  contact_signals: {
+    emails: string[]
+    phones: string[]
+    socials: string[]
+    address_text: string
+  }
 }
 
 async function analyzeWebsite(url: string) {
@@ -309,6 +316,7 @@ if (require.main === module) {
 
 /**
  * Scrapes a website and returns comprehensive data for LLM analysis
+ * "Sherlock Holmes" extraction logic - hunts for hidden data like a detective
  * This is the main export for use in API routes
  */
 export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrapeData> {
@@ -334,6 +342,9 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   // Extract text content (remove scripts, styles, etc.)
   $('script, style, noscript').remove()
   const text = $('body').text().replace(/\s+/g, ' ').trim()
+  
+  // Extract raw text (limited to 10000 chars for AI analysis)
+  const rawText = $('body').text().substring(0, 10000)
   
   // Extract meta tags
   const title = $('title').text().trim() || null
@@ -384,6 +395,86 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     }
   })
   
+  // ===== SHERLOCK HOLMES EXTRACTION: Hidden Contacts =====
+  
+  // Extract emails from mailto: links (primary method)
+  const emailsFromMailto: string[] = []
+  $('a[href^="mailto:"]').each((_, el) => {
+    const href = $(el).attr('href')
+    if (href) {
+      const email = href.replace(/^mailto:/i, '').split('?')[0].trim()
+      if (email && email.includes('@')) {
+        emailsFromMailto.push(email.toLowerCase())
+      }
+    }
+  })
+  
+  // Extract emails from text using regex (secondary method)
+  const emailRegex = /[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/gi
+  const emailsFromText = (html.match(emailRegex) || []).map(e => e.toLowerCase())
+  
+  // Combine and deduplicate emails
+  const allEmails = Array.from(new Set([...emailsFromMailto, ...emailsFromText]))
+  
+  // Extract phones from tel: links (primary method)
+  const phonesFromTel: string[] = []
+  $('a[href^="tel:"]').each((_, el) => {
+    const href = $(el).attr('href')
+    if (href) {
+      const phone = href.replace(/^tel:/i, '').replace(/[^\d+()-]/g, '').trim()
+      if (phone) {
+        phonesFromTel.push(phone)
+      }
+    }
+  })
+  
+  // Extract phones from header and footer specifically (secondary method)
+  const headerText = $('header').text()
+  const footerText = $('footer').text()
+  const phoneRegex = /(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})/g
+  const phonesFromHeader = (headerText.match(phoneRegex) || [])
+  const phonesFromFooter = (footerText.match(phoneRegex) || [])
+  
+  // Also check general text for phone patterns
+  const phonesFromText = (html.match(phoneRegex) || [])
+  
+  // Combine and deduplicate phones
+  const allPhones = Array.from(new Set([
+    ...phonesFromTel,
+    ...phonesFromHeader,
+    ...phonesFromFooter,
+    ...phonesFromText
+  ]))
+  
+  // Extract social media links
+  const socials: string[] = []
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href')
+    if (href) {
+      const lowerHref = href.toLowerCase()
+      if (
+        lowerHref.includes('facebook.com') ||
+        lowerHref.includes('instagram.com') ||
+        lowerHref.includes('linkedin.com') ||
+        lowerHref.includes('yelp.com')
+      ) {
+        try {
+          const absoluteUrl = new URL(href, url).href
+          if (!socials.includes(absoluteUrl)) {
+            socials.push(absoluteUrl)
+          }
+        } catch {
+          // Skip invalid URLs
+        }
+      }
+    }
+  })
+  
+  // Extract footer text explicitly for local context analysis
+  const addressText = footerText.trim()
+  
+  // ===== END SHERLOCK HOLMES EXTRACTION =====
+  
   // Check robots.txt and sitemap.xml
   const urlObj = new URL(url)
   const base = `${urlObj.protocol}//${urlObj.host}`
@@ -423,7 +514,14 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     statusCode,
     pageLoadTime,
     hasRobotsTxt,
-    hasSitemap
+    hasSitemap,
+    rawText,
+    contact_signals: {
+      emails: allEmails,
+      phones: allPhones,
+      socials,
+      address_text: addressText
+    }
   }
 }
 
