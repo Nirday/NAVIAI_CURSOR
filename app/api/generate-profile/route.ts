@@ -9,108 +9,80 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-// System prompt for Navi AI - "Sherlock Holmes" Deep Business Intelligence Engine
-const NAVI_AI_SYSTEM_PROMPT = `You are Navi AI, a "Sherlock Holmes" Deep Business Intelligence Engine.
+const SYSTEM_PROMPT = `
+You are the Navi AI Lead Consultant. Analyze the provided website JSON data.
 
-You do not just summarize websites; you perform deep inference using technical_signals and contact_signals to deduce facts that aren't explicitly stated.
+### 1. ARCHETYPE LOGIC MAP (Do NOT Guess)
 
-### INFERENCE LOGIC (SHERLOCK HOLMES MODE):
+Assign the brand archetype based on these strict keywords found in the text:
 
-You must use the provided technical_signals and contact_signals to make intelligent deductions:
+- **"Luxury", "Executive", "Exclusive", "Elite"** -> Archetype: **The Ruler**
 
-1. **Location Inference (Hyper-Local Context):**
-   - If no city is mentioned in the text, analyze Area Codes in contact_signals.phones to infer service_region
-   - Area Code Mapping:
-     * 510, 925 = East Bay (Hayward, Oakland, Fremont, Bay Area)
-     * 415, 628 = San Francisco
-     * 408, 650 = South Bay (San Jose, Palo Alto, Bay Area)
-     * 212, 646, 917 = New York City
-     * 310, 323, 424, 818 = Los Angeles
-     * 312, 773, 872 = Chicago
-     * 404, 470, 678, 770 = Atlanta
-     * 214, 469, 972 = Dallas
-     * 206, 253, 360, 425 = Seattle
-     * 305, 786, 954, 561 = South Florida
-     * Use your knowledge to map other area codes to regions
-   - Check contact_signals.footer_text for physical addresses or "Serving [City]" patterns
-   - Set geo_inference_source to explain how you deduced the location (e.g., "Phone Area Code", "Footer Address")
+- **"Family", "Care", "Health", "Gentle", "Safe"** -> Archetype: **The Caregiver**
 
-2. **Friction Scoring (Technical Health):**
-   - If technical_signals.mobile_friendly is FALSE → High Friction (deduct points from score)
-   - If contact_signals.phones is EMPTY → High Friction (deduct points from score)
-   - If technical_signals.has_schema is FALSE → Mention in Growth Plan as "Technical Fix"
-   - Calculate technical_health.score (0-100) based on:
-     * Missing Schema: -15 points
-     * Not Mobile-Ready: -20 points
-     * No Contact Info: -15 points
-     * Outdated Copyright: -10 points (if copyright_year < current year - 2)
-     * Missing H1: -10 points
+- **"Fast", "Fix", "Repair", "Emergency", "Save"** -> Archetype: **The Hero**
 
-3. **Strict Brand Archetypes:**
-   - You MUST classify the brand as ONE of these 7 archetypes ONLY:
-     * The Ruler (power, control, leadership, premium)
-     * The Caregiver (compassion, service, nurturing, helpful)
-     * The Hero (courage, achievement, overcoming challenges)
-     * The Jester (fun, humor, entertainment, lighthearted)
-     * The Everyman (reliability, down-to-earth, accessible)
-     * The Sage (wisdom, expertise, knowledge, guidance)
-     * The Magician (transformation, innovation, making the impossible possible)
-   - Explain WHY you chose this archetype based on tone, messaging, and brand positioning
-   - archetype_reasoning must be specific (e.g., "The Caregiver - messaging emphasizes 'we're here for you', compassionate tone, service-focused")
+- **"Fun", "Party", "Adventure", "Experience"** -> Archetype: **The Jester**
 
-### OUTPUT JSON STRUCTURE (STRICTLY ENFORCE THIS FORMAT):
+- **"Affordable", "Local", "Community", "Simple"** -> Archetype: **The Everyman**
+
+### 2. LOCATION INFERENCE RULES
+
+1.  **Check Footer:** Look at 'footer_text' for City/State/Zip.
+
+2.  **Check Phones:** Use Area Codes in 'contacts.phones' (e.g., 510=East Bay, 415=SF, 305=Miami).
+
+3.  **Check H1/Title:** Look for "City Name" in the title tag.
+
+*Result:* You MUST output a specific "Primary City" and "Service Region". Do not say "Unknown".
+
+### 3. OUTPUT JSON STRUCTURE
 
 {
   "brand": {
-    "name": "String (Business name from title or H1)",
-    "archetype": "String (ONE of: The Ruler, The Caregiver, The Hero, The Jester, The Everyman, The Sage, The Magician)",
-    "archetype_reasoning": "String (Explain WHY this archetype based on tone and messaging)",
-    "tone": "String (e.g., Professional, Friendly, Authoritative, Playful)",
-    "uvp": "String (Unique Value Proposition - what makes them different)"
+    "name": "String",
+    "archetype": "String (Selected from Logic Map)",
+    "tone": "String (3 adjectives)",
+    "uvp": "String (The one thing they promise)"
+  },
+  "tech_stack": {
+    "cms": "String (e.g. WordPress, Wix, or Custom)",
+    "health_score": "Number (0-100)",
+    "mobile_optimized": "Boolean"
   },
   "local_intelligence": {
-    "primary_city": "String (e.g., 'Hayward' or 'San Francisco')",
-    "service_region": "String (e.g., 'SF Bay Area' or 'East Bay' - inferred from Area Code if needed)",
-    "geo_inference_source": "String (e.g., 'Footer Address' or 'Phone Area Code 510' or 'Explicit Text')"
-  },
-  "technical_health": {
-    "score": "Number (0-100, calculated based on friction points)",
-    "mobile_optimized": "Boolean (from technical_signals.mobile_friendly)",
-    "schema_detected": "Boolean (from technical_signals.has_schema)"
+    "primary_city": "String",
+    "service_region": "String",
+    "geo_inference_source": "String (e.g. 'Footer Address' or 'Phone Area Code')"
   },
   "growth_plan": [
     {
       "step": 1,
-      "phase": "Quick Win (Technical)",
+      "phase": "Quick Win",
       "timeline": "Week 1",
-      "action": "String (e.g., 'Add JSON-LD Schema' or 'Add Mobile Viewport Meta Tag')",
-      "impact": "String (e.g., 'Improves SEO visibility and rich snippets in search results')"
+      "action_title": "String",
+      "description": "String (Be specific: 'Fix the H1 tag to include [City]')",
+      "expected_impact": "String"
     },
     {
       "step": 2,
-      "phase": "Local Traffic",
+      "phase": "Local SEO",
       "timeline": "Month 1",
-      "action": "String (e.g., 'Create Landing Page for [City]' or 'Add Local Business Schema')",
-      "impact": "String (e.g., 'Captures hyper-local search traffic for [City] + [Service] queries')"
+      "action_title": "String",
+      "description": "String (Be specific: 'Create landing page for [Service] in [City]')",
+      "expected_impact": "String"
     },
     {
       "step": 3,
       "phase": "Scale",
       "timeline": "Month 3",
-      "action": "String (e.g., 'Launch Google Ads Campaign' or 'Build Review Collection System')",
-      "impact": "String (e.g., 'Scales revenue through paid acquisition and social proof')"
+      "action_title": "String",
+      "description": "String",
+      "expected_impact": "String"
     }
   ]
 }
-
-### CRITICAL RULES:
-
-- Use technical_signals.has_schema, technical_signals.mobile_friendly, technical_signals.copyright_year for technical_health
-- Use contact_signals.phones to infer location via area codes if city is not explicit
-- Use contact_signals.footer_text to find physical addresses
-- If contact_signals.phones is empty, mark as High Friction in growth_plan
-- If technical_signals.has_schema is false, include "Add JSON-LD Schema" in growth_plan step 1
-- Be specific and actionable in growth_plan actions`
+`
 
 export async function POST(request: NextRequest) {
   try {
@@ -156,7 +128,7 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: NAVI_AI_SYSTEM_PROMPT,
+            content: SYSTEM_PROMPT,
           },
           {
             role: 'user',
@@ -244,26 +216,24 @@ function buildContextString(data: Awaited<ReturnType<typeof scrapeWebsiteForProf
   parts.push(`\nMain Content:\n${data.mainContent || data.rawText || data.text}`)
 
   // ===== CONTACT SIGNALS (Explicitly Passed for Detective Inference) =====
-  parts.push(`\n=== CONTACT SIGNALS (Extracted from DOM: mailto:/tel: links and HTML regex) ===`)
+  parts.push(`\n=== CONTACTS (Extracted from DOM: mailto:/tel: links and HTML regex) ===`)
   parts.push(`\nIMPORTANT: Use these signals to infer location via area codes and extract addresses from footer_text.`)
   
-  // Pass contact_signals as structured JSON for clarity
-  parts.push(`\ncontact_signals: {`)
+  // Pass contacts as structured JSON for clarity (matching new SYSTEM_PROMPT format)
+  parts.push(`\ncontacts: {`)
   
   if (data.contact_signals.emails.length > 0) {
     parts.push(`  "emails": [${data.contact_signals.emails.map(e => `"${e}"`).join(', ')}],`)
   } else {
     parts.push(`  "emails": [],`)
-    parts.push(`  // WARNING: No emails found - High Friction (deduct points from technical_health.score)`)
   }
 
   if (data.contact_signals.phones.length > 0) {
     parts.push(`  "phones": [${data.contact_signals.phones.map(p => `"${p}"`).join(', ')}],`)
-    parts.push(`  // CRITICAL: Extract area codes from phones to infer service_region (e.g., 510=East Bay, 415=SF, 212=NYC)`)
+    parts.push(`  // CRITICAL: Extract area codes from phones to infer service_region (e.g., 510=East Bay, 415=SF, 305=Miami)`)
     parts.push(`  // If no city is mentioned in text, use area code mapping to set local_intelligence.service_region`)
   } else {
     parts.push(`  "phones": [],`)
-    parts.push(`  // WARNING: No phones found - High Friction (deduct points from technical_health.score)`)
   }
 
   if (data.contact_signals.socials.length > 0) {
@@ -272,50 +242,30 @@ function buildContextString(data: Awaited<ReturnType<typeof scrapeWebsiteForProf
     parts.push(`  "socials": [],`)
   }
 
+  parts.push(`}`)
+  
   // Footer text explicitly passed for address analysis
   const footerText = data.contact_signals.address_text || ''
   if (footerText) {
-    parts.push(`  "footer_text": "${footerText.substring(0, 2000).replace(/"/g, '\\"')}${footerText.length > 2000 ? '... [truncated]' : ''}"`)
-    parts.push(`  // CRITICAL: Analyze footer_text for physical addresses and "Serving [City]" patterns`)
-    parts.push(`  // Use this to set local_intelligence.primary_city and geo_inference_source`)
+    parts.push(`\nfooter_text: "${footerText.substring(0, 2000).replace(/"/g, '\\"')}${footerText.length > 2000 ? '... [truncated]' : ''}"`)
+    parts.push(`// CRITICAL: Analyze footer_text for physical addresses and "Serving [City]" patterns`)
+    parts.push(`// Use this to set local_intelligence.primary_city and geo_inference_source`)
   } else {
-    parts.push(`  "footer_text": ""`)
+    parts.push(`\nfooter_text: ""`)
   }
-
-  parts.push(`}`)
-  parts.push(`\n=== END CONTACT SIGNALS ===`)
-
-  // ===== TECHNICAL SIGNALS (For Friction Scoring and Technical Health) =====
-  parts.push(`\n=== TECHNICAL SIGNALS (For Technical Health Score Calculation) ===`)
-  parts.push(`\nIMPORTANT: Use these signals to calculate technical_health.score (0-100) and identify friction points.`)
   
-  parts.push(`\ntechnical_signals: {`)
+  parts.push(`\n=== END CONTACTS ===`)
+
+  // ===== TECHNICAL SIGNALS (For Tech Stack and Health Score) =====
+  parts.push(`\n=== TECHNICAL (For Tech Stack and Health Score Calculation) ===`)
+  parts.push(`\nIMPORTANT: Use these signals to populate tech_stack and calculate health_score (0-100).`)
+  
+  parts.push(`\ntechnical: {`)
+  parts.push(`  "cms": ${data.tech_xray.cms ? `"${data.tech_xray.cms}"` : 'null'},`)
   parts.push(`  "has_schema": ${data.tech_xray.schema_found},`)
-  if (!data.tech_xray.schema_found) {
-    parts.push(`  // WARNING: Missing Schema - deduct 15 points from score, include "Add JSON-LD Schema" in growth_plan step 1`)
-  }
-  
-  parts.push(`  "mobile_friendly": ${data.tech_xray.mobile_viewport},`)
-  if (!data.tech_xray.mobile_viewport) {
-    parts.push(`  // CRITICAL: Not mobile-ready - deduct 20 points from score, High Friction`)
-  }
-  
-  parts.push(`  "copyright_year": "${data.tech_xray.copyright_year}",`)
-  const currentYear = new Date().getFullYear()
-  const copyrightYearNum = parseInt(data.tech_xray.copyright_year)
-  if (copyrightYearNum && copyrightYearNum < currentYear - 2) {
-    parts.push(`  // WARNING: Copyright year is outdated (${data.tech_xray.copyright_year}) - deduct 10 points, signals neglect/staleness`)
-  }
-  
-  // Check for H1
-  const hasH1 = !!data.h1
-  parts.push(`  "has_h1": ${hasH1},`)
-  if (!hasH1) {
-    parts.push(`  // WARNING: Missing H1 - deduct 10 points from score`)
-  }
-  
+  parts.push(`  "mobile_viewport": ${data.tech_xray.mobile_viewport}`)
   parts.push(`}`)
-  parts.push(`\n=== END TECHNICAL SIGNALS ===`)
+  parts.push(`\n=== END TECHNICAL ===`)
   
   // Additional context for heading structure
   if (data.tech_xray.heading_structure.length > 0) {
