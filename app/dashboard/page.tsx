@@ -107,7 +107,7 @@ export default function DashboardPage() {
     return (
       <div className="h-full flex flex-col relative">
         {/* Colorful header with waves */}
-        <div className="relative bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white px-8 py-10 rounded-b-3xl shadow-xl overflow-hidden">
+        <div className="relative bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white px-8 py-6 rounded-b-3xl shadow-xl overflow-hidden">
           {/* Animated waves */}
           <div className="absolute bottom-0 left-0 right-0">
             <svg className="w-full h-12" viewBox="0 0 1200 120" preserveAspectRatio="none">
@@ -117,9 +117,9 @@ export default function DashboardPage() {
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-3">
               <div className="text-5xl animate-bounce" style={{ animationDuration: '2s' }}>👋</div>
-              <h1 className="text-4xl font-bold">Hey there!</h1>
+              <h1 className="text-2xl font-bold">Hey there!</h1>
             </div>
-            <p className="text-white/90 text-lg max-w-2xl">
+            <p className="text-white/90 text-sm max-w-2xl">
               I'm Navi, your friendly AI assistant! Let's chat for a bit so I can learn about your business and help you grow. 🚀
             </p>
           </div>
