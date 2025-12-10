@@ -17,6 +17,11 @@ export interface ScrapedData {
     phones: string[];
     emails: string[];
   };
+  structure: {
+    nav_links: string[]; // "Corporate", "Wine Tours", "Weddings"
+    cta_buttons: string[]; // "Request Quote", "Book Now"
+    trust_signals: string[]; // Alt text like "NFL Approved", "BBB Accredited"
+  };
 }
 
 export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData> {
@@ -60,6 +65,32 @@ export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData>
     const domain = new URL(url).hostname.replace('www.', '');
     const title = $('title').text().trim() || domain;
 
+    // 6. Extract Navigation (Services) - Expert Vision
+    const nav_links = $('nav a, header a, .menu a, .navigation a, [role="navigation"] a').map((i, el) => $(el).text().trim()).get()
+      .filter(t => t.length > 3 && t.length < 30) // Filter noise
+      .slice(0, 15); // Top 15 items
+
+    // 7. Extract Buttons (Friction Analysis) - Expert Vision
+    const cta_buttons = $('button, a.btn, a.button, input[type="submit"], [class*="cta"], [class*="button"]').map((i, el) => {
+      const text = $(el).text().trim();
+      const value = $(el).attr('value');
+      return text || value || '';
+    }).get()
+      .filter(t => t.length > 0 && t.length < 50);
+
+    // 8. Extract Trust Signals (Images) - Expert Vision
+    const trust_signals = $('img').map((i, el) => $(el).attr('alt')).get()
+      .filter(alt => alt && (
+        alt.toLowerCase().includes('award') || 
+        alt.toLowerCase().includes('certified') || 
+        alt.toLowerCase().includes('review') || 
+        alt.toLowerCase().includes('partner') ||
+        alt.toLowerCase().includes('approved') ||
+        alt.toLowerCase().includes('accredited') ||
+        alt.toLowerCase().includes('badge') ||
+        alt.toLowerCase().includes('logo')
+      ));
+
     return {
       url,
       title,
@@ -76,6 +107,11 @@ export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData>
       contacts: { 
         phones: [...new Set(phones)], 
         emails: [...new Set(emails)] 
+      },
+      structure: {
+        nav_links: [...new Set(nav_links)],
+        cta_buttons: [...new Set(cta_buttons)],
+        trust_signals: [...new Set(trust_signals)]
       }
     };
   } catch (error) {
