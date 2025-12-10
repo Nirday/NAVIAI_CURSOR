@@ -107,6 +107,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [suggestedServices, setSuggestedServices] = useState<string[]>([])
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
     phase: 'website_check',
     subStep: 'has_website',
@@ -1058,6 +1059,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       // - Website Builder (Task 17.2): hero_headline, subheadline, services_list, colors
       // - Blog Engine (Task 17.3): content_pillars, local_keywords
       // - Social Scheduler (Task 17.5): social_graph from scraped data
+      
+      // Extract services for smart confirmation flow
+      const detectedServices = moduleConfig?.website_builder?.services_list || []
+      setSuggestedServices(detectedServices)
+      
       setOnboardingState(prev => ({
         phase: 'proofread',
         subStep: 'review',
@@ -1152,6 +1158,45 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           timestamp: new Date()
         }
         setMessages(prev => [...prev, editMsg])
+        setIsLoading(false)
+      } else if (actionValue === 'confirm_services') {
+        // User confirmed the AI's smart guess - save services and proceed
+        const confirmedServices = suggestedServices.slice(0, 3)
+        const updatedData = {
+          ...onboardingState.data,
+          offering: {
+            ...onboardingState.data.offering,
+            core_services: confirmedServices
+          } as BusinessProfileData['offering']
+        }
+        
+        setOnboardingState(prev => ({
+          ...prev,
+          data: updatedData
+        }))
+        
+        // Now proceed with save since all required fields are present
+        const confirmMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Perfect! I've configured your **Website Builder** and **Blog Engine** with those services. 🚀\n\nSaving your profile now...",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, confirmMsg])
+        
+        // Trigger save by simulating another confirmation
+        setTimeout(() => {
+          handleSend('yes')
+        }, 500)
+      } else if (actionValue === 'edit_services') {
+        // User wants to correct the services
+        const editServicesMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "No problem! Please list your **Top 3 Services** below (separated by commas).",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, editServicesMsg])
         setIsLoading(false)
       }
     } catch (error) {
@@ -1620,24 +1665,50 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const hasRequiredFields = data.identity?.business_name && 
                                   data.offering?.core_services?.length
           
-          // If required fields are missing, ask for them
+          // If required fields are missing, handle smart service confirmation
           if (!hasRequiredFields) {
-            let missingFieldMsg = ''
             if (!data.identity?.business_name) {
-              missingFieldMsg = "I need your business name to complete the profile. What is the official Business Name?"
+              const missingNameMsg: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: "I need your business name to complete the profile. What is the official Business Name?",
+                timestamp: new Date()
+              }
+              setMessages(prev => [...prev, missingNameMsg])
+              setIsLoading(false)
+              return
             } else if (!data.offering?.core_services?.length) {
-              missingFieldMsg = "I need to know your services. What are the top 3 services you offer?"
+              // SMART FLOW: Check if we have detected services from website scan
+              if (suggestedServices.length > 0) {
+                // Show detected services and ask for confirmation
+                const servicesList = suggestedServices.slice(0, 3).map((s, i) => `${i + 1}. ${s}`).join('\n')
+                
+                const confirmServicesMsg: Message = {
+                  id: `assistant_${Date.now()}`,
+                  role: 'assistant',
+                  content: `Great! I'll lock that profile in. 🔒\n\nBased on your website, I detected these as your **Top 3 Services**:\n\n${servicesList}\n\n**Should I use these to build your marketing assets?**`,
+                  timestamp: new Date(),
+                  actions: [
+                    { label: "✅ Yes, use these", value: "confirm_services" },
+                    { label: "✏️ No, let me edit", value: "edit_services" }
+                  ]
+                }
+                setMessages(prev => [...prev, confirmServicesMsg])
+                setIsLoading(false)
+                return
+              } else {
+                // FALLBACK FLOW: Only ask if we found nothing
+                const askServicesMsg: Message = {
+                  id: `assistant_${Date.now()}`,
+                  role: 'assistant',
+                  content: "I've saved your profile! Now, what are the **Top 3 Services** you want to promote right now?",
+                  timestamp: new Date()
+                }
+                setMessages(prev => [...prev, askServicesMsg])
+                setIsLoading(false)
+                return
+              }
             }
-            
-            const continueMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: missingFieldMsg,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, continueMsg])
-            setIsLoading(false)
-            return
           }
           
           // All REQUIRED fields are present - proceed with save (optional fields like owner_name, address can be empty)
@@ -4354,6 +4425,45 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           }
           setMessages(prev => [...prev, correctionMsg])
           setIsLoading(false)
+          return
+        }
+      }
+      
+      // Handle services input in proofread phase (after edit_services)
+      if (phase === 'proofread' && !data.offering?.core_services?.length && userMessage.includes(',')) {
+        // User is providing services after clicking "edit_services"
+        const services = userMessage.split(/[,;]|and/).map(s => s.trim()).filter(s => s.length > 0).slice(0, 3)
+        
+        if (services.length > 0) {
+          const updatedData = {
+            ...data,
+            offering: {
+              ...data.offering,
+              core_services: services
+            } as BusinessProfileData['offering']
+          }
+          
+          setOnboardingState(prev => ({
+            ...prev,
+            data: updatedData
+          }))
+          
+          // Clear suggested services since user provided their own
+          setSuggestedServices([])
+          
+          // Now trigger confirmation again since all required fields should be present
+          const confirmMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Perfect! I've saved these services: ${services.join(', ')}. Saving your profile now...`,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, confirmMsg])
+          
+          // Trigger save by simulating confirmation
+          setTimeout(() => {
+            handleSend('yes')
+          }, 500)
           return
         }
       }
