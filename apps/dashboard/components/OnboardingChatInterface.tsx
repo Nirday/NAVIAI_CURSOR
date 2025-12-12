@@ -126,6 +126,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     module_config: null
   })
   const [isComplete, setIsComplete] = useState(false)
+  const businessProfile = onboardingState.module_config
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Initialize with website check message
@@ -149,6 +150,30 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Automatically confirm detected services when profile is already populated
+  useEffect(() => {
+    const services = businessProfile?.website_builder?.services_list?.filter(Boolean) || []
+    if (services.length === 0) return
+
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg?.content?.includes('Core Services')) return
+
+    const [s1 = '', s2 = '', s3 = ''] = services
+    setMessages(prev => [
+      ...prev,
+      {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: `I've analyzed your site and found these **Core Services**:\n\n1. ${s1}\n2. ${s2}\n3. ${s3}\n\n**Is this correct?**`,
+        timestamp: new Date(),
+        actions: [
+          { label: "✅ Yes, Spot On", value: "confirm_services" },
+          { label: "✏️ No, Edit Them", value: "edit_services" }
+        ]
+      }
+    ])
+  }, [businessProfile, messages])
 
   // Detect archetype from business type
   const detectArchetype = (businessType: string): Archetype => {
@@ -1228,34 +1253,37 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       setMessages(prev => [...prev, editMsg])
       setIsLoading(false)
     } else if (option.value === 'confirm_services') {
-      // User confirmed the AI's smart guess - save services and proceed
-      const confirmedServices = suggestedServices.slice(0, 3)
-      const updatedData = {
-        ...onboardingState.data,
-        offering: {
-          ...onboardingState.data.offering,
-          core_services: confirmedServices
-        } as BusinessProfileData['offering']
+      // User confirmed detected services - skip the ask step and move to growth choices
+      const confirmedServices =
+        onboardingState.module_config?.website_builder?.services_list?.filter(Boolean).slice(0, 3) ||
+        suggestedServices.slice(0, 3)
+
+      if (confirmedServices.length > 0) {
+        const updatedData = {
+          ...onboardingState.data,
+          offering: {
+            ...onboardingState.data.offering,
+            core_services: confirmedServices
+          } as BusinessProfileData['offering']
+        }
+
+        setOnboardingState(prev => ({
+          ...prev,
+          data: updatedData
+        }))
       }
-      
-      setOnboardingState(prev => ({
-        ...prev,
-        data: updatedData
-      }))
-      
-      // Now proceed with save since all required fields are present
-      const confirmMsg: Message = {
+
+      setMessages(prev => [...prev, {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
-        content: "Perfect! I've configured your **Website Builder** and **Blog Engine** with those services. 🚀\n\nSaving your profile now...",
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, confirmMsg])
-      
-      // Trigger save by simulating another confirmation
-      setTimeout(() => {
-        handleSend('yes')
-      }, 500)
+        content: "Perfect. I've configured your **Website Builder** and **Content Engine**. 🚀\n\nYour Growth Engine is ready. Where should we start?",
+        timestamp: new Date(),
+        actions: [
+          { label: "📝 Write First Blog", value: "go_blog" },
+          { label: "🎨 Upgrade Website", value: "go_website" }
+        ]
+      }])
+      return;
     } else if (option.value === 'edit_services') {
       // User wants to correct the services
       const editServicesMsg: Message = {

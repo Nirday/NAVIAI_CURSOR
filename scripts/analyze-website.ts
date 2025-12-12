@@ -2,122 +2,69 @@ import * as cheerio from 'cheerio';
 
 export interface ScrapedData {
   url: string;
-  title: string;
-  metaDescription: string;
-  h1: string;
-  body_content: string;
-  footer_text: string;
-  technical: {
-    cms: string | null; // 'WordPress', 'Squarespace', etc.
-    has_schema: boolean; // For Task 17.4
-    mobile_viewport: boolean;
+  // Send "Zones" so AI understands structure
+  zones: {
+    navigation_html: string; // The full <nav> HTML (For Services)
+    footer_html: string;     // The full <footer> HTML (For Address)
+    hero_text: string;       // First 1000 chars of body (For UVP)
+    button_labels: string[]; // "Book Now" vs "Request Quote" (For Friction)
   };
-  social_graph: string[]; // For Task 17.5 - Facebook/Instagram/LinkedIn/Twitter links
-  contacts: {
-    phones: string[];
+  meta: {
+    title: string;
+    description: string;
+  };
+  // Raw Regex Hunt (No cleaning)
+  raw_contacts: {
     emails: string[];
-  };
-  structure: {
-    nav_links: string[]; // "Corporate", "Wine Tours", "Weddings"
-    cta_buttons: string[]; // "Request Quote", "Book Now"
-    trust_signals: string[]; // Alt text like "NFL Approved", "BBB Accredited"
+    phones: string[];
   };
 }
 
 export async function performBasicSEOAnalysis(url: string): Promise<ScrapedData> {
-  console.log(`🔍 X-Ray Scanning: ${url}`);
-  
-  try {
-    // 1. ANTI-BLOCKING HEADERS (Crucial Fix)
-    const response = await fetch(url, {
-      headers: { 
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      },
-      redirect: 'follow'
-    });
-    
-    if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
-    const html = await response.text();
-    const $ = cheerio.load(html);
+  // Use Real Browser User-Agent to avoid blocks
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+  });
 
-    // 2. Tech Stack Detection
-    let cms = null;
-    if (html.includes('wp-content')) cms = 'WordPress';
-    else if (html.includes('wix.com')) cms = 'Wix';
-    else if (html.includes('shopify.com')) cms = 'Shopify';
-    else if (html.includes('squarespace')) cms = 'Squarespace';
+  const html = await response.text();
+  const $ = cheerio.load(html);
 
-    // 3. Regex Extraction (The "X-Ray")
-    const extract = (regex: RegExp) => [...new Set((html.match(regex) || []))];
-    // Improved Phone Regex to catch (555) 555-5555 and 555.555.5555
-    const phones = extract(/(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g);
-    const emails = extract(/[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g);
+  // 1. ZONE EXTRACTION
+  const navigation_html = $('nav, header').first().html() || '';
+  const footer_html = $('footer, .footer').first().html() || '';
 
-    // 4. Social Graph (For Task 17.5)
-    const social_graph = $('a').map((i, el) => $(el).attr('href')).get()
-      .filter(h => h && (h.includes('facebook.com') || h.includes('instagram.com') || h.includes('linkedin.com') || h.includes('twitter.com') || h.includes('x.com')));
+  // 2. SIGNAL EXTRACTION
+  const button_labels = $('a, button')
+    .filter((i, el) => {
+      const t = $(el).text().toLowerCase();
+      return t.includes('book') || t.includes('schedule') || t.includes('quote') || t.includes('contact');
+    })
+    .map((i, el) => $(el).text().trim())
+    .get();
 
-    // 5. Fallback Data (If site blocks title)
-    const domain = new URL(url).hostname.replace('www.', '');
-    const title = $('title').text().trim() || domain;
+  // 3. REGEX HUNT (On full HTML to catch hidden data)
+  const phones = html.match(/(?:\+?1[-.]?)?\(?([2-9][0-8][0-9])\)?[-. ]?([2-9][0-9]{2})[-. ]?([0-9]{4})/g) || [];
+  const emails = html.match(/[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g) || [];
 
-    // 6. Extract Navigation (Services) - Expert Vision
-    const nav_links = $('nav a, header a, .menu a, .navigation a, [role="navigation"] a').map((i, el) => $(el).text().trim()).get()
-      .filter(t => t.length > 3 && t.length < 30) // Filter noise
-      .slice(0, 15); // Top 15 items
-
-    // 7. Extract Buttons (Friction Analysis) - Expert Vision
-    const cta_buttons = $('button, a.btn, a.button, input[type="submit"], [class*="cta"], [class*="button"]').map((i, el) => {
-      const text = $(el).text().trim();
-      const value = $(el).attr('value');
-      return text || value || '';
-    }).get()
-      .filter(t => t.length > 0 && t.length < 50);
-
-    // 8. Extract Trust Signals (Images) - Expert Vision
-    const trust_signals = $('img').map((i, el) => $(el).attr('alt')).get()
-      .filter(alt => alt && (
-        alt.toLowerCase().includes('award') || 
-        alt.toLowerCase().includes('certified') || 
-        alt.toLowerCase().includes('review') || 
-        alt.toLowerCase().includes('partner') ||
-        alt.toLowerCase().includes('approved') ||
-        alt.toLowerCase().includes('accredited') ||
-        alt.toLowerCase().includes('badge') ||
-        alt.toLowerCase().includes('logo')
-      ));
-
-    return {
-      url,
-      title,
-      metaDescription: $('meta[name="description"]').attr('content') || '',
-      h1: $('h1').first().text().trim() || title, // Fallback to title if H1 missing
-      body_content: $('body').text().replace(/\s+/g, ' ').substring(0, 15000),
-      footer_text: $('footer').text().replace(/\s+/g, ' ').trim(),
-      technical: {
-        cms,
-        has_schema: !!$('script[type="application/ld+json"]').length,
-        mobile_viewport: !!$('meta[name="viewport"]').length
-      },
-      social_graph: [...new Set(social_graph)],
-      contacts: { 
-        phones: [...new Set(phones)], 
-        emails: [...new Set(emails)] 
-      },
-      structure: {
-        nav_links: [...new Set(nav_links)],
-        cta_buttons: [...new Set(cta_buttons)],
-        trust_signals: [...new Set(trust_signals)]
-      }
-    };
-  } catch (error) {
-    console.error('X-Ray Failed:', error);
-    throw error;
-  }
+  return {
+    url,
+    zones: {
+      navigation_html: navigation_html.substring(0, 8000), // Limit for token budget
+      footer_html: footer_html.substring(0, 5000),
+      hero_text: $('body').text().substring(0, 1000).replace(/\s+/g, ' '),
+      button_labels: [...new Set(button_labels)]
+    },
+    meta: {
+      title: $('title').text(),
+      description: $('meta[name="description"]').attr('content') || ''
+    },
+    raw_contacts: {
+      emails: [...new Set(emails)],
+      phones: [...new Set(phones)]
+    }
+  };
 }
 
 // Compatibility interface for existing API routes
@@ -144,6 +91,11 @@ export interface WebsiteScrapeData {
     phones: string[];
     socials: string[];
     address_text: string;
+  };
+  structure: {
+    nav_links: string[];
+    cta_buttons: string[];
+    trust_signals: string[];
   };
   tech_xray: {
     schema_found: boolean;
@@ -183,6 +135,65 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   
   // Use the new scraper logic
   const scraped = await performBasicSEOAnalysis(url);
+
+  // Derive additional signals for backward compatibility consumers
+  const domain = new URL(url).hostname.replace('www.', '');
+  const bodyText = $('body').text().replace(/\s+/g, ' ').substring(0, 15000);
+  const footerTextRaw = scraped.zones.footer_html || $('footer').first().html() || '';
+  const footer$ = cheerio.load(footerTextRaw);
+  const footerText =
+    footer$.root().text().replace(/\s+/g, ' ').trim() ||
+    $('footer').text().replace(/\s+/g, ' ').trim();
+
+  let cms: string | null = null;
+  if (html.includes('wp-content')) cms = 'WordPress';
+  else if (html.includes('wix.com')) cms = 'Wix';
+  else if (html.includes('shopify.com')) cms = 'Shopify';
+  else if (html.includes('squarespace')) cms = 'Squarespace';
+
+  const social_graph = $('a')
+    .map((i, el) => $(el).attr('href'))
+    .get()
+    .filter(
+      (h) =>
+        h &&
+        (h.includes('facebook.com') ||
+          h.includes('instagram.com') ||
+          h.includes('linkedin.com') ||
+          h.includes('twitter.com') ||
+          h.includes('x.com')),
+    );
+
+  const nav_links = $('nav a, header a, .menu a, .navigation a, [role="navigation"] a')
+    .map((i, el) => $(el).text().trim())
+    .get()
+    .filter((t) => t.length > 3 && t.length < 30)
+    .slice(0, 15);
+
+  const cta_buttons = $('button, a.btn, a.button, input[type="submit"], [class*="cta"], [class*="button"]')
+    .map((i, el) => {
+      const text = $(el).text().trim();
+      const value = $(el).attr('value');
+      return text || value || '';
+    })
+    .get()
+    .filter((t) => t.length > 0 && t.length < 50);
+
+  const trust_signals = $('img')
+    .map((i, el) => $(el).attr('alt'))
+    .get()
+    .filter(
+      (alt) =>
+        alt &&
+        (alt.toLowerCase().includes('award') ||
+          alt.toLowerCase().includes('certified') ||
+          alt.toLowerCase().includes('review') ||
+          alt.toLowerCase().includes('partner') ||
+          alt.toLowerCase().includes('approved') ||
+          alt.toLowerCase().includes('accredited') ||
+          alt.toLowerCase().includes('badge') ||
+          alt.toLowerCase().includes('logo')),
+    );
   
   // Extract additional data needed for compatibility
   const h2s: string[] = [];
@@ -247,7 +258,6 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   });
   
   // Extract copyright year from footer
-  const footerText = scraped.footer_text;
   const copyrightMatch = footerText.match(/20[0-9]{2}/);
   const copyrightYear = copyrightMatch ? copyrightMatch[0] : 'Unknown';
   
@@ -293,11 +303,11 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
   return {
     url: scraped.url,
     html,
-    text: scraped.body_content,
-    title: scraped.title || null,
-    metaDescription: scraped.metaDescription || null,
+    text: bodyText,
+    title: scraped.meta.title || domain || null,
+    metaDescription: scraped.meta.description || null,
     metaKeywords: $('meta[name="keywords"]').attr('content') || null,
-    h1: scraped.h1 || null,
+    h1: $('h1').first().text().trim() || scraped.meta.title || domain || null,
     h2s,
     h3s,
     links,
@@ -306,23 +316,28 @@ export async function scrapeWebsiteForProfile(url: string): Promise<WebsiteScrap
     pageLoadTime,
     hasRobotsTxt,
     hasSitemap,
-    rawText: scraped.body_content,
-    mainContent: scraped.body_content,
+    rawText: bodyText,
+    mainContent: bodyText,
     contact_signals: {
-      emails: scraped.contacts.emails,
-      phones: scraped.contacts.phones,
-      socials: scraped.social_graph, // Use social_graph from new structure
-      address_text: scraped.footer_text
+      emails: scraped.raw_contacts.emails,
+      phones: scraped.raw_contacts.phones,
+      socials: [...new Set(social_graph)],
+      address_text: footerText
     },
     tech_xray: {
-      schema_found: scraped.technical.has_schema,
+      schema_found: !!$('script[type="application/ld+json"]').length,
       schema_types: schemaTypes,
       heading_structure: headingStructure,
       copyright_year: copyrightYear,
-      mobile_viewport: scraped.technical.mobile_viewport,
+      mobile_viewport: !!$('meta[name="viewport"]').length,
       internal_links_count: internalLinksCount,
       external_links_count: externalLinksCount,
-      cms: scraped.technical.cms
+      cms
+    },
+    structure: {
+      nav_links: [...new Set(nav_links)],
+      cta_buttons: [...new Set(cta_buttons)],
+      trust_signals: [...new Set(trust_signals)]
     }
   };
 }
