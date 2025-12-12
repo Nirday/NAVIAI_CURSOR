@@ -1133,74 +1133,138 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   // Handle action button clicks
-  const handleActionClick = async (messageId: string, actionValue: string) => {
+  const handleOptionSelect = async (option: any) => {
     if (isLoading || isComplete) return
-    
-    // Mark the action as clicked to hide the buttons
+
+    // 1. Add user's choice to chat
+    setMessages((prev) => [...prev, { 
+      id: `user_${Date.now()}`,
+      role: 'user', 
+      content: option.label,
+      timestamp: new Date()
+    }])
+
+    // Mark the action as clicked to hide the buttons (find the message with this option)
     setMessages(prev => prev.map(msg => 
-      msg.id === messageId 
-        ? { ...msg, actionClicked: actionValue }
+      msg.actions?.some(action => action.value === option.value)
+        ? { ...msg, actionClicked: option.value }
         : msg
     ))
-    
-    setIsLoading(true)
-    
-    try {
-      if (actionValue === 'CONFIRM') {
-        // Simulate CONFIRMATION intent
-        await handleSend('looks perfect')
-      } else if (actionValue === 'EDIT') {
-        // Show edit prompt
-        const editMsg: Message = {
-          id: `assistant_${Date.now()}`,
-          role: 'assistant',
-          content: "No problem! What would you like to update? (e.g., Phone, Email, Address, Business Name)",
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, editMsg])
-        setIsLoading(false)
-      } else if (actionValue === 'confirm_services') {
-        // User confirmed the AI's smart guess - save services and proceed
-        const confirmedServices = suggestedServices.slice(0, 3)
-        const updatedData = {
-          ...onboardingState.data,
-          offering: {
-            ...onboardingState.data.offering,
-            core_services: confirmedServices
-          } as BusinessProfileData['offering']
-        }
-        
-        setOnboardingState(prev => ({
-          ...prev,
-          data: updatedData
-        }))
-        
-        // Now proceed with save since all required fields are present
-        const confirmMsg: Message = {
-          id: `assistant_${Date.now()}`,
-          role: 'assistant',
-          content: "Perfect! I've configured your **Website Builder** and **Blog Engine** with those services. 🚀\n\nSaving your profile now...",
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, confirmMsg])
-        
-        // Trigger save by simulating another confirmation
+
+    // 2. LOGIC: Handle "Looks Perfect"
+    if (option.value === 'confirm_profile') {
+      
+      // CHECK: Did the scan already find services?
+      // We look at the profile data we just saved
+      const foundServices = onboardingState.module_config?.website_builder?.services_list || [];
+
+      if (foundServices.length > 0) {
+        // SMART MODE: "I found these, are they right?"
         setTimeout(() => {
-          handleSend('yes')
-        }, 500)
-      } else if (actionValue === 'edit_services') {
-        // User wants to correct the services
-        const editServicesMsg: Message = {
-          id: `assistant_${Date.now()}`,
-          role: 'assistant',
-          content: "No problem! Please list your **Top 3 Services** below (separated by commas).",
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, editServicesMsg])
-        setIsLoading(false)
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `Great! I've locked in your profile. 🔒\n\nI detected these **Top 3 Services** from your site:\n\n1. ${foundServices[0]}\n2. ${foundServices[1]}\n3. ${foundServices[2]}\n\n**Shall we proceed with these?**`,
+              timestamp: new Date(),
+              actions: [
+                { label: "✅ Yes, use these", value: "use_scanned_services" },
+                { label: "✏️ No, let me edit", value: "edit_services" }
+              ],
+            },
+          ]);
+        }, 1000);
+      } else {
+        // FALLBACK MODE: "I couldn't find services, please tell me."
+        setTimeout(() => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Profile saved! Now, what are the **Top 3 Services** you want to promote? (e.g. 'Wedding Limo, Airport Transfer, Wine Tours')",
+              timestamp: new Date(),
+            },
+          ]);
+          setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' })); // Only go here if we found nothing
+        }, 1000);
       }
-    } catch (error) {
-      console.error('Error handling action click:', error)
+      return; 
+    }
+
+    // 3. LOGIC: Handle "Yes, use these"
+    if (option.value === 'use_scanned_services') {
+       setTimeout(() => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: "Perfect. I've configured your **Website** and **Content Engine** with those services. 🚀\n\nYour Growth Engine is ready. Which module would you like to open?",
+              timestamp: new Date(),
+              actions: [
+                { label: "📝 Write First Blog", value: "go_blog" },
+                { label: "🎨 Build Website", value: "go_website" }
+              ]
+            },
+          ]);
+       }, 800);
+       return;
+    }
+
+    // Handle other existing options
+    if (option.value === 'CONFIRM') {
+      // Simulate CONFIRMATION intent
+      await handleSend('looks perfect')
+    } else if (option.value === 'EDIT') {
+      // Show edit prompt
+      const editMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: "No problem! What would you like to update? (e.g., Phone, Email, Address, Business Name)",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, editMsg])
+      setIsLoading(false)
+    } else if (option.value === 'confirm_services') {
+      // User confirmed the AI's smart guess - save services and proceed
+      const confirmedServices = suggestedServices.slice(0, 3)
+      const updatedData = {
+        ...onboardingState.data,
+        offering: {
+          ...onboardingState.data.offering,
+          core_services: confirmedServices
+        } as BusinessProfileData['offering']
+      }
+      
+      setOnboardingState(prev => ({
+        ...prev,
+        data: updatedData
+      }))
+      
+      // Now proceed with save since all required fields are present
+      const confirmMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: "Perfect! I've configured your **Website Builder** and **Blog Engine** with those services. 🚀\n\nSaving your profile now...",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, confirmMsg])
+      
+      // Trigger save by simulating another confirmation
+      setTimeout(() => {
+        handleSend('yes')
+      }, 500)
+    } else if (option.value === 'edit_services') {
+      // User wants to correct the services
+      const editServicesMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: "No problem! Please list your **Top 3 Services** below (separated by commas).",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, editServicesMsg])
       setIsLoading(false)
     }
   }
@@ -5325,7 +5389,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   {message.actions.map((action) => (
                     <button
                       key={action.value}
-                      onClick={() => handleActionClick(message.id, action.value)}
+                      onClick={() => handleOptionSelect(action)}
                       disabled={isLoading || isComplete}
                       className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-sm"
                     >
