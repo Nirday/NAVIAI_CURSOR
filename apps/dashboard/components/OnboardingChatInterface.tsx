@@ -1276,17 +1276,22 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         // 1. Parse Input
         const newServices = userMessage.split(',').map(s => s.trim()).filter(Boolean);
         
-        // 2. Update State
-        setOnboardingState(prev => ({
-          ...prev,
-          module_config: {
-            ...prev.module_config,
-            website_builder: {
-              ...prev.module_config?.website_builder,
-              services_list: newServices
+        // 2. Update State (Type-Safe Fix)
+        setOnboardingState(prev => {
+          // Guard: If config is missing, return previous state to satisfy TS
+          if (!prev.module_config) return prev;
+
+          return {
+            ...prev,
+            module_config: {
+              ...prev.module_config,
+              website_builder: {
+                ...prev.module_config.website_builder,
+                services_list: newServices
+              }
             }
-          }
-        }));
+          };
+        });
 
         // 3. Confirm & Advance
         setTimeout(() => {
