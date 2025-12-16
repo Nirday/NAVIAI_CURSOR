@@ -151,29 +151,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     scrollToBottom()
   }, [messages])
 
-  // Automatically confirm detected services when profile is already populated
-  useEffect(() => {
-    const services = businessProfile?.website_builder?.services_list?.filter(Boolean) || []
-    if (services.length === 0) return
-
-    const lastMsg = messages[messages.length - 1]
-    if (lastMsg?.content?.includes('Core Services')) return
-
-    const [s1 = '', s2 = '', s3 = ''] = services
-    setMessages(prev => [
-      ...prev,
-      {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content: `I've analyzed your site and found these **Core Services**:\n\n1. ${s1}\n2. ${s2}\n3. ${s3}\n\n**Is this correct?**`,
-        timestamp: new Date(),
-        actions: [
-          { label: "✅ Yes, Spot On", value: "confirm_services" },
-          { label: "✏️ No, Edit Them", value: "edit_services" }
-        ]
-      }
-    ])
-  }, [businessProfile, messages])
 
   // Detect archetype from business type
   const detectArchetype = (businessType: string): Archetype => {
@@ -1161,7 +1138,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const handleOptionSelect = async (option: any) => {
     if (isLoading || isComplete) return
 
-    // 1. Add user's choice to chat
+    // 1. Add User's Selection to Chat
     setMessages((prev) => [...prev, { 
       id: `user_${Date.now()}`,
       role: 'user', 
@@ -1176,66 +1153,86 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         : msg
     ))
 
-    // 2. LOGIC: Handle "Looks Perfect"
+    // --- CASE A: User clicked "Looks Perfect" on the big profile ---
     if (option.value === 'confirm_profile') {
-      
-      // CHECK: Did the scan already find services?
-      // We look at the profile data we just saved
-      const foundServices = onboardingState.module_config?.website_builder?.services_list || [];
+      const services = businessProfile?.website_builder?.services_list || [];
 
-      if (foundServices.length > 0) {
-        // SMART MODE: "I found these, are they right?"
+      if (services.length > 0) {
+        // Smart Mode: Verify found services
         setTimeout(() => {
           setMessages((prev) => [
             ...prev,
             {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: `Great! I've locked in your profile. 🔒\n\nI detected these **Top 3 Services** from your site:\n\n1. ${foundServices[0]}\n2. ${foundServices[1]}\n3. ${foundServices[2]}\n\n**Shall we proceed with these?**`,
+              content: `I've analyzed your site and found these **Core Services**:
+            
+1. ${services[0]}
+2. ${services[1]}
+3. ${services[2]}
+
+**Is this correct?**`,
               timestamp: new Date(),
               actions: [
-                { label: "✅ Yes, use these", value: "use_scanned_services" },
-                { label: "✏️ No, let me edit", value: "edit_services" }
-              ],
-            },
+                { label: "✅ Yes, Spot On", value: "confirm_services" },
+                { label: "✏️ No, Edit Them", value: "edit_services" }
+              ]
+            }
           ]);
-        }, 1000);
+        }, 800);
       } else {
-        // FALLBACK MODE: "I couldn't find services, please tell me."
+        // Fallback Mode: Ask manually
         setTimeout(() => {
           setMessages((prev) => [
             ...prev,
             {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "Profile saved! Now, what are the **Top 3 Services** you want to promote? (e.g. 'Wedding Limo, Airport Transfer, Wine Tours')",
+              content: "Profile saved! Now, please list your **Top 3 Services** (separated by commas).",
               timestamp: new Date(),
-            },
+            }
           ]);
-          setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' })); // Only go here if we found nothing
-        }, 1000);
+          setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' })); // Enable text input
+        }, 800);
       }
-      return; 
+      return;
     }
 
-    // 3. LOGIC: Handle "Yes, use these"
-    if (option.value === 'use_scanned_services') {
-       setTimeout(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "Perfect. I've configured your **Website** and **Content Engine** with those services. 🚀\n\nYour Growth Engine is ready. Which module would you like to open?",
-              timestamp: new Date(),
-              actions: [
-                { label: "📝 Write First Blog", value: "go_blog" },
-                { label: "🎨 Build Website", value: "go_website" }
-              ]
-            },
-          ]);
-       }, 800);
-       return;
+    // --- CASE B: User clicked "Yes, Spot On" ---
+    if (option.value === 'confirm_services') {
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Perfect. I've configured your **Website Builder** and **Content Engine** with those services. 🚀\n\nYour Growth Engine is ready. Where should we start?",
+            timestamp: new Date(),
+            actions: [
+              { label: "📝 Write First Blog", value: "go_blog" },
+              { label: "🎨 Upgrade Website", value: "go_website" }
+            ]
+          }
+        ]);
+      }, 800);
+      return;
+    }
+
+    // --- CASE C: User clicked "No, Edit Them" ---
+    if (option.value === 'edit_services') {
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "No problem! Please list your **Top 3 Services** below (separated by commas).",
+            timestamp: new Date(),
+          }
+        ]);
+        setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' })); // CRITICAL: This waits for user typing
+      }, 800);
+      return;
     }
 
     // Handle other existing options
@@ -1251,48 +1248,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         timestamp: new Date()
       }
       setMessages(prev => [...prev, editMsg])
-      setIsLoading(false)
-    } else if (option.value === 'confirm_services') {
-      // User confirmed detected services - skip the ask step and move to growth choices
-      const confirmedServices =
-        onboardingState.module_config?.website_builder?.services_list?.filter(Boolean).slice(0, 3) ||
-        suggestedServices.slice(0, 3)
-
-      if (confirmedServices.length > 0) {
-        const updatedData = {
-          ...onboardingState.data,
-          offering: {
-            ...onboardingState.data.offering,
-            core_services: confirmedServices
-          } as BusinessProfileData['offering']
-        }
-
-        setOnboardingState(prev => ({
-          ...prev,
-          data: updatedData
-        }))
-      }
-
-      setMessages(prev => [...prev, {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content: "Perfect. I've configured your **Website Builder** and **Content Engine**. 🚀\n\nYour Growth Engine is ready. Where should we start?",
-        timestamp: new Date(),
-        actions: [
-          { label: "📝 Write First Blog", value: "go_blog" },
-          { label: "🎨 Upgrade Website", value: "go_website" }
-        ]
-      }])
-      return;
-    } else if (option.value === 'edit_services') {
-      // User wants to correct the services
-      const editServicesMsg: Message = {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content: "No problem! Please list your **Top 3 Services** below (separated by commas).",
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, editServicesMsg])
       setIsLoading(false)
     }
   }
@@ -1315,6 +1270,41 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     try {
       const { phase, subStep, archetype, data, needsVerification, lastWebsiteUrl, awaitingCorrectionFor, lockedFields = new Set<string>() } = onboardingState
       const lowerMessage = userMessage.toLowerCase().trim()
+
+      // --- INTERCEPT MANUAL SERVICES INPUT ---
+      if (subStep === 'awaiting_services_input') {
+        // 1. Parse Input
+        const newServices = userMessage.split(',').map(s => s.trim()).filter(Boolean);
+        
+        // 2. Update State
+        setOnboardingState(prev => ({
+          ...prev,
+          module_config: {
+            ...prev.module_config,
+            website_builder: {
+              ...prev.module_config?.website_builder,
+              services_list: newServices
+            }
+          }
+        }));
+
+        // 3. Confirm & Advance
+        setTimeout(() => {
+          setMessages(prev => [...prev, {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Got it! I've updated your core services to:\n\n1. ${newServices[0]}\n2. ${newServices[1] || ''}\n3. ${newServices[2] || ''}\n\nYour Growth Engine is ready. Where should we start?`,
+            timestamp: new Date(),
+            actions: [
+              { label: "📝 Write First Blog", value: "go_blog" },
+              { label: "🎨 Upgrade Website", value: "go_website" }
+            ]
+          }]);
+          setOnboardingState(prev => ({ ...prev, subStep: 'onboarding_complete' }));
+        }, 1000);
+        setIsLoading(false);
+        return;
+      }
 
       // 0) PRIORITIZE PENDING INPUT - Check if we're waiting for a specific field value
       if (awaitingCorrectionFor) {
