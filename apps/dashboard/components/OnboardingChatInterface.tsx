@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import ReactMarkdown from 'react-markdown'
+import { ModuleConfig } from '../../../types/navi'
 
 interface OnboardingChatInterfaceProps {
   userId: string
@@ -103,6 +104,27 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key'
   const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
+
+  // SAFE COMPONENT: Prevents page reloads forever
+  const ChatOptionButton = ({ label, onClick, value, disabled }: { 
+    label: string, 
+    value: string, 
+    onClick: (val: { label: string, value: string }) => void,
+    disabled?: boolean
+  }) => (
+    <button
+      type="button" // <--- The Safety Lock
+      onClick={(e) => {
+        e.preventDefault(); // <--- The Double Lock
+        e.stopPropagation();
+        onClick({ label, value });
+      }}
+      disabled={disabled}
+      className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-sm"
+    >
+      {label}
+    </button>
+  );
   
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -1135,7 +1157,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
 
   // Handle action button clicks
-  const handleOptionSelect = async (option: any) => {
+  const handleOptionSelect = async (option: { label: string, value: string }) => {
     if (isLoading || isComplete) return
 
     // 1. Add User's Selection to Chat
@@ -1153,9 +1175,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         : msg
     ))
 
+    // SAFE GUARD: Ensure profile exists before accessing (Type Contract Check)
+    // businessProfile is onboardingState.module_config, so access directly
+    const services = businessProfile?.website_builder?.services_list || [];
+
     // --- CASE A: User clicked "Looks Perfect" on the big profile ---
     if (option.value === 'confirm_profile') {
-      const services = businessProfile?.website_builder?.services_list || [];
 
       if (services.length > 0) {
         // Smart Mode: Verify found services
@@ -5410,14 +5435,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               {message.role === 'assistant' && message.actions && !message.actionClicked && (
                 <div className="mt-4 flex flex-wrap gap-3">
                   {message.actions.map((action) => (
-                    <button
+                    <ChatOptionButton
                       key={action.value}
-                      onClick={() => handleOptionSelect(action)}
+                      label={action.label}
+                      value={action.value}
+                      onClick={handleOptionSelect}
                       disabled={isLoading || isComplete}
-                      className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-sm"
-                    >
-                      {action.label}
-                    </button>
+                    />
                   ))}
                 </div>
               )}
