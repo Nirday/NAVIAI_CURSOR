@@ -1129,7 +1129,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         timestamp: new Date(),
         isProfileReport: !!profileReport, // Mark as profile report to enable markdown rendering
         actions: [
-          { label: 'Looks Perfect', value: 'CONFIRM' },
+          { label: 'Looks Perfect', value: 'confirm_profile' },
           { label: 'Make Changes', value: 'EDIT' }
         ]
       }
@@ -1884,6 +1884,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                     // Continue with redirect anyway
                   }
                   
+                  // Check if we're already on dashboard - if so, continue with flow instead of redirecting
+                  if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
+                    // Already on dashboard - continue with services flow instead of redirecting
+                    setIsLoading(false)
+                    return
+                  }
+                  
                   const redirectMsg: Message = {
                     id: `assistant_${Date.now()}`,
                     role: 'assistant',
@@ -1900,7 +1907,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 if (checkResponse.ok) {
                   const checkData = await checkResponse.json()
                   if (checkData.profile) {
-                    // Profile exists - safe to redirect
+                    // Profile exists - check if we're already on dashboard
+                    if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
+                      // Already on dashboard - continue with services flow instead of redirecting
+                      setIsLoading(false)
+                      return
+                    }
+                    
                     const redirectMsg: Message = {
                       id: `assistant_${Date.now()}`,
                       role: 'assistant',
@@ -4674,6 +4687,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                   console.warn('Session expired or invalid during profile verification')
                   // Don't redirect to login - just redirect to dashboard and let middleware handle it
                   // The profile was saved, so we should proceed
+                  // Check if we're already on dashboard - if so, continue with flow instead of redirecting
+                  if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
+                    // Already on dashboard - continue with services flow instead of redirecting
+                    setIsLoading(false)
+                    return
+                  }
+                  
                   const redirectMsg: Message = {
                     id: `assistant_${Date.now()}`,
                     role: 'assistant',
@@ -4690,7 +4710,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 if (checkResponse.ok) {
                   const checkData = await checkResponse.json()
                   if (checkData.profile) {
-                    // Profile exists - safe to redirect
+                    // Profile exists - check if we're already on dashboard
+                    if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
+                      // Already on dashboard - continue with services flow instead of redirecting
+                      setIsLoading(false)
+                      return
+                    }
+                    
                     const redirectMsg: Message = {
                       id: `assistant_${Date.now()}`,
                       role: 'assistant',
