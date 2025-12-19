@@ -28,11 +28,94 @@ export default function WebsiteEditorPage() {
 
   // --- DATA FETCHING ---
   useEffect(() => {
-    // Fetch the AI-generated content when userId is available
+    // Fetch the user's profile and website data when userId is available
     if (!userId) return
 
     async function fetchContent() {
       try {
+        // First, try to get existing website
+        const websiteResponse = await fetch('/api/website/me')
+        if (websiteResponse.ok) {
+          const websiteData = await websiteResponse.json()
+          if (websiteData.website && websiteData.website.pages && websiteData.website.pages.length > 0) {
+            // Convert website pages to blocks format
+            const convertedBlocks: Block[] = []
+            websiteData.website.pages.forEach((page: any) => {
+              page.sections?.forEach((section: any) => {
+                if (section.type === 'hero') {
+                  convertedBlocks.push({
+                    id: section.id || `hero-${Date.now()}`,
+                    type: 'hero',
+                    props: {
+                      headline: section.headline || page.title || 'Welcome',
+                      subheadline: section.subheadline || section.description || ''
+                    }
+                  })
+                } else if (section.type === 'feature' || section.type === 'features') {
+                  convertedBlocks.push({
+                    id: section.id || `features-${Date.now()}`,
+                    type: 'features',
+                    props: {
+                      title: section.title || 'Our Services',
+                      features: section.features || section.items || []
+                    }
+                  })
+                }
+              })
+            })
+            if (convertedBlocks.length > 0) {
+              setBlocks(convertedBlocks)
+              setIsLoading(false)
+              return
+            }
+          }
+        }
+
+        // If no website exists, fetch profile and use module_config data
+        const profileResponse = await fetch('/api/profile')
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json()
+          const profile = profileData.profile
+          
+          // Use module_config data from onboarding if available
+          const moduleConfig = profile?.module_config
+          const websiteBuilder = moduleConfig?.website_builder
+          
+          if (websiteBuilder) {
+            // Initialize with onboarding data
+            const initialBlocks: Block[] = [
+              {
+                id: 'hero-1',
+                type: 'hero',
+                props: {
+                  headline: websiteBuilder.hero_headline || profile?.businessName || 'Welcome to Our Business',
+                  subheadline: websiteBuilder.subheadline || `Your trusted partner in ${profile?.industry || 'business'}`
+                }
+              }
+            ]
+            
+            // Add services as features if available
+            if (websiteBuilder.services_list && websiteBuilder.services_list.length > 0) {
+              initialBlocks.push({
+                id: 'features-1',
+                type: 'features',
+                props: {
+                  title: 'Our Services',
+                  features: websiteBuilder.services_list.slice(0, 3).map((service: string, idx: number) => ({
+                    name: service,
+                    description: `Professional ${service.toLowerCase()} services tailored to your needs.`
+                  }))
+                }
+              })
+            }
+            
+            setBlocks(initialBlocks)
+            setIsLoading(false)
+            return
+          }
+        }
+
+        // Fallback: Generate content using AI
         const response = await fetch('/api/website/generate-content')
         if (!response.ok) {
           throw new Error('Failed to fetch content')
@@ -41,7 +124,29 @@ export default function WebsiteEditorPage() {
         setBlocks(data)
       } catch (error) {
         console.error(error)
-        // TODO: Add proper error handling (e.g., load default blocks)
+        // Default blocks if everything fails
+        setBlocks([
+          {
+            id: 'hero-1',
+            type: 'hero',
+            props: {
+              headline: 'Welcome to Our Business',
+              subheadline: 'Your trusted partner for professional services'
+            }
+          },
+          {
+            id: 'features-1',
+            type: 'features',
+            props: {
+              title: 'Our Services',
+              features: [
+                { name: 'Service 1', description: 'Professional service tailored to your needs.' },
+                { name: 'Service 2', description: 'Quality solutions for your business.' },
+                { name: 'Service 3', description: 'Expert support when you need it.' }
+              ]
+            }
+          }
+        ])
       } finally {
         setIsLoading(false)
       }
@@ -128,17 +233,135 @@ export default function WebsiteEditorPage() {
     return null // Will redirect
   }
 
+  // --- SAVE FUNCTION ---
+  const handleSave = async () => {
+    if (!userId) return
+    
+    try {
+      setIsLoading(true)
+      
+      // Convert blocks to Website format
+      const sections = blocks.map(block => {
+        if (block.type === 'hero') {
+          return {
+            id: block.id,
+            type: 'hero' as const,
+            headline: block.props.headline,
+            subheadline: block.props.subheadline
+          }
+        } else if (block.type === 'features') {
+          return {
+            id: block.id,
+            type: 'feature' as const,
+            items: block.props.features.map((f: any) => ({
+              title: f.name,
+              description: f.description
+            }))
+          }
+        }
+        return null
+      }).filter(Boolean)
+      
+      const website = {
+        id: `website-${userId}`,
+        userId,
+        name: 'My Website',
+        theme: {
+          colorPalette: {
+            primary: '#3B82F6',
+            secondary: '#1E40AF',
+            accent: '#F59E0B',
+            background: '#FFFFFF',
+            surface: '#F8FAFC',
+            text: '#1F2937'
+          },
+          font: {
+            heading: 'Inter',
+            body: 'Inter'
+          }
+        },
+        pages: [{
+          id: 'home-page',
+          slug: 'home',
+          title: 'Home',
+          metaTitle: 'Home',
+          metaDescription: 'Welcome to our website',
+          structuredData: null,
+          sections
+        }],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+      
+      const response = await fetch('/api/website/save', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
+        body: JSON.stringify({ website })
+      })
+      
+      if (response.ok) {
+        alert('Website saved successfully!')
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save')
+      }
+    } catch (error: any) {
+      console.error('Error saving website:', error)
+      alert(`Failed to save website: ${error.message || 'Please try again.'}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // --- RENDER ---
   return (
-    <div className="w-full">
-      <div className="bg-gray-900 p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Website Editor</h1>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
-          Save & Publish
+    <div className="w-full min-h-screen bg-gray-50">
+      <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex justify-between items-center shadow-lg">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Website Builder</h1>
+          <p className="text-purple-100 text-sm mt-1">Edit your website content and preview changes</p>
+        </div>
+        <button 
+          onClick={handleSave}
+          disabled={isLoading}
+          className="bg-white hover:bg-gray-100 text-purple-600 font-bold py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Saving...' : 'Save & Publish'}
         </button>
       </div>
 
-      <div className="p-8 space-y-4">
+      {blocks.length === 0 && !isLoading && (
+        <div className="p-8 text-center">
+          <p className="text-gray-500 text-lg mb-4">No content yet. Your website will be generated from your onboarding data.</p>
+          <button
+            onClick={() => {
+              setBlocks([
+                {
+                  id: `hero-${Date.now()}`,
+                  type: 'hero',
+                  props: {
+                    headline: 'Welcome to Our Business',
+                    subheadline: 'Your trusted partner for professional services'
+                  }
+                }
+              ])
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg"
+          >
+            Add Hero Block
+          </button>
+        </div>
+      )}
+
+      <div className="max-w-6xl mx-auto p-8 space-y-6 bg-white rounded-lg shadow-sm">
+        <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+          <p className="text-sm text-blue-800">
+            <strong>Preview:</strong> This is how your website will look. Click on any text to edit it.
+          </p>
+        </div>
         {blocks.map((block, index) => (
           <div key={block.id} className="relative group border-2 border-transparent hover:border-blue-500 rounded-lg">
 
@@ -149,7 +372,12 @@ export default function WebsiteEditorPage() {
                 onUpdate={(newProps) => updateBlockProps(index, newProps)}
               />
             )}
-            {block.type === 'features' && <FeatureBlock {...block.props} />}
+            {block.type === 'features' && (
+              <FeatureBlock
+                {...block.props}
+                onUpdate={(newProps) => updateBlockProps(index, newProps)}
+              />
+            )}
 
             {/* --- These are the "Up/Down/Delete" controls --- */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity">
