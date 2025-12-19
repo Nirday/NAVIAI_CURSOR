@@ -28,9 +28,25 @@ interface Message {
   content: string
   timestamp: Date
   actions?: MessageAction[] // Optional action buttons
+  options?: MessageAction[] // Alias for actions (for compatibility)
   actionClicked?: string // Track which action was clicked (to hide buttons)
   isProfileReport?: boolean // Flag to indicate this is a full profile report (markdown)
 }
+
+// Safe Button Component to prevent form submission
+const NaviButton = ({ label, value, onClick }: { label: string, value: string, onClick: (opt: any) => void }) => (
+  <button
+    type="button" // CRITICAL: Prevents form submit
+    onClick={(e) => {
+      e.preventDefault(); // CRITICAL: Stops browser reload
+      e.stopPropagation();
+      onClick({ label, value });
+    }}
+    className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors text-sm font-medium"
+  >
+    {label}
+  </button>
+);
 
 type Archetype = 'BrickAndMortar' | 'ServiceOnWheels' | 'AppointmentPro' | null
 
@@ -1160,7 +1176,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const handleOptionSelect = async (option: { label: string, value: string }) => {
     if (isLoading || isComplete) return
 
-    // 1. Add User's Selection to Chat
+    // Add user choice to UI
     setMessages((prev) => [...prev, { 
       id: `user_${Date.now()}`,
       role: 'user', 
@@ -1168,95 +1184,79 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       timestamp: new Date()
     }])
 
-    // Mark the action as clicked to hide the buttons (find the message with this option)
+    // Mark the action as clicked to hide the buttons
     setMessages(prev => prev.map(msg => 
-      msg.actions?.some(action => action.value === option.value)
+      (msg.actions || msg.options)?.some(action => action.value === option.value)
         ? { ...msg, actionClicked: option.value }
         : msg
     ))
 
-    // SAFE GUARD: Ensure profile exists before accessing (Type Contract Check)
-    // businessProfile is onboardingState.module_config, so access directly
-    const services = businessProfile?.website_builder?.services_list || [];
-
-    // --- CASE A: User clicked "Looks Perfect" on the big profile ---
+    // CASE A: User clicked "Looks Perfect" (Profile Confirmed)
     if (option.value === 'confirm_profile') {
-
-      if (services.length > 0) {
-        // Smart Mode: Verify found services
+      // Check state for services (handle both naming conventions just in case)
+      const state = onboardingState || businessProfile;
+      const foundServices = state?.module_config?.website_builder?.services_list || 
+                           businessProfile?.website_builder?.services_list || 
+                           [];
+      
+      if (foundServices.length > 0) {
+        // Smart Flow: Verify found services
         setTimeout(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: `I've analyzed your site and found these **Core Services**:
-            
-1. ${services[0]}
-2. ${services[1]}
-3. ${services[2]}
-
-**Is this correct?**`,
-              timestamp: new Date(),
-              actions: [
-                { label: "✅ Yes, Spot On", value: "confirm_services" },
-                { label: "✏️ No, Edit Them", value: "edit_services" }
-              ]
-            }
-          ]);
-        }, 800);
+          setMessages(prev => [...prev, {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: `Great! I've locked in your profile. 🔒\n\nI detected these **Core Services** from your site:\n\n1. ${foundServices[0]}\n2. ${foundServices[1] || ''}\n3. ${foundServices[2] || ''}\n\n**Is this correct?**`,
+            timestamp: new Date(),
+            options: [
+              { label: "✅ Yes, Spot On", value: "use_scanned_services" },
+              { label: "✏️ No, Edit Them", value: "edit_services" }
+            ]
+          }]);
+        }, 600);
       } else {
-        // Fallback Mode: Ask manually
+        // Fallback Flow: Ask manually
         setTimeout(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: "Profile saved! Now, please list your **Top 3 Services** (separated by commas).",
-              timestamp: new Date(),
-            }
-          ]);
-          setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' })); // Enable text input
-        }, 800);
+          setMessages(prev => [...prev, {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Profile saved! Now, please list your **Top 3 Services** (separated by commas).",
+            timestamp: new Date(),
+          }]);
+          setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' }));
+        }, 600);
       }
       return;
     }
 
-    // --- CASE B: User clicked "Yes, Spot On" ---
-    if (option.value === 'confirm_services') {
+    // CASE B: User clicked "Yes, Spot On"
+    if (option.value === 'use_scanned_services') {
       setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: "Perfect. I've configured your **Website Builder** and **Content Engine** with those services. 🚀\n\nYour Growth Engine is ready. Where should we start?",
-            timestamp: new Date(),
-            actions: [
-              { label: "📝 Write First Blog", value: "go_blog" },
-              { label: "🎨 Upgrade Website", value: "go_website" }
-            ]
-          }
-        ]);
-      }, 800);
+        setMessages(prev => [...prev, {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Excellent! I've configured your Website Builder and Blog Engine. 🚀\n\nYour Growth Engine is ready. Where should we start?",
+          timestamp: new Date(),
+          options: [
+            { label: "📝 Write First Blog", value: "go_blog" },
+            { label: "🎨 Build Website", value: "go_website" }
+          ]
+        }]);
+        setOnboardingState(prev => ({ ...prev, subStep: 'onboarding_complete' }));
+      }, 600);
       return;
     }
 
-    // --- CASE C: User clicked "No, Edit Them" ---
+    // CASE C: User clicked "No, Edit Them"
     if (option.value === 'edit_services') {
       setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: "No problem! Please list your **Top 3 Services** below (separated by commas).",
-            timestamp: new Date(),
-          }
-        ]);
-        setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' })); // CRITICAL: This waits for user typing
-      }, 800);
+        setMessages(prev => [...prev, {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "No problem. Please list your **Top 3 Services** below (separated by commas).",
+          timestamp: new Date(),
+        }]);
+        setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' }));
+      }, 600);
       return;
     }
 
@@ -1281,6 +1281,51 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const handleSend = async (userMessage: string) => {
     if (!userMessage.trim() || isLoading || isComplete) return
 
+    // Intercept Manual Service Input (at the very top)
+    const { subStep } = onboardingState;
+    if (subStep === 'awaiting_services_input') {
+      const userText = userMessage;
+      setMessages(prev => [...prev, { 
+        id: `user_${Date.now()}`,
+        role: 'user', 
+        content: userText,
+        timestamp: new Date()
+      }]);
+      setInputValue('');
+
+      const newServices = userText.split(',').map(s => s.trim()).filter(Boolean);
+      
+      // Update State safely
+      setOnboardingState(prev => {
+        if (!prev.module_config) return prev;
+        return {
+          ...prev,
+          module_config: { 
+            ...prev.module_config, 
+            website_builder: { 
+              ...prev.module_config.website_builder, 
+              services_list: newServices 
+            }
+          }
+        };
+      });
+
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Got it! Services updated. 🛠️\n\nWhere should we start?",
+          timestamp: new Date(),
+          options: [
+            { label: "📝 Write First Blog", value: "go_blog" },
+            { label: "🎨 Build Website", value: "go_website" }
+          ]
+        }]);
+        setOnboardingState(prev => ({ ...prev, subStep: 'onboarding_complete' }));
+      }, 800);
+      return;
+    }
+
     // Add user message
     const userMsg: Message = {
       id: `user_${Date.now()}`,
@@ -1295,46 +1340,6 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     try {
       const { phase, subStep, archetype, data, needsVerification, lastWebsiteUrl, awaitingCorrectionFor, lockedFields = new Set<string>() } = onboardingState
       const lowerMessage = userMessage.toLowerCase().trim()
-
-      // --- INTERCEPT MANUAL SERVICES INPUT ---
-      if (subStep === 'awaiting_services_input') {
-        // 1. Parse Input
-        const newServices = userMessage.split(',').map(s => s.trim()).filter(Boolean);
-        
-        // 2. Update State (Type-Safe Fix)
-        setOnboardingState(prev => {
-          // Guard: If config is missing, return previous state to satisfy TS
-          if (!prev.module_config) return prev;
-
-          return {
-            ...prev,
-            module_config: {
-              ...prev.module_config,
-              website_builder: {
-                ...prev.module_config.website_builder,
-                services_list: newServices
-              }
-            }
-          };
-        });
-
-        // 3. Confirm & Advance
-        setTimeout(() => {
-          setMessages(prev => [...prev, {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: `Got it! I've updated your core services to:\n\n1. ${newServices[0]}\n2. ${newServices[1] || ''}\n3. ${newServices[2] || ''}\n\nYour Growth Engine is ready. Where should we start?`,
-            timestamp: new Date(),
-            actions: [
-              { label: "📝 Write First Blog", value: "go_blog" },
-              { label: "🎨 Upgrade Website", value: "go_website" }
-            ]
-          }]);
-          setOnboardingState(prev => ({ ...prev, subStep: 'onboarding_complete' }));
-        }, 1000);
-        setIsLoading(false);
-        return;
-      }
 
       // 0) PRIORITIZE PENDING INPUT - Check if we're waiting for a specific field value
       if (awaitingCorrectionFor) {
@@ -5431,16 +5436,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
               )}
               
-              {/* Action Buttons - only show for assistant messages with actions that haven't been clicked */}
-              {message.role === 'assistant' && message.actions && !message.actionClicked && (
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {message.actions.map((action) => (
-                    <ChatOptionButton
-                      key={action.value}
-                      label={action.label}
-                      value={action.value}
-                      onClick={handleOptionSelect}
-                      disabled={isLoading || isComplete}
+              {/* Action Buttons - only show for assistant messages with actions/options that haven't been clicked */}
+              {message.role === 'assistant' && (message.actions || message.options) && !message.actionClicked && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {(message.options || message.actions || []).map((opt, idx) => (
+                    <NaviButton 
+                      key={idx} 
+                      label={opt.label} 
+                      value={opt.value} 
+                      onClick={handleOptionSelect} 
                     />
                   ))}
                 </div>
