@@ -1260,6 +1260,70 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       return;
     }
 
+    // CASE D: User clicked "Build Website"
+    if (option.value === 'go_website') {
+      // Add user choice to chat
+      setMessages((prev) => [...prev, { 
+        id: `user_${Date.now()}`,
+        role: 'user', 
+        content: option.label,
+        timestamp: new Date()
+      }])
+      
+      // Mark the action as clicked
+      setMessages(prev => prev.map(msg => 
+        (msg.actions || msg.options)?.some(action => action.value === option.value)
+          ? { ...msg, actionClicked: option.value }
+          : msg
+      ))
+      
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Perfect! Let's build your website. 🎨\n\nRedirecting you to the Website Builder...",
+          timestamp: new Date(),
+        }]);
+        // Navigate to website builder
+        setTimeout(() => {
+          router.push('/dashboard/website')
+        }, 1000);
+      }, 600);
+      return;
+    }
+
+    // CASE E: User clicked "Write First Blog"
+    if (option.value === 'go_blog') {
+      // Add user choice to chat
+      setMessages((prev) => [...prev, { 
+        id: `user_${Date.now()}`,
+        role: 'user', 
+        content: option.label,
+        timestamp: new Date()
+      }])
+      
+      // Mark the action as clicked
+      setMessages(prev => prev.map(msg => 
+        (msg.actions || msg.options)?.some(action => action.value === option.value)
+          ? { ...msg, actionClicked: option.value }
+          : msg
+      ))
+      
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Great! Let's create your first blog post. 📝\n\nRedirecting you to the Content Engine...",
+          timestamp: new Date(),
+        }]);
+        // Navigate to content/blog page
+        setTimeout(() => {
+          router.push('/dashboard/content')
+        }, 1000);
+      }, 600);
+      return;
+    }
+
     // Handle other existing options
     if (option.value === 'CONFIRM') {
       // Simulate CONFIRMATION intent
