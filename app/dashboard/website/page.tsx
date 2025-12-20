@@ -33,7 +33,71 @@ export default function WebsiteEditorPage() {
 
     async function fetchContent() {
       try {
-        // First, try to get existing website
+        // PRIORITY 1: Check for module_config first (AI-generated content takes precedence)
+        const profileResponse = await fetch('/api/profile')
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json()
+          const profile = profileData.profile
+          
+          console.log('📊 Profile fetched:', { 
+            hasProfile: !!profile,
+            hasModuleConfig: !!profile?.module_config,
+            moduleConfig: profile?.module_config
+          })
+          
+          // Use module_config data from onboarding if available
+          const moduleConfig = profile?.module_config
+          const websiteBuilder = moduleConfig?.website_builder
+          
+          console.log('🏗️ Website Builder Config:', {
+            hasWebsiteBuilder: !!websiteBuilder,
+            heroHeadline: websiteBuilder?.hero_headline,
+            subheadline: websiteBuilder?.subheadline,
+            servicesCount: websiteBuilder?.services_list?.length || 0,
+            services: websiteBuilder?.services_list
+          })
+          
+          if (websiteBuilder && (websiteBuilder.hero_headline || websiteBuilder.services_list?.length > 0)) {
+            console.log('✅ Initializing blocks with AI-generated content')
+            // Initialize with onboarding data - USE THE AI-GENERATED HEADLINES
+            const initialBlocks: Block[] = [
+              {
+                id: 'hero-1',
+                type: 'hero',
+                props: {
+                  headline: websiteBuilder.hero_headline || profile?.businessName || 'Welcome to Our Business',
+                  subheadline: websiteBuilder.subheadline || `Your trusted partner in ${profile?.industry || 'business'}`
+                }
+              }
+            ]
+            
+            // Add services as features if available - USE ALL SERVICES, not just first 3
+            if (websiteBuilder.services_list && websiteBuilder.services_list.length > 0) {
+              initialBlocks.push({
+                id: 'features-1',
+                type: 'features',
+                props: {
+                  title: 'Our Services',
+                  features: websiteBuilder.services_list.map((service: string) => ({
+                    name: service,
+                    description: `Professional ${service.toLowerCase()} services tailored to your needs.`
+                  }))
+                }
+              })
+            }
+            
+            console.log('📦 Setting blocks:', initialBlocks)
+            setBlocks(initialBlocks)
+            setIsLoading(false)
+            return
+          } else {
+            console.warn('⚠️ No website_builder config found, checking for existing website')
+          }
+        } else {
+          console.error('❌ Failed to fetch profile:', profileResponse.status)
+        }
+
+        // PRIORITY 2: If no module_config, try to get existing website
         const websiteResponse = await fetch('/api/website/me')
         if (websiteResponse.ok) {
           const websiteData = await websiteResponse.json()
@@ -64,6 +128,7 @@ export default function WebsiteEditorPage() {
               })
             })
             if (convertedBlocks.length > 0) {
+              console.log('📦 Loading existing website blocks')
               setBlocks(convertedBlocks)
               setIsLoading(false)
               return
@@ -71,49 +136,7 @@ export default function WebsiteEditorPage() {
           }
         }
 
-        // If no website exists, fetch profile and use module_config data
-        const profileResponse = await fetch('/api/profile')
-        if (profileResponse.ok) {
-          const profileData = await profileResponse.json()
-          const profile = profileData.profile
-          
-          // Use module_config data from onboarding if available
-          const moduleConfig = profile?.module_config
-          const websiteBuilder = moduleConfig?.website_builder
-          
-          if (websiteBuilder && (websiteBuilder.hero_headline || websiteBuilder.services_list?.length > 0)) {
-            // Initialize with onboarding data - USE THE AI-GENERATED HEADLINES
-            const initialBlocks: Block[] = [
-              {
-                id: 'hero-1',
-                type: 'hero',
-                props: {
-                  headline: websiteBuilder.hero_headline || profile?.businessName || 'Welcome to Our Business',
-                  subheadline: websiteBuilder.subheadline || `Your trusted partner in ${profile?.industry || 'business'}`
-                }
-              }
-            ]
-            
-            // Add services as features if available - USE ALL SERVICES, not just first 3
-            if (websiteBuilder.services_list && websiteBuilder.services_list.length > 0) {
-              initialBlocks.push({
-                id: 'features-1',
-                type: 'features',
-                props: {
-                  title: 'Our Services',
-                  features: websiteBuilder.services_list.map((service: string) => ({
-                    name: service,
-                    description: `Professional ${service.toLowerCase()} services tailored to your needs.`
-                  }))
-                }
-              })
-            }
-            
-            setBlocks(initialBlocks)
-            setIsLoading(false)
-            return
-          }
-        }
+        // PRIORITY 3: Fallback to default blocks if nothing else worked
 
         // Fallback: Generate content using AI
         const response = await fetch('/api/website/generate-content')
