@@ -5424,7 +5424,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           { label: 'Archetype', value: data.archetype || '' },
           { label: 'Owner', value: data.credibility?.owner_name || '' },
           { label: 'Payment Methods', value: (data.logistics?.payment_methods || []).join(', ') },
-          { label: 'Booking Policy', value: data.logistics?.booking_policy || data.logistics?.specific_policy || '' }
+          { label: 'Booking Policy', value: data.logistics?.booking_policy || data.logistics?.specific_policy || '' },
+          // CRITICAL: Store module_config for Website Builder, Blog Engine, Social Scheduler
+          ...(onboardingState.module_config ? [{ 
+            label: 'module_config', 
+            value: JSON.stringify(onboardingState.module_config) 
+          }] : [])
         ].filter(attr => attr.value) // Only include attributes with values
       }
 

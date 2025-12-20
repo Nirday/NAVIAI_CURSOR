@@ -48,7 +48,31 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json({ profile })
+    // Extract module_config from custom_attributes if it exists
+    // module_config is stored in custom_attributes as { label: 'module_config', value: JSON.stringify(module_config) }
+    let module_config = null
+    if (profile.customAttributes && Array.isArray(profile.customAttributes)) {
+      const moduleConfigAttr = profile.customAttributes.find(
+        (attr: any) => attr.label === 'module_config'
+      )
+      if (moduleConfigAttr && moduleConfigAttr.value) {
+        try {
+          module_config = typeof moduleConfigAttr.value === 'string' 
+            ? JSON.parse(moduleConfigAttr.value) 
+            : moduleConfigAttr.value
+        } catch (e) {
+          console.error('Failed to parse module_config from custom_attributes:', e)
+        }
+      }
+    }
+
+    // Return profile with module_config attached
+    return NextResponse.json({ 
+      profile: {
+        ...profile,
+        module_config
+      }
+    })
   } catch (error: any) {
     console.error('Error fetching profile:', error)
     return NextResponse.json(

@@ -81,8 +81,8 @@ export default function WebsiteEditorPage() {
           const moduleConfig = profile?.module_config
           const websiteBuilder = moduleConfig?.website_builder
           
-          if (websiteBuilder) {
-            // Initialize with onboarding data
+          if (websiteBuilder && (websiteBuilder.hero_headline || websiteBuilder.services_list?.length > 0)) {
+            // Initialize with onboarding data - USE THE AI-GENERATED HEADLINES
             const initialBlocks: Block[] = [
               {
                 id: 'hero-1',
@@ -94,14 +94,14 @@ export default function WebsiteEditorPage() {
               }
             ]
             
-            // Add services as features if available
+            // Add services as features if available - USE ALL SERVICES, not just first 3
             if (websiteBuilder.services_list && websiteBuilder.services_list.length > 0) {
               initialBlocks.push({
                 id: 'features-1',
                 type: 'features',
                 props: {
                   title: 'Our Services',
-                  features: websiteBuilder.services_list.slice(0, 3).map((service: string, idx: number) => ({
+                  features: websiteBuilder.services_list.map((service: string) => ({
                     name: service,
                     description: `Professional ${service.toLowerCase()} services tailored to your needs.`
                   }))
