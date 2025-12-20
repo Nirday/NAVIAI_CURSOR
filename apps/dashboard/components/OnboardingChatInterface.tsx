@@ -5487,7 +5487,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`${message.isProfileReport ? 'max-w-5xl w-full' : 'max-w-2xl'} rounded-3xl px-5 py-4 shadow-lg transform transition-transform hover:scale-[1.02] ${
+              className={`${message.isProfileReport ? 'max-w-6xl w-full' : 'max-w-2xl'} rounded-3xl px-5 py-4 shadow-lg transform transition-transform hover:scale-[1.02] ${
                 message.role === 'user'
                   ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-br-md'
                   : message.isProfileReport
