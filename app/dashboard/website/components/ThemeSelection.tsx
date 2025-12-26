@@ -15,121 +15,113 @@ export interface ThemeOption {
 
 export const THEME_OPTIONS: ThemeOption[] = [
   {
-    id: 'rapid-converter',
-    title: 'The Rapid Converter',
-    description: 'Action-first design optimized for immediate conversions and clear CTAs.',
+    id: 'emergency-response',
+    title: 'The Emergency Response',
+    description: 'Mobile-first design that gets customers calling you NOW, perfect for urgent local services.',
     visualColor: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', // Red gradient
     pros: [
-      'High-contrast CTAs drive immediate action',
-      'Minimal friction in conversion flow',
-      'Mobile-optimized for quick decisions',
-      'A/B test friendly structure'
+      "Maximize 'Click-to-Call' from mobile users",
+      "Embeds Service Area for Local SEO",
+      'Fast loading on 4G/5G networks'
     ],
     cons: [
-      'Less visual storytelling space',
-      'May feel transactional to some audiences',
-      'Requires strong copywriting'
+      "Hard to showcase complex/expensive projects",
+      "Can feel 'aggressive' to casual browsers",
+      'Limited space for brand storytelling'
     ],
     suitableFor: [
-      'Lead generation services',
-      'Appointment booking',
-      'Quote requests',
-      'Event registrations'
+      'Plumbers',
+      'Locksmiths',
+      'Towing',
+      'Urgent Care'
     ]
   },
   {
-    id: 'visual-immersion',
-    title: 'The Visual Immersion',
-    description: 'Luxury, media-heavy experience that showcases your brand through stunning visuals.',
+    id: 'local-showroom',
+    title: 'The Local Showroom',
+    description: 'Premium visual showcase that justifies higher prices and attracts discerning local customers.',
     visualColor: 'linear-gradient(135deg, #1F2937 0%, #111827 50%, #D4AF37 100%)', // Black to gold
     pros: [
-      'Premium brand perception',
-      'Showcases products/services beautifully',
-      'High engagement through media',
-      'Memorable first impression'
+      'Justifies premium pricing with high-end visuals',
+      "Perfect for 'Before & After' portfolios",
+      'Differentiates you from budget competitors'
     ],
     cons: [
-      'Slower load times if not optimized',
-      'Requires high-quality media assets',
-      'May distract from conversion goals'
+      'Requires REAL high-quality photos (Stock photos hurt trust)',
+      'Contact info is less visible than other themes',
+      'Slower load times on older phones'
     ],
     suitableFor: [
-      'Luxury brands',
-      'Photography studios',
-      'Interior design',
-      'Wedding services',
-      'High-end retail'
+      'Luxury Salons',
+      'Remodelers',
+      'Wedding Venues',
+      'Fine Dining'
     ]
   },
   {
-    id: 'trust-authority',
-    title: 'The Trust & Authority',
-    description: 'Info-rich, corporate grid layout that builds credibility through content density.',
+    id: 'community-pillar',
+    title: 'The Community Pillar',
+    description: 'Trust-building layout that ranks for local keywords and answers questions before customers call.',
     visualColor: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', // Blue gradient
     pros: [
-      'Establishes expertise quickly',
-      'SEO-friendly content structure',
-      'Professional corporate appearance',
-      'Supports detailed service explanations'
+      "Builds deep trust with 'Meet the Team' sections",
+      "Best for ranking for 'Service + City' keywords",
+      'Reduces nuisance calls by answering FAQs upfront'
     ],
     cons: [
-      'Can feel information-heavy',
-      'Requires substantial content creation',
-      'May overwhelm mobile users'
+      'Requires significant text content (Staff bios, History)',
+      "Can feel 'corporate' if not personalized",
+      'Less visual impact'
     ],
     suitableFor: [
-      'Professional services',
-      'Consulting firms',
-      'Legal practices',
-      'Financial advisors',
-      'B2B companies'
+      'Dentists',
+      'Law Firms',
+      'Financial Advisors',
+      'HVAC Installation'
     ]
   },
   {
-    id: 'digital-storefront',
-    title: 'The Digital Storefront',
-    description: 'E-commerce focused layout optimized for product browsing and inventory display.',
+    id: 'neighborhood-menu',
+    title: 'The Neighborhood Menu',
+    description: 'Streamlined ordering and inventory display that reduces phone calls and speeds up transactions.',
     visualColor: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', // Green gradient
     pros: [
-      'Product-first navigation',
-      'Shopping cart integration ready',
-      'Category-based organization',
-      'Inventory showcase optimized'
+      "Streamlines 'Order for Pickup' or appointments",
+      'Showcases live inventory/menu availability',
+      'Reduces phone time taking orders'
     ],
     cons: [
-      'Less suitable for service-only businesses',
-      'Requires product photography',
-      'Needs inventory management setup'
+      "Requires daily updates to avoid 'Out of Stock' frustration",
+      "Transactional feel (hard to tell brand story)",
+      'Requires high-res product photos'
     ],
     suitableFor: [
-      'Online stores',
-      'Product retailers',
-      'Marketplace sellers',
-      'Catalog businesses'
+      'Restaurants',
+      'Bakeries',
+      'Garden Centers',
+      'Boutique Retail'
     ]
   },
   {
-    id: 'community-hub',
-    title: 'The Community Hub',
-    description: 'Event-focused, newsletter-driven layout that fosters engagement and community.',
+    id: 'town-square',
+    title: 'The Town Square',
+    description: 'Community-focused layout that builds repeat visits and loyal local customers through events and updates.',
     visualColor: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', // Purple gradient
     pros: [
-      'Event calendar integration',
-      'Newsletter signup prominence',
-      'Community engagement features',
-      'Social proof showcase'
+      "Encourages repeat visits for 'Weekly Specials'",
+      'Integrates live Social Media feeds deeply',
+      "Builds a loyal 'Member' community"
     ],
     cons: [
-      'Requires regular content updates',
-      'Event management overhead',
-      'May need email marketing tools'
+      "Looks 'dead' if Event Calendar is empty",
+      'High maintenance (needs weekly updates)',
+      "Can distract from the primary 'Buy' button"
     ],
     suitableFor: [
-      'Event organizers',
-      'Community centers',
-      'Non-profits',
-      'Membership organizations',
-      'Local businesses with events'
+      'Gyms/Yoga',
+      'Breweries',
+      'Coffee Shops',
+      'Churches'
     ]
   }
 ]
@@ -138,13 +130,54 @@ interface ThemeSelectionProps {
   onSelect?: (themeId: string) => void
   onContinue?: (themeId: string) => void
   initialSelection?: string
+  recommendedCategory?: string // Business category to recommend a theme for
 }
 
 export default function ThemeSelection({ 
   onSelect, 
   onContinue, 
-  initialSelection 
+  initialSelection,
+  recommendedCategory 
 }: ThemeSelectionProps) {
+  
+  // Helper function to check if a theme is recommended based on category
+  const isRecommended = (themeId: string, category?: string): boolean => {
+    if (!category) return false
+    
+    const categoryLower = category.toLowerCase()
+    
+    // Map categories to theme IDs
+    const categoryToThemeMap: Record<string, string[]> = {
+      'plumber': ['emergency-response'],
+      'locksmith': ['emergency-response'],
+      'towing': ['emergency-response'],
+      'urgent care': ['emergency-response'],
+      'salon': ['local-showroom'],
+      'remodeler': ['local-showroom'],
+      'wedding': ['local-showroom'],
+      'restaurant': ['local-showroom', 'neighborhood-menu'],
+      'dentist': ['community-pillar'],
+      'law': ['community-pillar'],
+      'financial': ['community-pillar'],
+      'hvac': ['community-pillar'],
+      'bakery': ['neighborhood-menu'],
+      'retail': ['neighborhood-menu'],
+      'gym': ['town-square'],
+      'yoga': ['town-square'],
+      'brewery': ['town-square'],
+      'coffee': ['town-square'],
+      'church': ['town-square']
+    }
+    
+    // Check if category matches any theme
+    for (const [key, themes] of Object.entries(categoryToThemeMap)) {
+      if (categoryLower.includes(key) && themes.includes(themeId)) {
+        return true
+      }
+    }
+    
+    return false
+  }
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(initialSelection || null)
 
   const handleThemeClick = (themeId: string) => {
@@ -175,6 +208,7 @@ export default function ThemeSelection({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {THEME_OPTIONS.map((theme) => {
             const isSelected = selectedThemeId === theme.id
+            const isRecommendedTheme = isRecommended(theme.id, recommendedCategory)
             
             return (
               <div
@@ -184,10 +218,20 @@ export default function ThemeSelection({
                   relative bg-white rounded-lg border-2 transition-all duration-200 cursor-pointer
                   ${isSelected 
                     ? 'border-blue-500 ring-4 ring-blue-500 ring-opacity-20 shadow-lg' 
+                    : isRecommendedTheme
+                    ? 'border-purple-400 ring-2 ring-purple-400 ring-offset-2 shadow-md'
                     : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
                   }
                 `}
               >
+                {/* Recommended Badge */}
+                {isRecommendedTheme && (
+                  <div className="absolute -top-3 -left-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full px-3 py-1 shadow-lg flex items-center gap-1.5 text-xs font-semibold">
+                    <span>✨</span>
+                    <span>Navi Recommended</span>
+                  </div>
+                )}
+                
                 {/* Selection Badge */}
                 {isSelected && (
                   <div className="absolute -top-3 -right-3 z-10 bg-blue-500 text-white rounded-full p-1.5 shadow-lg">
@@ -228,11 +272,11 @@ export default function ThemeSelection({
                         Advantages
                       </span>
                     </div>
-                    <ul className="space-y-1.5 ml-6">
+                    <ul className="space-y-1 ml-6">
                       {theme.pros.map((pro, index) => (
                         <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
                           <Check className="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0" />
-                          <span>{pro}</span>
+                          <span className="text-sm">{pro}</span>
                         </li>
                       ))}
                     </ul>
@@ -246,11 +290,11 @@ export default function ThemeSelection({
                         Trade-offs
                       </span>
                     </div>
-                    <ul className="space-y-1.5 ml-6">
+                    <ul className="space-y-1 ml-6">
                       {theme.cons.map((con, index) => (
                         <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
-                          <span>{con}</span>
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm">{con}</span>
                         </li>
                       ))}
                     </ul>
