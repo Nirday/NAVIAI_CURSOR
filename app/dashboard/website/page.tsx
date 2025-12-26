@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { HeroBlock } from './components/HeroBlock'
 import { FeatureBlock } from './components/FeatureBlock'
+import ThemeSelection from './components/ThemeSelection'
 
 // Define the types for our blocks
 type Block = 
@@ -18,6 +19,9 @@ export default function WebsiteEditorPage() {
   const [loading, setLoading] = useState(true)
 
   // --- STATE ---
+  // Theme selection state - if null, show theme selection screen
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
+  
   // The blocks state now starts empty
   const [blocks, setBlocks] = useState<Block[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -368,7 +372,36 @@ export default function WebsiteEditorPage() {
     }
   }
 
+  // Handle theme selection
+  const handleThemeSelect = (themeId: string) => {
+    setSelectedTheme(themeId)
+    // Map theme IDs to website theme values if needed
+    if (themeId === 'visual-immersion') {
+      setWebsiteTheme('luxury_black_gold')
+    } else {
+      setWebsiteTheme('default')
+    }
+  }
+
+  // Handle theme change (go back to selection)
+  const handleChangeTheme = () => {
+    setSelectedTheme(null)
+  }
+
   // --- RENDER ---
+  // If no theme selected, show theme selection screen
+  if (selectedTheme === null) {
+    return (
+      <div className="w-full h-full bg-gray-50">
+        <ThemeSelection
+          onSelect={handleThemeSelect}
+          onContinue={handleThemeSelect}
+        />
+      </div>
+    )
+  }
+
+  // If theme is selected, show the editor
   return (
     <>
       {/* JSON-LD Schema for SEO */}
@@ -384,13 +417,21 @@ export default function WebsiteEditorPage() {
           <h1 className="text-2xl font-bold text-white">Website Builder</h1>
           <p className="text-purple-100 text-sm mt-1">Edit your website content and preview changes</p>
         </div>
-        <button 
-          onClick={handleSave}
-          disabled={isLoading}
-          className="bg-white hover:bg-gray-100 text-purple-600 font-bold py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Saving...' : 'Save & Publish'}
-        </button>
+        <div className="flex gap-3 items-center">
+          <button 
+            onClick={handleChangeTheme}
+            className="bg-purple-500 hover:bg-purple-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+          >
+            Change Theme
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={isLoading}
+            className="bg-white hover:bg-gray-100 text-purple-600 font-bold py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Saving...' : 'Save & Publish'}
+          </button>
+        </div>
       </div>
 
       {blocks.length === 0 && !isLoading && (

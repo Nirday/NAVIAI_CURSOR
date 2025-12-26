@@ -159,9 +159,9 @@ export default function ThemeSelection({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="w-full h-full bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-8">
+      <div className="bg-white border-b border-gray-200 px-6 py-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Choose Your Website Structure
         </h1>
@@ -279,8 +279,8 @@ export default function ThemeSelection({
         </div>
       </div>
 
-      {/* Fixed Continue Button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4 shadow-lg z-20">
+      {/* Continue Button */}
+      <div className="bg-white border-t border-gray-200 px-6 py-6">
         <div className="max-w-7xl mx-auto flex justify-end">
           <button
             onClick={handleContinue}
