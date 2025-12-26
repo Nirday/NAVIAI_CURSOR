@@ -75,6 +75,7 @@ export interface HeroSection extends BaseSection {
 
 export interface FeatureSection extends BaseSection {
   type: 'feature'
+  title?: string
   items: Array<{
     icon?: string
     title: string

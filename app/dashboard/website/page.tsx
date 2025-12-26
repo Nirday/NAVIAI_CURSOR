@@ -21,6 +21,8 @@ export default function WebsiteEditorPage() {
   // The blocks state now starts empty
   const [blocks, setBlocks] = useState<Block[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [websiteTheme, setWebsiteTheme] = useState<'luxury_black_gold' | 'default'>('default')
+  const [seoSchema, setSeoSchema] = useState<any>(null)
 
   useEffect(() => {
     checkAuth()
@@ -57,22 +59,49 @@ export default function WebsiteEditorPage() {
             services: websiteBuilder?.services_list
           })
           
-          if (websiteBuilder && (websiteBuilder.hero_headline || websiteBuilder.services_list?.length > 0)) {
+          if (websiteBuilder && (websiteBuilder.hero_headline || websiteBuilder.services_list?.length > 0 || websiteBuilder.sections)) {
             console.log('✅ Initializing blocks with AI-generated content')
+            
+            // Extract theme and SEO schema
+            const detectedTheme = websiteBuilder.theme || 'default'
+            setWebsiteTheme(detectedTheme === 'luxury_black_gold' ? 'luxury_black_gold' : 'default')
+            
+            if (websiteBuilder.seo_schema) {
+              setSeoSchema(websiteBuilder.seo_schema)
+            }
+            
+            // Check for new structure with sections (has full SEO descriptions)
+            const servicesSection = websiteBuilder.sections?.find((s: any) => s.type === 'services_grid')
+            const heroSection = websiteBuilder.hero || websiteBuilder
+            
             // Initialize with onboarding data - USE THE AI-GENERATED HEADLINES
             const initialBlocks: Block[] = [
               {
                 id: 'hero-1',
                 type: 'hero',
                 props: {
-                  headline: websiteBuilder.hero_headline || profile?.businessName || 'Welcome to Our Business',
-                  subheadline: websiteBuilder.subheadline || `Your trusted partner in ${profile?.industry || 'business'}`
+                  headline: heroSection.headline || websiteBuilder.hero_headline || profile?.businessName || 'Welcome to Our Business',
+                  subheadline: heroSection.subheadline || websiteBuilder.subheadline || `Your trusted partner in ${profile?.industry || 'business'}`
                 }
               }
             ]
             
-            // Add services as features if available - USE ALL SERVICES, not just first 3
-            if (websiteBuilder.services_list && websiteBuilder.services_list.length > 0) {
+            // Add services as features - Use sections if available (has full SEO descriptions), otherwise fallback to services_list
+            if (servicesSection && servicesSection.items && servicesSection.items.length > 0) {
+              // Use full SEO descriptions from AI
+              initialBlocks.push({
+                id: 'features-1',
+                type: 'features',
+                props: {
+                  title: servicesSection.title || 'Our Premier Fleet & Services',
+                  features: servicesSection.items.map((item: any) => ({
+                    name: item.title,
+                    description: item.description || `Professional ${item.title.toLowerCase()} services tailored to your needs.`
+                  }))
+                }
+              })
+            } else if (websiteBuilder.services_list && websiteBuilder.services_list.length > 0) {
+              // Fallback to services_list (basic descriptions)
               initialBlocks.push({
                 id: 'features-1',
                 type: 'features',
@@ -341,7 +370,15 @@ export default function WebsiteEditorPage() {
 
   // --- RENDER ---
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <>
+      {/* JSON-LD Schema for SEO */}
+      {seoSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(seoSchema) }}
+        />
+      )}
+      <div className="w-full min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex justify-between items-center shadow-lg">
         <div>
           <h1 className="text-2xl font-bold text-white">Website Builder</h1>
@@ -398,6 +435,7 @@ export default function WebsiteEditorPage() {
             {block.type === 'features' && (
               <FeatureBlock
                 {...block.props}
+                theme={websiteTheme}
                 onUpdate={(newProps) => updateBlockProps(index, newProps)}
               />
             )}
@@ -429,5 +467,6 @@ export default function WebsiteEditorPage() {
         ))}
       </div>
     </div>
+    </>
   )
 }

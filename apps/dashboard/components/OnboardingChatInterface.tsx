@@ -553,7 +553,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           return {
             nextPhase: 'menu',
             nextSubStep: 'services',
-            nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
+            nextQuestion: "What services do you offer? List all of them (separated by commas) so I can generate SEO content for each. Be specific so people find you on Google.",
             fieldName: 'services'
           }
         }
@@ -565,7 +565,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (!currentData.offering?.core_services?.length) {
         return {
           nextSubStep: 'services',
-          nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
+          nextQuestion: "What services do you offer? List all of them (separated by commas) so I can generate SEO content for each. Be specific so people find you on Google.",
           fieldName: 'services'
         }
       } else {
@@ -644,7 +644,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           return {
             nextPhase: 'menu',
             nextSubStep: 'services',
-            nextQuestion: "What are the top 3 services you offer? Be specific so people find you on Google.",
+            nextQuestion: "What services do you offer? List all of them (separated by commas) so I can generate SEO content for each. Be specific so people find you on Google.",
             fieldName: 'services'
           }
         }
@@ -1200,16 +1200,21 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                            [];
       
       if (foundServices.length > 0) {
-        // Smart Flow: Verify found services
+        // Smart Flow: Verify found services - Show ALL services
+        const serviceList = foundServices.map((s: string, i: number) => `${i + 1}. ${s}`).join('\n');
+        const region = (state?.module_config?.website_builder as any)?.sections?.[0]?.city || 
+                      state?.deepProfile?.local_context?.region || 
+                      'your area';
+        
         setTimeout(() => {
           setMessages(prev => [...prev, {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: `Great! I've locked in your profile. 🔒\n\nI detected these **Core Services** from your site:\n\n1. ${foundServices[0]}\n2. ${foundServices[1] || ''}\n3. ${foundServices[2] || ''}\n\n**Is this correct?**`,
+            content: `I've performed a Deep Scan and identified **${foundServices.length} Revenue Streams** for your business:\n\n${serviceList}\n\nI have also pre-written SEO content for each of these pages targeting **${region}**. Shall I build the site structure now?`,
             timestamp: new Date(),
             options: [
-              { label: "✅ Yes, Spot On", value: "use_scanned_services" },
-              { label: "✏️ No, Edit Them", value: "edit_services" }
+              { label: "🚀 Build Full Website", value: "confirm_full_build" },
+              { label: "✏️ Edit Services First", value: "edit_services" }
             ]
           }]);
         }, 600);
@@ -1219,7 +1224,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           setMessages(prev => [...prev, {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "Profile saved! Now, please list your **Top 3 Services** (separated by commas).",
+            content: "Profile saved! Now, please list **all your services** (separated by commas). I'll capture everything and generate SEO content for each.",
             timestamp: new Date(),
           }]);
           setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' }));
@@ -1228,8 +1233,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       return;
     }
 
-    // CASE B: User clicked "Yes, Spot On"
-    if (option.value === 'use_scanned_services') {
+    // CASE B: User clicked "Build Full Website" or "Yes, Spot On"
+    if (option.value === 'use_scanned_services' || option.value === 'confirm_full_build') {
       setTimeout(() => {
         setMessages(prev => [...prev, {
           id: `assistant_${Date.now()}`,
@@ -1246,13 +1251,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       return;
     }
 
-    // CASE C: User clicked "No, Edit Them"
+    // CASE C: User clicked "Edit Services First"
     if (option.value === 'edit_services') {
       setTimeout(() => {
         setMessages(prev => [...prev, {
           id: `assistant_${Date.now()}`,
           role: 'assistant',
-          content: "No problem. Please list your **Top 3 Services** below (separated by commas).",
+          content: "No problem. Please list **all your services** below (separated by commas). I'll generate SEO content for each one.",
           timestamp: new Date(),
         }]);
         setOnboardingState(prev => ({ ...prev, subStep: 'awaiting_services_input' }));
@@ -1762,7 +1767,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             }
           } else if (phase === 'menu' && missingFields.includes('services')) {
             nextSubStep = 'services'
-            nextQuestion = "What are the top 3 services you offer? Be specific so people find you on Google."
+            nextQuestion = "What services do you offer? List all of them (separated by commas) so I can generate SEO content for each. Be specific so people find you on Google."
           }
           
           if (nextQuestion) {
@@ -1802,7 +1807,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       if (userIntent === 'OFF_TOPIC') {
         const currentQuestionContext: Record<string, Record<string, string>> = {
           'menu': {
-            'services': 'What are the top 3 services you offer?',
+            'services': 'What services do you offer? List all of them (separated by commas) so I can generate SEO content for each.',
             'target_audience': "Who is your 'Dream Client'?",
             'owner_vibe': "Who is the owner/lead expert and what's the business vibe?",
             'vibe_only': "How would you describe the 'vibe' of the business?"
@@ -1861,13 +1866,13 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             } else if (!data.offering?.core_services?.length) {
               // SMART FLOW: Check if we have detected services from website scan
               if (suggestedServices.length > 0) {
-                // Show detected services and ask for confirmation
-                const servicesList = suggestedServices.slice(0, 3).map((s, i) => `${i + 1}. ${s}`).join('\n')
+                // Show detected services and ask for confirmation - Show ALL services
+                const servicesList = suggestedServices.map((s, i) => `${i + 1}. ${s}`).join('\n')
                 
                 const confirmServicesMsg: Message = {
                   id: `assistant_${Date.now()}`,
                   role: 'assistant',
-                  content: `Great! I'll lock that profile in. 🔒\n\nBased on your website, I detected these as your **Top 3 Services**:\n\n${servicesList}\n\n**Should I use these to build your marketing assets?**`,
+                  content: `Great! I'll lock that profile in. 🔒\n\nBased on your website, I detected **${suggestedServices.length} Services**:\n\n${servicesList}\n\nI'll generate SEO content for each. **Should I use these to build your marketing assets?**`,
                   timestamp: new Date(),
                   actions: [
                     { label: "✅ Yes, use these", value: "confirm_services" },
@@ -1882,7 +1887,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 const askServicesMsg: Message = {
                   id: `assistant_${Date.now()}`,
                   role: 'assistant',
-                  content: "I've saved your profile! Now, what are the **Top 3 Services** you want to promote right now?",
+                  content: "I've saved your profile! Now, please list **all your services** (separated by commas). I'll generate SEO content for each one.",
                   timestamp: new Date()
                 }
                 setMessages(prev => [...prev, askServicesMsg])
@@ -3844,7 +3849,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             const clarifyMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: "Nice! What specifically? Do you do financial consulting, IT, HR? Give me the top 3 specific services.",
+              content: "Nice! What specifically? Do you do financial consulting, IT, HR? Please list all your specific services (separated by commas) so I can generate SEO content for each.",
               timestamp: new Date()
             }
             setMessages(prev => [...prev, clarifyMsg])
@@ -4510,7 +4515,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           const servicesMsg: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: "What are the top 3 services you offer? Be specific so people find you on Google.",
+            content: "What services do you offer? List all of them (separated by commas) so I can generate SEO content for each. Be specific so people find you on Google.",
             timestamp: new Date()
           }
           setMessages(prev => [...prev, servicesMsg])
