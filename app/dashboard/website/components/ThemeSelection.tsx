@@ -1,9 +1,19 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, CheckCircle2, MapPin, Phone, Shield, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle2, MapPin, Phone, Shield, Star, Calendar } from 'lucide-react'
 
-// Business Profile Interface
+// ScrapedData Interface - The Data Architecture
+interface ScrapedData {
+  businessName: string
+  phone: string
+  city: string
+  navLinks: string[]
+  industryKeyword: string
+  aboutSnippet: string
+}
+
+// Business Profile Interface (for backward compatibility)
 interface BusinessProfile {
   businessName?: string
   industry?: string
@@ -106,59 +116,125 @@ const STRATEGIES: Strategy[] = [
   }
 ]
 
-// Personalized Preview Component
+// Image Engine - Maps industry keywords to high-quality Unsplash URLs
+function getIndustryImage(keyword: string): string {
+  const normalizedKeyword = keyword.toLowerCase()
+  
+  if (normalizedKeyword.includes('limo') || normalizedKeyword.includes('transport') || normalizedKeyword.includes('car') || normalizedKeyword.includes('shuttle')) {
+    return 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80'
+  }
+  
+  if (normalizedKeyword.includes('plumb') || normalizedKeyword.includes('home') || normalizedKeyword.includes('repair') || normalizedKeyword.includes('contractor')) {
+    return 'https://images.unsplash.com/photo-1581578731117-104f2a86372d?auto=format&fit=crop&w=800&q=80'
+  }
+  
+  if (normalizedKeyword.includes('restaurant') || normalizedKeyword.includes('food') || normalizedKeyword.includes('dining') || normalizedKeyword.includes('cafe')) {
+    return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'
+  }
+  
+  if (normalizedKeyword.includes('medical') || normalizedKeyword.includes('health') || normalizedKeyword.includes('doctor') || normalizedKeyword.includes('clinic')) {
+    return 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?auto=format&fit=crop&w=800&q=80'
+  }
+  
+  if (normalizedKeyword.includes('legal') || normalizedKeyword.includes('law') || normalizedKeyword.includes('attorney')) {
+    return 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80'
+  }
+  
+  // Default: Modern office or abstract gradient
+  return 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80'
+}
+
+// Phone Number Formatting Helper
+function formatPhone(phone: string): string {
+  // Remove all non-digits
+  const digits = phone.replace(/\D/g, '')
+  
+  // Format as: 415 • 555 • 0199
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)} • ${digits.slice(3, 6)} • ${digits.slice(6)}`
+  }
+  
+  // If already formatted or different length, return as-is
+  return phone
+}
+
+// Prepare ScrapedData from BusinessProfile
+function prepareScrapedData(businessProfile?: BusinessProfile): ScrapedData {
+  const defaultNavLinks = ['Home', 'Services', 'About', 'Contact']
+  
+  return {
+    businessName: businessProfile?.businessName || 'Elite Transporters',
+    phone: businessProfile?.contactInfo?.phone || '(415) 555-0123',
+    city: businessProfile?.location?.city || 'San Francisco',
+    navLinks: businessProfile?.services?.map(s => s.name) || defaultNavLinks,
+    industryKeyword: businessProfile?.industry?.toLowerCase() || businessProfile?.services?.[0]?.name?.toLowerCase() || 'limo',
+    aboutSnippet: `Serving ${businessProfile?.location?.city || 'San Francisco'} and the Bay Area since 1998. We provide premium ${businessProfile?.services?.[0]?.name || businessProfile?.industry || 'transportation'} services with unmatched quality and reliability.`
+  }
+}
+
+// Personalized Preview Component - Hyper-Realistic Mockups
 interface PersonalizedPreviewProps {
   strategyId: string
   businessProfile?: BusinessProfile
+  scrapedData?: ScrapedData
 }
 
-function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPreviewProps) {
-  // Demo data fallback for development
-  const demoData = { 
-    name: "Elite Transporters", 
-    city: "San Francisco", 
-    service: "Luxury Private Shuttle" 
-  }
-  
-  // Use real data if available, otherwise use demo data
-  const data = {
-    name: businessProfile?.businessName || demoData.name,
-    city: businessProfile?.location?.city || demoData.city,
-    service: businessProfile?.services?.[0]?.name || businessProfile?.industry || demoData.service,
-    phone: businessProfile?.contactInfo?.phone || '(415) 555-0123'
-  }
-  
+function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: PersonalizedPreviewProps) {
+  // Use scrapedData if provided, otherwise prepare from businessProfile
+  const data: ScrapedData = scrapedData || prepareScrapedData(businessProfile)
   const strategy = STRATEGIES.find(s => s.id === strategyId) || STRATEGIES[0]
+  const industryImage = getIndustryImage(data.industryKeyword)
+  const formattedPhone = formatPhone(data.phone)
+  const navLinks = data.navLinks.length > 0 ? data.navLinks : ['Home', 'Services', 'About', 'Contact']
+  
+  // Get current date for calendar
+  const currentDate = new Date()
+  const dayOfMonth = currentDate.getDate()
+  const monthName = currentDate.toLocaleString('default', { month: 'short' })
 
   const renderPreview = () => {
     switch (strategyId) {
       case 'emergency-response':
         return (
-          <div className="w-full h-full bg-gradient-to-br from-slate-50 to-orange-50 flex flex-col" style={{ fontFamily: strategy.fontStyle === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif' }}>
+          <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 to-slate-200 flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
             {/* Sticky Header */}
-            <div className="h-14 bg-white/80 backdrop-blur-sm border-b shadow-sm flex items-center justify-between px-6 sticky top-0 z-10">
-              <div className="text-lg font-bold tracking-tight" style={{ color: strategy.colors.primary === '#FFFFFF' ? '#1F2937' : strategy.colors.primary }}>
-                {data.name}
+            <div className="h-14 bg-white/90 backdrop-blur-sm border-b shadow-sm flex items-center justify-between px-6 sticky top-0 z-10">
+              <div className="text-lg font-bold tracking-tight text-slate-900 truncate max-w-[200px]">
+                {data.businessName}
               </div>
-              <div className="px-4 py-2 rounded-lg font-semibold text-white shadow-lg shadow-orange-200" style={{ backgroundColor: strategy.colors.accent }}>
+              <button className="px-4 py-2 rounded-lg font-bold text-white bg-gradient-to-r from-red-500 to-orange-500 shadow-lg shadow-orange-500/30 hover:shadow-xl transition-all">
                 Call Now
-              </div>
+              </button>
             </div>
+            
             {/* Hero Section */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-12">
-              <h1 className="text-4xl font-bold text-center tracking-tight" style={{ color: strategy.colors.primary === '#FFFFFF' ? '#1F2937' : strategy.colors.primary }}>
-                {data.service} in {data.city}
-              </h1>
-              <div className="px-8 py-4 rounded-xl font-bold text-white text-xl shadow-lg shadow-orange-200" style={{ backgroundColor: strategy.colors.accent }}>
-                {data.phone}
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-12">
+              {/* Avatar with Industry Image */}
+              <div className="relative">
+                <img 
+                  src={industryImage} 
+                  alt={data.businessName}
+                  className="w-24 h-24 rounded-full ring-4 ring-white shadow-lg object-cover"
+                />
               </div>
-              <p className="text-gray-600 text-center max-w-md">
+              
+              {/* Phone Number - Prominently Displayed */}
+              <div className="text-xl font-bold text-slate-900">
+                {formattedPhone}
+              </div>
+              
+              <h1 className="text-3xl font-bold text-center text-slate-900 tracking-tight max-w-md">
+                {data.businessName}
+              </h1>
+              
+              <p className="text-slate-600 text-center max-w-md">
                 24/7 Emergency Service • Available Now
               </p>
             </div>
+            
             {/* Map Section */}
             <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 border-t flex items-center justify-center">
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-700">
                 <MapPin className="w-5 h-5" />
                 <span>Serving {data.city} & Bay Area</span>
               </div>
@@ -169,19 +245,38 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
       case 'local-showroom':
         return (
           <div className="w-full h-full relative overflow-hidden" style={{ fontFamily: 'Georgia, serif' }}>
-            {/* Full-bleed Image Background with dark luxury theme */}
-            <div className="absolute inset-0 bg-slate-900"></div>
-            {/* Subtle pattern overlay */}
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(212,175,55,0.3) 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
-            {/* Overlay Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
-              <div className="text-5xl font-serif mb-4 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 bg-clip-text text-transparent">
-                {data.name}
-              </div>
-              <div className="text-2xl font-serif text-white/90 mb-8">
-                {data.service} in {data.city}
-              </div>
-              <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+            {/* Full-Bleed Background Image */}
+            <img 
+              src={industryImage} 
+              alt={data.businessName}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            
+            {/* Heavy Dark Overlay */}
+            <div className="absolute inset-0 bg-black/70"></div>
+            
+            {/* Navigation Links - Centered */}
+            <div className="absolute top-8 left-0 right-0 flex justify-center gap-8 z-10">
+              {navLinks.slice(0, 4).map((link, i) => (
+                <a 
+                  key={i}
+                  href="#" 
+                  className="text-white/80 uppercase tracking-widest text-xs font-light hover:text-white transition-colors"
+                >
+                  {link}
+                </a>
+              ))}
+            </div>
+            
+            {/* Overlay Content - Centered */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8 z-10">
+              <h1 className="text-5xl font-serif italic mb-4 text-amber-50 drop-shadow-lg">
+                {data.businessName}
+              </h1>
+              <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mb-4"></div>
+              <p className="text-xl font-serif text-white/90">
+                Premium {data.industryKeyword} in {data.city}
+              </p>
             </div>
           </div>
         )
@@ -191,34 +286,49 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
           <div className="w-full h-full bg-gray-50 flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
             {/* Header */}
             <div className="h-16 bg-white border-b shadow-md flex items-center px-8">
-              <div className="text-xl font-bold" style={{ color: strategy.colors.secondary }}>
-                {data.name}
+              <div className="text-xl font-bold text-blue-900 truncate">
+                {data.businessName}
               </div>
             </div>
+            
             {/* Split Layout */}
-            <div className="flex-1 flex">
-              {/* Left: Image */}
-              <div className="w-2/5 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-blue-400/10"></div>
-                <div className="w-24 h-24 rounded-full bg-white border-4 shadow-lg flex items-center justify-center" style={{ borderColor: strategy.colors.accent }}>
-                  <Shield className="w-12 h-12" style={{ color: strategy.colors.accent }} />
+            <div className="flex-1 flex relative">
+              {/* Left: Image (30%) */}
+              <div className="w-[30%] relative">
+                <img 
+                  src={industryImage} 
+                  alt={data.businessName}
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Certification Badges - Floating over boundary */}
+                <div className="absolute -right-4 top-8 flex flex-col gap-2">
+                  {[1, 2, 3].map(i => (
+                    <div 
+                      key={i}
+                      className="w-8 h-8 bg-white rounded-sm shadow-md flex items-center justify-center"
+                    >
+                      <Shield className="w-5 h-5 text-blue-600" />
+                    </div>
+                  ))}
                 </div>
               </div>
-              {/* Right: Content */}
+              
+              {/* Right: Content (70%) */}
               <div className="flex-1 p-8 flex flex-col justify-center bg-white shadow-md">
-                <h1 className="text-3xl font-bold mb-4" style={{ color: strategy.colors.secondary }}>
-                  Meet Our Team
+                <h1 className="text-3xl font-bold mb-4 text-blue-900">
+                  About {data.businessName}
                 </h1>
-                <div className="space-y-2 mb-6">
-                  <div className="h-3 bg-gray-300 rounded w-full"></div>
-                  <div className="h-3 bg-gray-300 rounded w-4/5"></div>
-                  <div className="h-3 bg-gray-300 rounded w-full"></div>
-                  <div className="h-3 bg-gray-300 rounded w-3/4"></div>
-                </div>
+                <p className="text-gray-700 leading-relaxed line-clamp-4 mb-6">
+                  {data.aboutSnippet}
+                </p>
                 <div className="flex gap-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="w-12 h-12 rounded-full border-2 flex items-center justify-center" style={{ borderColor: strategy.colors.accent }}>
-                      <Shield className="w-6 h-6" style={{ color: strategy.colors.accent }} />
+                    <div 
+                      key={i}
+                      className="w-12 h-12 rounded-full border-2 border-blue-600 flex items-center justify-center bg-white shadow-sm"
+                    >
+                      <Shield className="w-6 h-6 text-blue-600" />
                     </div>
                   ))}
                 </div>
@@ -236,18 +346,44 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
                 Search menu items...
               </div>
             </div>
+            
             {/* Product Grid */}
-            <div className="flex-1 p-6 grid grid-cols-2 gap-4">
+            <div className="flex-1 p-4 grid grid-cols-2 gap-2">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="w-full h-32 bg-gradient-to-br from-emerald-100 to-emerald-200 relative">
-                    <div className="absolute top-2 right-2 bg-emerald-600 text-white px-2 py-1 rounded-full text-xs font-bold">
-                      ${150 + i * 25}
+                <div key={i} className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
+                  {/* Thumbnail - Use industry image for first card */}
+                  <div className="w-full h-32 relative">
+                    {i === 1 ? (
+                      <img 
+                        src={industryImage} 
+                        alt="Product"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className={`w-full h-full bg-gradient-to-br ${
+                        i === 2 ? 'from-emerald-100 to-emerald-200' :
+                        i === 3 ? 'from-blue-100 to-blue-200' :
+                        'from-purple-100 to-purple-200'
+                      }`}></div>
+                    )}
+                    
+                    {/* Price Tag */}
+                    <div className="absolute top-2 right-2 bg-emerald-500 text-white px-2 py-1 rounded-full text-[10px] font-bold shadow-sm">
+                      ${120 + i * 15}
+                    </div>
+                    
+                    {/* Add to Cart Button */}
+                    <div className="absolute bottom-2 left-2">
+                      <button className="bg-emerald-500 text-white text-[8px] rounded-full px-2 py-0.5 font-semibold shadow-sm hover:bg-emerald-600 transition-colors">
+                        Add to Cart
+                      </button>
                     </div>
                   </div>
+                  
+                  {/* Product Info */}
                   <div className="p-3">
-                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
+                    <div className="h-2 bg-gray-200 rounded w-1/2"></div>
                   </div>
                 </div>
               ))}
@@ -257,30 +393,66 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
 
       case 'town-square':
         return (
-          <div className="w-full h-full bg-white flex" style={{ fontFamily: 'system-ui, sans-serif' }}>
-            {/* Calendar Sidebar */}
-            <div className="w-1/3 border-r bg-gray-50 p-4 shadow-md">
-              <div className="h-6 bg-gray-300 rounded mb-3"></div>
-              <div className="grid grid-cols-3 gap-1">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (
-                  <div key={i} className="aspect-square bg-white border rounded flex items-center justify-center text-xs shadow-sm" style={{ borderColor: strategy.colors.accent }}>
-                    {i}
-                  </div>
-                ))}
-              </div>
+          <div className="w-full h-full bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
+            {/* Tab Navigation */}
+            <div className="h-12 bg-gray-50 border-b flex items-center px-6 gap-6">
+              {navLinks.slice(0, 4).map((link, i) => (
+                <button
+                  key={i}
+                  className={`text-sm font-medium transition-colors ${
+                    i === 0 
+                      ? 'text-purple-600 border-b-2 border-purple-500 pb-2' 
+                      : 'text-gray-600 hover:text-purple-600'
+                  }`}
+                >
+                  {link}
+                </button>
+              ))}
             </div>
-            {/* Feed */}
-            <div className="flex-1 p-6">
-              <h2 className="text-2xl font-bold mb-4" style={{ color: strategy.colors.secondary }}>
-                Community Updates
-              </h2>
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="border-b pb-4">
-                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            
+            {/* Main Content */}
+            <div className="flex-1 flex">
+              {/* Calendar Sidebar (30%) */}
+              <div className="w-[30%] border-r bg-gray-50 p-4">
+                {/* Calendar Icon - Page Tear Style */}
+                <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4">
+                  {/* Red Header */}
+                  <div className="bg-red-500 h-8 flex items-center justify-center">
+                    <span className="text-white text-xs font-bold uppercase">{monthName}</span>
                   </div>
-                ))}
+                  {/* White Body */}
+                  <div className="h-16 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-900">{dayOfMonth}</span>
+                  </div>
+                </div>
+                
+                {/* Mini Calendar Grid */}
+                <div className="grid grid-cols-3 gap-1">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (
+                    <div 
+                      key={i} 
+                      className="aspect-square bg-white border rounded flex items-center justify-center text-xs shadow-sm"
+                      style={{ borderColor: i === dayOfMonth ? strategy.colors.accent : '#e5e7eb' }}
+                    >
+                      {i}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Feed (70%) */}
+              <div className="flex-1 p-6">
+                <h2 className="text-2xl font-bold mb-4 text-purple-900">
+                  Community Updates
+                </h2>
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="border-b pb-4">
+                      <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -292,15 +464,23 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
   }
 
   return (
-    <div className="w-full h-full rounded-lg overflow-hidden shadow-2xl" style={{ transform: 'scale(0.85)', transformOrigin: 'top left' }}>
-      {/* Browser Chrome */}
-      <div className="h-8 bg-gray-800 flex items-center gap-1.5 px-3">
-        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+    <div className="w-full h-full rounded-xl border border-white/20 shadow-2xl bg-white overflow-hidden" style={{ transform: 'scale(0.85)', transformOrigin: 'top left' }}>
+      {/* Browser Chrome - Address Bar with Traffic Lights */}
+      <div className="h-6 bg-gray-50 border-b flex items-center px-2 gap-1.5">
+        {/* Traffic Light Dots */}
+        <div className="flex gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-inner"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-inner"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-inner"></div>
+        </div>
+        {/* Address Bar */}
+        <div className="flex-1 h-4 bg-white border border-gray-200 rounded mx-2 px-2 text-[8px] text-gray-400 flex items-center">
+          {data.businessName.toLowerCase().replace(/\s+/g, '')}.com
+        </div>
       </div>
+      
       {/* Preview Content */}
-      <div className="h-[calc(100%-2rem)]">
+      <div className="h-[calc(100%-1.5rem)]">
         {renderPreview()}
       </div>
     </div>
@@ -313,6 +493,7 @@ interface ThemeSelectionProps {
   initialSelection?: string
   recommendedCategory?: string
   businessProfile?: BusinessProfile
+  scrapedData?: ScrapedData
 }
 
 export default function ThemeSelection({
@@ -320,7 +501,8 @@ export default function ThemeSelection({
   onContinue,
   initialSelection,
   recommendedCategory,
-  businessProfile
+  businessProfile,
+  scrapedData
 }: ThemeSelectionProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
@@ -383,6 +565,7 @@ export default function ThemeSelection({
             <PersonalizedPreview 
               strategyId={currentStrategy.id} 
               businessProfile={businessProfile}
+              scrapedData={scrapedData}
             />
           </div>
         </div>
@@ -445,7 +628,7 @@ export default function ThemeSelection({
               onClick={handleApprove}
               className="w-full px-8 py-5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
-              Initialize {businessProfile?.businessName || 'Elite Transporters'} with Strategy {currentIndex + 1}
+              Initialize {businessProfile?.businessName || scrapedData?.businessName || 'Elite Transporters'} with Strategy {currentIndex + 1}
             </button>
           </div>
         </div>
@@ -495,7 +678,7 @@ export default function ThemeSelection({
               onClick={handleApprove}
               className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-base rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
-              Initialize {businessProfile?.businessName || 'Elite Transporters'} with Strategy {currentIndex + 1}
+              Initialize {businessProfile?.businessName || scrapedData?.businessName || 'Elite Transporters'} with Strategy {currentIndex + 1}
             </button>
           </div>
         </div>
