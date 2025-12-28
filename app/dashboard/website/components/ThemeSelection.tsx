@@ -158,10 +158,13 @@ function formatPhone(phone: string): string {
   return phone
 }
 
-// Prepare ScrapedData from BusinessProfile
-function prepareScrapedData(businessProfile?: BusinessProfile): ScrapedData {
-  const defaultNavLinks = ['Fleet', 'Chauffeur Services', 'Wine Tours', 'Reservations']
-  
+// Enhanced ScrapedData with Industry Architecture
+interface EnhancedScrapedData extends ScrapedData {
+  architecture?: IndustryArchitecture
+}
+
+// Prepare ScrapedData from BusinessProfile with Industry Simulation
+function prepareScrapedData(businessProfile?: BusinessProfile): EnhancedScrapedData {
   // Angel Limo demo data
   const demoData = {
     businessName: "Angel Worldwide Transportation",
@@ -172,13 +175,39 @@ function prepareScrapedData(businessProfile?: BusinessProfile): ScrapedData {
     aboutSnippet: "Premier luxury transportation serving the Bay Area, Napa Valley, and beyond."
   }
   
+  // Extract industry keyword
+  const industryKeyword = businessProfile?.industry?.toLowerCase() || 
+                         businessProfile?.services?.[0]?.name?.toLowerCase() || 
+                         demoData.industryKeyword
+  
+  // Synthesize industry architecture
+  const architecture = synthesizeIndustryData(industryKeyword)
+  
+  // Overlay real scraped data on top of synthesized structure
+  const businessName = businessProfile?.businessName || demoData.businessName
+  const phone = businessProfile?.contactInfo?.phone || demoData.phone
+  const city = businessProfile?.location?.city || demoData.city
+  
+  // Use synthesized services if no real services provided
+  const navLinks = businessProfile?.services?.map(s => s.name) || 
+                   architecture.services || 
+                   demoData.navLinks
+  
+  // Generate about snippet using architecture vocabulary
+  const aboutSnippet = businessProfile?.businessName 
+    ? `Serving ${city} and the surrounding area. We provide ${architecture.vocabulary.value[0].toLowerCase()} ${architecture.vocabulary.value[1].toLowerCase()} with ${architecture.vocabulary.value[2].toLowerCase()} and reliability.`
+    : architecture.archetype === 'luxury' 
+      ? demoData.aboutSnippet
+      : `Professional ${industryKeyword} services in ${city}. ${architecture.trustSignals[0]} and committed to ${architecture.vocabulary.value[0].toLowerCase()}.`
+  
   return {
-    businessName: businessProfile?.businessName || demoData.businessName,
-    phone: businessProfile?.contactInfo?.phone || demoData.phone,
-    city: businessProfile?.location?.city || demoData.city,
-    navLinks: businessProfile?.services?.map(s => s.name) || demoData.navLinks,
-    industryKeyword: businessProfile?.industry?.toLowerCase() || businessProfile?.services?.[0]?.name?.toLowerCase() || demoData.industryKeyword,
-    aboutSnippet: businessProfile?.businessName ? `Serving ${businessProfile?.location?.city || 'San Francisco'} and the Bay Area since 1998. We provide premium ${businessProfile?.services?.[0]?.name || businessProfile?.industry || 'transportation'} services with unmatched quality and reliability.` : demoData.aboutSnippet
+    businessName,
+    phone,
+    city,
+    navLinks,
+    industryKeyword,
+    aboutSnippet,
+    architecture
   }
 }
 
@@ -190,17 +219,28 @@ interface PersonalizedPreviewProps {
 }
 
 function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: PersonalizedPreviewProps) {
-  // Use scrapedData if provided, otherwise prepare from businessProfile
-  const data: ScrapedData = scrapedData || prepareScrapedData(businessProfile)
+  // Use scrapedData if provided, otherwise prepare from businessProfile with industry simulation
+  const data: EnhancedScrapedData = scrapedData || prepareScrapedData(businessProfile)
   const strategy = STRATEGIES.find(s => s.id === strategyId) || STRATEGIES[0]
-  const industryImage = getIndustryImage(data.industryKeyword)
+  
+  // Get industry architecture (synthesized or from data)
+  const architecture = data.architecture || synthesizeIndustryData(data.industryKeyword)
+  
+  // Use dynamic image queries from architecture
+  const industryImage = getDynamicImage(architecture.imageQueries.hero, 1600, 900)
+  const teamImage = getDynamicImage(architecture.imageQueries.team, 800, 800)
+  const actionImage = getDynamicImage(architecture.imageQueries.action, 800, 800)
+  
   const formattedPhone = formatPhone(data.phone)
-  const navLinks = data.navLinks.length > 0 ? data.navLinks : ['Home', 'Services', 'About', 'Contact']
+  const navLinks = data.navLinks.length > 0 ? data.navLinks : architecture.services || ['Home', 'Services', 'About', 'Contact']
   
   // Get current date for calendar
   const currentDate = new Date()
   const dayOfMonth = currentDate.getDate()
   const monthName = currentDate.toLocaleString('default', { month: 'short' })
+  
+  // Use architecture CTA text
+  const ctaText = architecture.ctaText
 
   const renderPreview = () => {
     switch (strategyId) {
@@ -213,7 +253,7 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
                 {data.businessName}
               </div>
               <button className="px-8 py-3 rounded-lg font-bold text-white bg-gradient-to-r from-red-500 to-orange-500 shadow-lg shadow-orange-500/30 hover:shadow-xl transition-all text-lg">
-                Call Now
+                {ctaText}
               </button>
             </div>
             
@@ -222,7 +262,7 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
               {/* Left Side - Text Content */}
               <div className="w-1/2 flex flex-col justify-center px-16 bg-gradient-to-br from-slate-50 to-slate-100">
                 <h1 className="text-6xl font-bold text-slate-900 tracking-tight mb-6">
-                  Luxury Shuttles in {data.city.split(' ')[0]}
+                  {architecture.vocabulary.value[0]} {architecture.vocabulary.value[1]} in {data.city.split(' ')[0]}
                 </h1>
                 <div className="text-3xl font-bold text-slate-700 mb-8">
                   {formattedPhone}
@@ -248,10 +288,10 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
             
             {/* Trust Bar */}
             <div className="h-24 bg-gray-100 border-t flex items-center justify-center gap-12 px-12">
-              {[1, 2, 3, 4].map(i => (
+              {architecture.trustSignals.slice(0, 4).map((signal, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <Shield className="w-8 h-8 text-gray-400" />
-                  <div className="h-4 bg-gray-300 rounded w-24"></div>
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{signal}</span>
                 </div>
               ))}
             </div>
@@ -296,10 +336,10 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
                   {data.businessName}
                 </h1>
                 <p className="text-2xl text-gray-300 mb-8">
-                  Premier luxury transportation in {data.city}
+                  {architecture.vocabulary.value[0]} {architecture.vocabulary.value[1]} in {data.city}
                 </p>
                 <button className="px-8 py-4 border-2 border-amber-400 bg-transparent text-amber-400 font-semibold text-lg hover:bg-amber-400 hover:text-black transition-all">
-                  Reserve Now
+                  {ctaText}
                 </button>
               </div>
             </div>
@@ -354,13 +394,14 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
                 <p className="text-lg text-gray-700 leading-relaxed mb-8 max-w-2xl">
                   {data.aboutSnippet}
                 </p>
-                <div className="flex gap-6">
-                  {[1, 2, 3].map(i => (
+                <div className="flex flex-wrap gap-4">
+                  {architecture.trustSignals.slice(0, 3).map((signal, i) => (
                     <div 
                       key={i}
-                      className="w-16 h-16 rounded-full border-2 border-blue-600 flex items-center justify-center bg-white shadow-md"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200"
                     >
-                      <Shield className="w-8 h-8 text-blue-600" />
+                      <Shield className="w-5 h-5 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">{signal}</span>
                     </div>
                   ))}
                 </div>
@@ -408,10 +449,10 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
                       ${120 + i * 15}
                     </div>
                     
-                    {/* Add to Cart Button */}
+                    {/* CTA Button */}
                     <div className="absolute bottom-3 left-3">
                       <button className="bg-emerald-500 text-white text-xs rounded-full px-3 py-1.5 font-semibold shadow-md hover:bg-emerald-600 transition-colors">
-                        Add to Cart
+                        {architecture.archetype === 'retail' ? 'Add to Cart' : ctaText}
                       </button>
                     </div>
                   </div>
