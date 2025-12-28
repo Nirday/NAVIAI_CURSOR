@@ -3,10 +3,22 @@
  * This file defines the foundational types used across the Navi AI platform
  */
 
+export type ServiceModel = 'storefront' | 'service_area' | 'hybrid';
+
+export interface IndustryArchitecture {
+  id: string; // e.g. 'medical', 'trade', 'creative'
+  label: string;
+  palette: { primary: string; accent: string; button: string; text: string };
+  vocabulary: { cta: string; navItems: string[]; heroTitle: string; subTitle: string };
+  trustSignals: string[];
+  imageQuery: string;
+}
+
 export interface BusinessProfile {
   userId: string;
   businessName: string;
   industry: string;
+  // SMARTER GEOGRAPHY
   location: {
     address: string;
     city: string;
@@ -14,6 +26,13 @@ export interface BusinessProfile {
     zipCode: string;
     country: string;
   };
+  regionLabel?: string; // e.g. "Greater Bay Area" (Auto-generated if service_area)
+  serviceModel?: ServiceModel; // CRITICAL: Did they say "We come to you"?
+  
+  // SMARTER INDUSTRY
+  industryRaw?: string; // e.g. "I run a mobile dog grooming van"
+  industryArchetype?: IndustryArchitecture; // The generated "Vibe"
+  
   contactInfo: {
     phone: string;
     email: string;

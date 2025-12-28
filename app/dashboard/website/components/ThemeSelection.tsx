@@ -1,41 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Check, AlertCircle, ChevronRight, ChevronLeft, ArrowRight, MousePointer2, Smartphone, LayoutGrid, Calendar, MapPin, Phone, Shield, Star } from 'lucide-react'
+import { Check, AlertCircle, ChevronRight, ChevronLeft, ArrowRight, MousePointer2, Smartphone, LayoutGrid, Calendar, MapPin, Phone, Shield, Star, MapPinned } from 'lucide-react'
+import { generateIndustryArchitecture, type IndustryArchitecture } from '@/utils/industryGenerator'
 
 // --- 1. TYPE DEFINITIONS (CRITICAL) ---
-
-interface IndustryArchitecture {
-  id: string;
-  label: string;
-  palette: {
-    primary: string; // Backgrounds
-    accent: string;  // Text/Highlights
-    button: string;  // CTA Buttons
-    text: string;    // Main Text Color
-  };
-  vocabulary: {
-    cta: string;       // e.g. "Book Ride" vs "Order Now"
-    navItems: string[]; 
-    heroTitle: string; 
-    subTitle: string;
-  };
-  services: string[];    
-  trustSignals: string[]; 
-  imageQuery: string;    // Unsplash keyword
-  // Hyper-Local Fields
-  localVocabulary: {
-    serviceAreaTitle: string; // e.g., "Serving {city} & Surrounding Areas"
-    localSocialProof: string; // e.g., "Voted Best in {city}", "5-Star Local Reviews"
-    locationLabel: string;    // e.g., "Visit Our Showroom", "Dispatch Center"
-  };
-  conversionFocus: 'call' | 'visit' | 'book' | 'order'; // Dictates the sticky mobile button
-  trustBadges: string[]; // e.g. "Locally Owned", "Licensed in {state}"
-  trafficIntent: 'emergency' | 'destination' | 'appointment'; // Traffic Intent Classification
-  // Regional Service Area Fields
-  serviceModel: 'service_area' | 'storefront' | 'hybrid'; // Service delivery model
-  geoLabel: string; // Smart geographic label (e.g., "San Francisco & The Bay Area")
-}
 
 interface ScrapedData {
   businessName?: string;
@@ -798,7 +767,7 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ strategy, scrapedData, arch
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   {serviceModel === 'service_area' ? (
                     <>
-                      <MapPin className="w-4 h-4" />
+                      <MapPinned className="w-4 h-4" />
                       <span>Serving {geoLabel}</span>
                     </>
                   ) : (
@@ -855,9 +824,15 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ strategy, scrapedData, arch
                 
                 <div className="flex gap-4">
                   <button className={`w-fit px-8 py-3 rounded-lg font-bold text-white ${architecture.palette.button} shadow-lg hover:shadow-xl transition-all text-lg`}>
-                    {ctaText}
+                    {serviceModel === 'service_area' 
+                      ? 'Call Now' 
+                      : serviceModel === 'storefront' && conversionFocus === 'order'
+                      ? 'Order Pickup'
+                      : serviceModel === 'storefront'
+                      ? 'Get Directions'
+                      : ctaText}
                   </button>
-                  {serviceModel === 'storefront' && (
+                  {serviceModel === 'storefront' && conversionFocus !== 'order' && (
                     <button className="w-fit px-6 py-3 rounded-lg font-semibold text-gray-700 bg-white border-2 border-gray-300 hover:bg-gray-50 transition-all text-lg flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
                       Get Directions
@@ -1177,12 +1152,12 @@ export default function ThemeSelection({
       try {
         const city = mergedData.city || '{city}';
         const state = businessProfile?.location?.state || '{state}';
-        const generated = await generateThemeConfig(businessDescription || 'general business', city, state);
+        const generated = await generateIndustryArchitecture(businessDescription || 'general business', city, state);
         setArchitecture(generated);
       } catch (error) {
         console.error('Error generating theme config:', error);
         // Fallback to default
-        const fallback = await generateThemeConfig('general business', mergedData.city || '{city}', businessProfile?.location?.state || '{state}');
+        const fallback = await generateIndustryArchitecture('general business', mergedData.city || '{city}', businessProfile?.location?.state || '{state}');
         setArchitecture(fallback);
       } finally {
         setIsGenerating(false);
@@ -1242,10 +1217,10 @@ export default function ThemeSelection({
             <div className="w-full max-w-2xl flex flex-col items-center justify-center p-12">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mb-6"></div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                Navi is analyzing your industry...
+                Navi is analyzing your local market...
               </h3>
               <p className="text-gray-600 text-center max-w-md">
-                We're generating a custom theme configuration based on your business type.
+                We're generating a custom theme configuration based on your business type and regional context.
               </p>
             </div>
           ) : architecture ? (
