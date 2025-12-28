@@ -725,11 +725,22 @@ interface ThemePreviewProps {
 }
 
 const ThemePreview: React.FC<ThemePreviewProps> = ({ strategy, scrapedData, architecture }) => {
+  // 1. Base Data Extraction
   const businessName = scrapedData.businessName || 'Your Business';
   const phone = scrapedData.phone || '(555) 123-4567';
   const city = scrapedData.city || 'Your City';
   const formattedPhone = formatPhone(phone);
+  
+  // 2. Logic Calculation (MUST be before usage)
+  // Use the smart geoLabel if the generator created one (e.g. "SF Bay Area"), otherwise fallback to city.
+  const geoLabel = architecture.geoLabel || city;
+  
+  // 3. Derived Content Construction
+  // Now we can safely use geoLabel
   const heroTitle = architecture.vocabulary.heroTitle.replace('{city}', geoLabel);
+  const subTitle = architecture.vocabulary.subTitle?.replace('{city}', geoLabel) || architecture.vocabulary.subTitle;
+  
+  // 4. Remaining Data
   const navItems = scrapedData.navLinks || architecture.vocabulary.navItems;
   const services = architecture.services;
   const trustSignals = architecture.trustSignals;
@@ -737,7 +748,6 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ strategy, scrapedData, arch
   const ctaText = architecture.vocabulary.cta;
   
   // Local elements
-  const geoLabel = architecture.geoLabel.replace('{city}', city);
   const serviceAreaTitle = architecture.localVocabulary.serviceAreaTitle.replace('{city}', city).replace('{geoLabel}', geoLabel);
   const localSocialProof = architecture.localVocabulary.localSocialProof.replace('{city}', city).replace('{geoLabel}', geoLabel);
   const locationLabel = architecture.localVocabulary.locationLabel;
