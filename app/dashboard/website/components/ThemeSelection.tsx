@@ -23,6 +23,18 @@ interface IndustryArchitecture {
   services: string[];    
   trustSignals: string[]; 
   imageQuery: string;    // Unsplash keyword
+  // Hyper-Local Fields
+  localVocabulary: {
+    serviceAreaTitle: string; // e.g., "Serving {city} & Surrounding Areas"
+    localSocialProof: string; // e.g., "Voted Best in {city}", "5-Star Local Reviews"
+    locationLabel: string;    // e.g., "Visit Our Showroom", "Dispatch Center"
+  };
+  conversionFocus: 'call' | 'visit' | 'book' | 'order'; // Dictates the sticky mobile button
+  trustBadges: string[]; // e.g. "Locally Owned", "Licensed in {state}"
+  trafficIntent: 'emergency' | 'destination' | 'appointment'; // Traffic Intent Classification
+  // Regional Service Area Fields
+  serviceModel: 'service_area' | 'storefront' | 'hybrid'; // Service delivery model
+  geoLabel: string; // Smart geographic label (e.g., "San Francisco & The Bay Area")
 }
 
 interface ScrapedData {
@@ -355,8 +367,255 @@ const generateImageQuery = (tokens: string[], vibe: VibeType): string => {
   return "modern office business professional";
 };
 
+// Traffic Intent Classification (Hyper-Local)
+type TrafficIntent = 'emergency' | 'destination' | 'appointment';
+
+const classifyTrafficIntent = (tokens: string[]): TrafficIntent => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  // Emergency/Service: Business comes to customer
+  if (['plumber', 'electrician', 'hvac', 'locksmith', 'towing', 'repair', 'emergency', 'service', 'contractor', 'handyman', 'roof', 'pest', 'cleaning', 'delivery'].some(t => text.includes(t))) {
+    return 'emergency';
+  }
+  
+  // Destination/Visit: Customer comes to business
+  if (['bakery', 'cafe', 'restaurant', 'gym', 'salon', 'spa', 'store', 'shop', 'retail', 'showroom', 'gallery', 'studio', 'gym', 'fitness'].some(t => text.includes(t))) {
+    return 'destination';
+  }
+  
+  // Appointment/Professional: Scheduled visits
+  if (['doctor', 'dentist', 'chiropractor', 'lawyer', 'attorney', 'accountant', 'therapist', 'counselor', 'consultant', 'clinic', 'office'].some(t => text.includes(t))) {
+    return 'appointment';
+  }
+  
+  // Default: Service Area Business (safest for SMBs)
+  return 'emergency';
+};
+
+// Service Model Classification (Regional Service Areas)
+type ServiceModel = 'service_area' | 'storefront' | 'hybrid';
+
+const classifyServiceModel = (tokens: string[]): ServiceModel => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  // Service Area Businesses (Mobile - Go to Client)
+  const serviceAreaKeywords = [
+    'limo', 'limousine', 'chauffeur', 'transport', 'shuttle', 'taxi', 'driver',
+    'plumber', 'electrician', 'hvac', 'contractor', 'handyman', 'roof', 'roofer',
+    'landscaper', 'landscape', 'tree', 'arborist', 'cleaning', 'cleaner', 'maid',
+    'construction', 'builder', 'towing', 'tow', 'locksmith', 'pest', 'exterminator',
+    'delivery', 'moving', 'mover', 'painter', 'welder', 'mechanic', 'repair'
+  ];
+  
+  if (serviceAreaKeywords.some(k => text.includes(k))) {
+    return 'service_area';
+  }
+  
+  // Storefront Businesses (Stationary - Client Comes to Business)
+  const storefrontKeywords = [
+    'dentist', 'doctor', 'clinic', 'medical', 'hospital', 'pharmacy',
+    'restaurant', 'cafe', 'bakery', 'bar', 'pub', 'brewery', 'dining',
+    'gym', 'fitness', 'salon', 'spa', 'barber', 'nail', 'massage',
+    'store', 'shop', 'retail', 'boutique', 'market', 'showroom',
+    'law', 'attorney', 'lawyer', 'legal', 'office', 'accountant',
+    'gallery', 'studio', 'pottery', 'art', 'workshop'
+  ];
+  
+  if (storefrontKeywords.some(k => text.includes(k))) {
+    return 'storefront';
+  }
+  
+  // Hybrid: Can be both (e.g., some chiropractors have office + house calls)
+  if (['chiropractor', 'therapist', 'counselor', 'consultant', 'wellness', 'health'].some(k => text.includes(k))) {
+    return 'hybrid';
+  }
+  
+  // Default: Service Area (safest for SMBs)
+  return 'service_area';
+};
+
+// Mega-Region Mapping (Smart Geographic Expansion)
+const getMegaRegion = (city: string): string => {
+  const normalizedCity = city.toLowerCase().trim();
+  
+  // San Francisco Bay Area
+  if (normalizedCity.includes('san francisco') || normalizedCity.includes('sf') || 
+      normalizedCity.includes('oakland') || normalizedCity.includes('san jose') ||
+      normalizedCity.includes('palo alto') || normalizedCity.includes('berkeley')) {
+    return 'The Bay Area';
+  }
+  
+  // New York Tri-State
+  if (normalizedCity.includes('new york') || normalizedCity.includes('nyc') ||
+      normalizedCity.includes('brooklyn') || normalizedCity.includes('queens') ||
+      normalizedCity.includes('manhattan') || normalizedCity.includes('bronx')) {
+    return 'Tri-State Area';
+  }
+  
+  // Los Angeles / Southern California
+  if (normalizedCity.includes('los angeles') || normalizedCity.includes('la') ||
+      normalizedCity.includes('san diego') || normalizedCity.includes('orange county') ||
+      normalizedCity.includes('anaheim') || normalizedCity.includes('long beach')) {
+    return 'Southern California';
+  }
+  
+  // Chicago Metro
+  if (normalizedCity.includes('chicago') || normalizedCity.includes('naperville') ||
+      normalizedCity.includes('evanston')) {
+    return 'Greater Chicago Area';
+  }
+  
+  // Dallas-Fort Worth
+  if (normalizedCity.includes('dallas') || normalizedCity.includes('fort worth') ||
+      normalizedCity.includes('dfw')) {
+    return 'DFW Metroplex';
+  }
+  
+  // Houston Metro
+  if (normalizedCity.includes('houston')) {
+    return 'Greater Houston Area';
+  }
+  
+  // Phoenix Metro
+  if (normalizedCity.includes('phoenix') || normalizedCity.includes('scottsdale') ||
+      normalizedCity.includes('tempe')) {
+    return 'Phoenix Metro Area';
+  }
+  
+  // Seattle Metro
+  if (normalizedCity.includes('seattle') || normalizedCity.includes('bellevue')) {
+    return 'Puget Sound Region';
+  }
+  
+  // Boston Metro
+  if (normalizedCity.includes('boston') || normalizedCity.includes('cambridge')) {
+    return 'Greater Boston Area';
+  }
+  
+  // Miami Metro
+  if (normalizedCity.includes('miami') || normalizedCity.includes('fort lauderdale')) {
+    return 'South Florida';
+  }
+  
+  // Default: Generic metro area
+  return 'Metro Area';
+};
+
+// Generate Smart Geo Label
+const generateGeoLabel = (city: string, serviceModel: ServiceModel): string => {
+  if (!city || city === '{city}') {
+    return serviceModel === 'service_area' ? 'Your Region' : 'Your City';
+  }
+  
+  if (serviceModel === 'service_area') {
+    const megaRegion = getMegaRegion(city);
+    // If we found a mega-region match, use it
+    if (megaRegion !== 'Metro Area') {
+      return `${city} & ${megaRegion}`;
+    }
+    // Otherwise use generic metro
+    return `${city} & Surrounding Areas`;
+  } else if (serviceModel === 'storefront') {
+    // Storefronts stay in the city
+    return city;
+  } else {
+    // Hybrid: Show both
+    const megaRegion = getMegaRegion(city);
+    if (megaRegion !== 'Metro Area') {
+      return `${city} & ${megaRegion}`;
+    }
+    return `${city} & Surrounding Areas`;
+  }
+};
+
+// Generate Local Vocabulary (Updated for Service Model)
+const generateLocalVocabulary = (
+  tokens: string[], 
+  trafficIntent: TrafficIntent, 
+  serviceModel: ServiceModel,
+  geoLabel: string
+): IndustryArchitecture['localVocabulary'] => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  let serviceAreaTitle = `Serving ${geoLabel}`;
+  let localSocialProof = `5-Star Local Reviews in ${geoLabel}`;
+  let locationLabel = "Visit Our Location";
+  
+  if (serviceModel === 'service_area') {
+    // Service Area: Mobile businesses
+    if (trafficIntent === 'emergency') {
+      serviceAreaTitle = `Serving ${geoLabel}`;
+      localSocialProof = `Trusted by ${geoLabel.split(' &')[0]} Homeowners`;
+      locationLabel = "Dispatch Center";
+    } else {
+      serviceAreaTitle = `Serving ${geoLabel}`;
+      localSocialProof = `Trusted Service Across ${geoLabel}`;
+      locationLabel = "Service Area";
+    }
+  } else if (serviceModel === 'storefront') {
+    // Storefront: Stationary businesses
+    if (trafficIntent === 'destination') {
+      serviceAreaTitle = `Located in the Heart of ${geoLabel}`;
+      localSocialProof = `Voted Best in ${geoLabel}`;
+      locationLabel = "Visit Our Showroom";
+    } else if (trafficIntent === 'appointment') {
+      serviceAreaTitle = `Serving the ${geoLabel} Community`;
+      localSocialProof = `Top-Rated in ${geoLabel}`;
+      locationLabel = "Our Office Location";
+    } else {
+      serviceAreaTitle = `Located in ${geoLabel}`;
+      localSocialProof = `Local Favorite in ${geoLabel}`;
+      locationLabel = "Visit Our Location";
+    }
+  } else {
+    // Hybrid: Both service area and storefront
+    serviceAreaTitle = `Serving ${geoLabel}`;
+    localSocialProof = `Trusted in ${geoLabel}`;
+    locationLabel = "Our Location";
+  }
+  
+  return {
+    serviceAreaTitle,
+    localSocialProof,
+    locationLabel
+  };
+};
+
+// Generate Trust Badges (Local-Focused)
+const generateTrustBadges = (tokens: string[], trafficIntent: TrafficIntent, state: string = '{state}'): string[] => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  if (trafficIntent === 'emergency') {
+    return ["Locally Owned", `Licensed in ${state}`, "24/7 Emergency Service", "Insured & Bonded"];
+  } else if (trafficIntent === 'destination') {
+    return ["Locally Owned", "Family Business", "Community Favorite", "Established in {city}"];
+  } else if (trafficIntent === 'appointment') {
+    return ["Locally Owned", `Licensed in ${state}`, "Board Certified", "Years of Experience"];
+  }
+  
+  return ["Locally Owned", "5-Star Rated", "Satisfaction Guaranteed", "Trusted Service"];
+};
+
+// Determine Conversion Focus
+const determineConversionFocus = (trafficIntent: TrafficIntent, tokens: string[]): 'call' | 'visit' | 'book' | 'order' => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  if (trafficIntent === 'emergency') {
+    return 'call';
+  } else if (trafficIntent === 'destination') {
+    if (['restaurant', 'food', 'cafe', 'bakery', 'pizza', 'sushi'].some(t => text.includes(t))) {
+      return 'order';
+    }
+    return 'visit';
+  } else if (trafficIntent === 'appointment') {
+    return 'book';
+  }
+  
+  return 'call'; // Default for service area businesses
+};
+
 // Main Generative Function (Simulates AI call)
-const generateThemeConfig = async (businessDescription: string): Promise<IndustryArchitecture> => {
+const generateThemeConfig = async (businessDescription: string, city: string = '{city}', state: string = '{state}'): Promise<IndustryArchitecture> => {
   // Simulate AI processing delay
   await new Promise(resolve => setTimeout(resolve, 800));
   
@@ -370,14 +629,32 @@ const generateThemeConfig = async (businessDescription: string): Promise<Industr
   // Detect vibe
   const vibeProfile = detectVibe(tokens);
   
+  // Classify traffic intent (Hyper-Local)
+  const trafficIntent = classifyTrafficIntent(tokens);
+  
+  // Classify service model (Regional Service Areas)
+  const serviceModel = classifyServiceModel(tokens);
+  
+  // Generate smart geo label
+  const geoLabel = generateGeoLabel(city, serviceModel);
+  
   // Generate vocabulary
   const vocabulary = generateVocabulary(tokens, vibeProfile.vibe, businessDescription);
+  
+  // Generate local vocabulary (with service model awareness)
+  const localVocabulary = generateLocalVocabulary(tokens, trafficIntent, serviceModel, geoLabel);
   
   // Generate services
   const services = generateServices(tokens, vibeProfile.vibe);
   
   // Generate trust signals
   const trustSignals = generateTrustSignals(tokens, vibeProfile.vibe);
+  
+  // Generate trust badges (local-focused)
+  const trustBadges = generateTrustBadges(tokens, trafficIntent, state);
+  
+  // Determine conversion focus
+  const conversionFocus = determineConversionFocus(trafficIntent, tokens);
   
   // Generate image query
   const imageQuery = generateImageQuery(tokens, vibeProfile.vibe);
@@ -402,7 +679,13 @@ const generateThemeConfig = async (businessDescription: string): Promise<Industr
     vocabulary,
     services,
     trustSignals,
-    imageQuery
+    imageQuery,
+    localVocabulary,
+    conversionFocus,
+    trustBadges,
+    trafficIntent,
+    serviceModel,
+    geoLabel
   };
 };
 
@@ -477,12 +760,29 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ strategy, scrapedData, arch
   const phone = scrapedData.phone || '(555) 123-4567';
   const city = scrapedData.city || 'Your City';
   const formattedPhone = formatPhone(phone);
-  const heroTitle = architecture.vocabulary.heroTitle.replace('{city}', city);
+  const heroTitle = architecture.vocabulary.heroTitle.replace('{city}', geoLabel);
   const navItems = scrapedData.navLinks || architecture.vocabulary.navItems;
   const services = architecture.services;
   const trustSignals = architecture.trustSignals;
   const imageUrl = getUnsplashUrl(architecture.imageQuery);
   const ctaText = architecture.vocabulary.cta;
+  
+  // Local elements
+  const geoLabel = architecture.geoLabel.replace('{city}', city);
+  const serviceAreaTitle = architecture.localVocabulary.serviceAreaTitle.replace('{city}', city).replace('{geoLabel}', geoLabel);
+  const localSocialProof = architecture.localVocabulary.localSocialProof.replace('{city}', city).replace('{geoLabel}', geoLabel);
+  const locationLabel = architecture.localVocabulary.locationLabel;
+  const trustBadges = architecture.trustBadges;
+  const conversionFocus = architecture.conversionFocus;
+  const serviceModel = architecture.serviceModel;
+  
+  // Phone priority: giant for call-focused, subtle for others
+  const phoneSize = conversionFocus === 'call' ? 'text-4xl' : 'text-xl';
+  
+  // Hero subtext based on service model
+  const heroSubtext = serviceModel === 'service_area' 
+    ? `Dispatching locally from ${city}.`
+    : architecture.vocabulary.subTitle;
 
   const renderPreview = () => {
     switch (strategy.id) {
@@ -491,8 +791,23 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ strategy, scrapedData, arch
           <div className={`w-full h-full ${architecture.palette.primary} flex flex-col`}>
             {/* Sticky Nav */}
             <div className="h-16 bg-white/95 backdrop-blur-sm border-b shadow-sm flex items-center justify-between px-8 sticky top-0 z-20">
-              <div className={`text-xl font-bold ${architecture.palette.text}`}>
-                {businessName}
+              <div className="flex items-center gap-3">
+                <div className={`text-xl font-bold ${architecture.palette.text}`}>
+                  {businessName}
+                </div>
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  {serviceModel === 'service_area' ? (
+                    <>
+                      <MapPin className="w-4 h-4" />
+                      <span>Serving {geoLabel}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-4 h-4" />
+                      <span>Located in {geoLabel}</span>
+                    </>
+                  )}
+                </div>
               </div>
               <button className={`px-6 py-2 rounded-lg font-bold text-white ${architecture.palette.button} shadow-lg hover:shadow-xl transition-all`}>
                 {ctaText}
@@ -502,30 +817,65 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ strategy, scrapedData, arch
             {/* Hero Section - Split Layout */}
             <div className="flex-1 flex">
               <div className="w-1/2 flex flex-col justify-center px-12 bg-gradient-to-br from-slate-50 to-slate-100">
+                {/* Service Area / Location Badge */}
+                {serviceModel === 'service_area' ? (
+                  <div className="mb-4 inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 w-fit">
+                    <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-sm"></div>
+                    <span className="text-sm font-medium text-gray-700">{serviceAreaTitle}</span>
+                  </div>
+                ) : (
+                  <div className="mb-4 inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 w-fit">
+                    <MapPin className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-700">{serviceAreaTitle}</span>
+                  </div>
+                )}
+                
                 <h1 className={`text-5xl font-bold mb-4 ${architecture.palette.text} leading-tight`}>
-                  {heroTitle}
+                  {heroTitle.replace('{city}', geoLabel)}
                 </h1>
-                <p className={`text-2xl mb-6 ${architecture.palette.accent} font-semibold`}>
+                
+                {/* Phone Number - Priority based on conversion focus */}
+                <p className={`${phoneSize} mb-6 ${architecture.palette.accent} font-bold`}>
                   {formattedPhone}
                 </p>
+                
+                {/* Google Review Badge */}
+                <div className="mb-6 flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400 fill-current" />
+                    ))}
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{localSocialProof}</span>
+                </div>
+                
                 <p className={`text-lg ${architecture.palette.text} opacity-80 mb-8`}>
-                  {architecture.vocabulary.subTitle}
+                  {heroSubtext}
                 </p>
-                <button className={`w-fit px-8 py-3 rounded-lg font-bold text-white ${architecture.palette.button} shadow-lg hover:shadow-xl transition-all text-lg`}>
-                  {ctaText}
-                </button>
+                
+                <div className="flex gap-4">
+                  <button className={`w-fit px-8 py-3 rounded-lg font-bold text-white ${architecture.palette.button} shadow-lg hover:shadow-xl transition-all text-lg`}>
+                    {ctaText}
+                  </button>
+                  {serviceModel === 'storefront' && (
+                    <button className="w-fit px-6 py-3 rounded-lg font-semibold text-gray-700 bg-white border-2 border-gray-300 hover:bg-gray-50 transition-all text-lg flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      Get Directions
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="w-1/2 relative">
                 <img src={imageUrl} alt={businessName} className="w-full h-full object-cover" />
               </div>
             </div>
             
-            {/* Trust Bar */}
+            {/* Local Trust Badges Bar */}
             <div className="h-20 bg-gray-100 border-t flex items-center justify-center gap-8 px-8">
-              {trustSignals.slice(0, 4).map((signal, i) => (
+              {trustBadges.slice(0, 4).map((badge, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">{signal}</span>
+                  <span className="text-sm font-medium text-gray-700">{badge.replace('{city}', city)}</span>
                 </div>
               ))}
             </div>
@@ -825,12 +1175,14 @@ export default function ThemeSelection({
         .join(' ');
       
       try {
-        const generated = await generateThemeConfig(businessDescription || 'general business');
+        const city = mergedData.city || '{city}';
+        const state = businessProfile?.location?.state || '{state}';
+        const generated = await generateThemeConfig(businessDescription || 'general business', city, state);
         setArchitecture(generated);
       } catch (error) {
         console.error('Error generating theme config:', error);
         // Fallback to default
-        const fallback = await generateThemeConfig('general business');
+        const fallback = await generateThemeConfig('general business', mergedData.city || '{city}', businessProfile?.location?.state || '{state}');
         setArchitecture(fallback);
       } finally {
         setIsGenerating(false);
@@ -838,7 +1190,7 @@ export default function ThemeSelection({
     };
     
     generateConfig();
-  }, [mergedData.businessName, mergedData.industryKeyword, businessProfile?.industry, businessProfile?.services]);
+  }, [mergedData.businessName, mergedData.industryKeyword, mergedData.city, businessProfile?.industry, businessProfile?.services, businessProfile?.location?.state]);
   
   useEffect(() => {
     if (initialSelection) {
@@ -948,6 +1300,53 @@ export default function ThemeSelection({
                 {currentStrategy.idealCustomer}
               </p>
             </div>
+
+            {/* Local SEO Focus */}
+            {architecture && (
+              <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-100">
+                <h3 className="text-sm font-semibold text-green-900 uppercase tracking-wide mb-2">
+                  Local SEO Optimization
+                </h3>
+                <div className="space-y-2 text-sm text-green-800">
+                  {/* Service Model Explanation */}
+                  {architecture.serviceModel === 'service_area' && (
+                    <p>
+                      <strong>Service Area Business:</strong> We detected that you serve a region ({architecture.geoLabel}), not just a single location. This matches Google's SAB classification and ensures your service area is clearly communicated to customers searching from surrounding cities.
+                    </p>
+                  )}
+                  {architecture.serviceModel === 'storefront' && (
+                    <p>
+                      <strong>Storefront Business:</strong> We detected that customers visit your physical location in {architecture.geoLabel}. The "Get Directions" button and map pin align with Google Maps, making it easy for local searchers to find you.
+                    </p>
+                  )}
+                  {architecture.serviceModel === 'hybrid' && (
+                    <p>
+                      <strong>Hybrid Service Model:</strong> We detected that you offer both in-office and mobile services. The design accommodates both service area and storefront elements to maximize local visibility.
+                    </p>
+                  )}
+                  
+                  {/* Conversion Focus */}
+                  {architecture.conversionFocus === 'call' && (
+                    <p>
+                      <strong>Phone-First Design:</strong> We prioritized your phone number because local searchers convert 3x faster via voice calls. The giant phone display reduces friction for urgent service requests.
+                    </p>
+                  )}
+                  {architecture.conversionFocus === 'visit' && (
+                    <p>
+                      <strong>Location-First Design:</strong> We emphasized your physical location because destination businesses need to guide customers to your door. The "Get Directions" CTA aligns with Google Maps behavior.
+                    </p>
+                  )}
+                  {architecture.conversionFocus === 'book' && (
+                    <p>
+                      <strong>Appointment-First Design:</strong> We optimized for booking because professional services require scheduling. The "Free Consultation" CTA builds trust before commitment.
+                    </p>
+                  )}
+                  <p className="mt-2">
+                    <strong>Local Trust Signals:</strong> {architecture.localVocabulary.localSocialProof} and {architecture.trustBadges[0]} badges create immediate credibility with local searchers.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="mb-8 p-4 bg-amber-50 rounded-lg border border-amber-100">
               <h3 className="text-sm font-semibold text-amber-900 uppercase tracking-wide mb-2">
