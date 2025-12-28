@@ -160,15 +160,25 @@ function formatPhone(phone: string): string {
 
 // Prepare ScrapedData from BusinessProfile
 function prepareScrapedData(businessProfile?: BusinessProfile): ScrapedData {
-  const defaultNavLinks = ['Home', 'Services', 'About', 'Contact']
+  const defaultNavLinks = ['Fleet', 'Chauffeur Services', 'Wine Tours', 'Reservations']
+  
+  // Angel Limo demo data
+  const demoData = {
+    businessName: "Angel Worldwide Transportation",
+    phone: "(800) 123-4567",
+    city: "San Francisco Bay Area",
+    navLinks: ["Fleet", "Chauffeur Services", "Wine Tours", "Reservations"],
+    industryKeyword: "limousine",
+    aboutSnippet: "Premier luxury transportation serving the Bay Area, Napa Valley, and beyond."
+  }
   
   return {
-    businessName: businessProfile?.businessName || 'Elite Transporters',
-    phone: businessProfile?.contactInfo?.phone || '(415) 555-0123',
-    city: businessProfile?.location?.city || 'San Francisco',
-    navLinks: businessProfile?.services?.map(s => s.name) || defaultNavLinks,
-    industryKeyword: businessProfile?.industry?.toLowerCase() || businessProfile?.services?.[0]?.name?.toLowerCase() || 'limo',
-    aboutSnippet: `Serving ${businessProfile?.location?.city || 'San Francisco'} and the Bay Area since 1998. We provide premium ${businessProfile?.services?.[0]?.name || businessProfile?.industry || 'transportation'} services with unmatched quality and reliability.`
+    businessName: businessProfile?.businessName || demoData.businessName,
+    phone: businessProfile?.contactInfo?.phone || demoData.phone,
+    city: businessProfile?.location?.city || demoData.city,
+    navLinks: businessProfile?.services?.map(s => s.name) || demoData.navLinks,
+    industryKeyword: businessProfile?.industry?.toLowerCase() || businessProfile?.services?.[0]?.name?.toLowerCase() || demoData.industryKeyword,
+    aboutSnippet: businessProfile?.businessName ? `Serving ${businessProfile?.location?.city || 'San Francisco'} and the Bay Area since 1998. We provide premium ${businessProfile?.services?.[0]?.name || businessProfile?.industry || 'transportation'} services with unmatched quality and reliability.` : demoData.aboutSnippet
   }
 }
 
@@ -196,48 +206,54 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
     switch (strategyId) {
       case 'emergency-response':
         return (
-          <div className="w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 to-slate-200 flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
-            {/* Sticky Header */}
-            <div className="h-14 bg-white/90 backdrop-blur-sm border-b shadow-sm flex items-center justify-between px-6 sticky top-0 z-10">
-              <div className="text-lg font-bold tracking-tight text-slate-900 truncate max-w-[200px]">
+          <div className="w-full h-full bg-white" style={{ fontFamily: 'system-ui, sans-serif' }}>
+            {/* Nav Bar - Desktop Style */}
+            <div className="h-20 bg-white border-b shadow-md flex items-center justify-between px-12">
+              <div className="text-2xl font-bold tracking-tight text-slate-900">
                 {data.businessName}
               </div>
-              <button className="px-4 py-2 rounded-lg font-bold text-white bg-gradient-to-r from-red-500 to-orange-500 shadow-lg shadow-orange-500/30 hover:shadow-xl transition-all">
+              <button className="px-8 py-3 rounded-lg font-bold text-white bg-gradient-to-r from-red-500 to-orange-500 shadow-lg shadow-orange-500/30 hover:shadow-xl transition-all text-lg">
                 Call Now
               </button>
             </div>
             
-            {/* Hero Section */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-12">
-              {/* Avatar with Industry Image */}
-              <div className="relative">
+            {/* Hero Section - Split Layout */}
+            <div className="flex h-[600px]">
+              {/* Left Side - Text Content */}
+              <div className="w-1/2 flex flex-col justify-center px-16 bg-gradient-to-br from-slate-50 to-slate-100">
+                <h1 className="text-6xl font-bold text-slate-900 tracking-tight mb-6">
+                  Luxury Shuttles in {data.city.split(' ')[0]}
+                </h1>
+                <div className="text-3xl font-bold text-slate-700 mb-8">
+                  {formattedPhone}
+                </div>
+                <p className="text-xl text-slate-600 mb-8">
+                  24/7 Emergency Service • Available Now
+                </p>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <MapPin className="w-6 h-6" />
+                  <span className="text-lg">Serving {data.city} & Bay Area</span>
+                </div>
+              </div>
+              
+              {/* Right Side - Car Image */}
+              <div className="w-1/2 relative">
                 <img 
                   src={industryImage} 
                   alt={data.businessName}
-                  className="w-24 h-24 rounded-full ring-4 ring-white shadow-lg object-cover"
+                  className="w-full h-full object-cover"
                 />
               </div>
-              
-              {/* Phone Number - Prominently Displayed */}
-              <div className="text-xl font-bold text-slate-900">
-                {formattedPhone}
-              </div>
-              
-              <h1 className="text-3xl font-bold text-center text-slate-900 tracking-tight max-w-md">
-                {data.businessName}
-              </h1>
-              
-              <p className="text-slate-600 text-center max-w-md">
-                24/7 Emergency Service • Available Now
-              </p>
             </div>
             
-            {/* Map Section */}
-            <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 border-t flex items-center justify-center">
-              <div className="flex items-center gap-2 text-gray-700">
-                <MapPin className="w-5 h-5" />
-                <span>Serving {data.city} & Bay Area</span>
-              </div>
+            {/* Trust Bar */}
+            <div className="h-24 bg-gray-100 border-t flex items-center justify-center gap-12 px-12">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="flex items-center gap-3">
+                  <Shield className="w-8 h-8 text-gray-400" />
+                  <div className="h-4 bg-gray-300 rounded w-24"></div>
+                </div>
+              ))}
             </div>
           </div>
         )
@@ -245,38 +261,47 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
       case 'local-showroom':
         return (
           <div className="w-full h-full relative overflow-hidden" style={{ fontFamily: 'Georgia, serif' }}>
-            {/* Full-Bleed Background Image */}
+            {/* Full-Screen Background Image */}
             <img 
               src={industryImage} 
               alt={data.businessName}
               className="absolute inset-0 w-full h-full object-cover"
             />
             
-            {/* Heavy Dark Overlay */}
-            <div className="absolute inset-0 bg-black/70"></div>
-            
-            {/* Navigation Links - Centered */}
-            <div className="absolute top-8 left-0 right-0 flex justify-center gap-8 z-10">
-              {navLinks.slice(0, 4).map((link, i) => (
-                <a 
-                  key={i}
-                  href="#" 
-                  className="text-white/80 uppercase tracking-widest text-xs font-light hover:text-white transition-colors"
-                >
-                  {link}
-                </a>
-              ))}
+            {/* Nav Bar - Transparent Header */}
+            <div className="absolute top-0 left-0 right-0 h-20 flex items-center justify-between px-12 z-20">
+              <div className="text-2xl font-serif text-white">
+                {data.businessName}
+              </div>
+              <div className="flex gap-8">
+                {navLinks.slice(0, 4).map((link, i) => (
+                  <a 
+                    key={i}
+                    href="#" 
+                    className="text-white/90 uppercase tracking-widest text-sm font-light hover:text-white transition-colors"
+                  >
+                    {link}
+                  </a>
+                ))}
+              </div>
             </div>
             
-            {/* Overlay Content - Centered */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8 z-10">
-              <h1 className="text-5xl font-serif italic mb-4 text-amber-50 drop-shadow-lg">
-                {data.businessName}
-              </h1>
-              <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mb-4"></div>
-              <p className="text-xl font-serif text-white/90">
-                Premium {data.industryKeyword} in {data.city}
-              </p>
+            {/* Gradient Overlay - Dark Left Side */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-transparent z-10"></div>
+            
+            {/* Hero Content - Left Side */}
+            <div className="absolute inset-0 flex items-center px-12 z-10">
+              <div className="max-w-2xl">
+                <h1 className="text-7xl font-serif text-white mb-6 leading-tight">
+                  {data.businessName}
+                </h1>
+                <p className="text-2xl text-gray-300 mb-8">
+                  Premier luxury transportation in {data.city}
+                </p>
+                <button className="px-8 py-4 border-2 border-amber-400 bg-transparent text-amber-400 font-semibold text-lg hover:bg-amber-400 hover:text-black transition-all">
+                  Reserve Now
+                </button>
+              </div>
             </div>
           </div>
         )
@@ -284,15 +309,22 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
       case 'community-pillar':
         return (
           <div className="w-full h-full bg-gray-50 flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
-            {/* Header */}
-            <div className="h-16 bg-white border-b shadow-md flex items-center px-8">
-              <div className="text-xl font-bold text-blue-900 truncate">
+            {/* Header - Desktop Nav */}
+            <div className="h-20 bg-white border-b shadow-md flex items-center justify-between px-12">
+              <div className="text-2xl font-bold text-blue-900">
                 {data.businessName}
+              </div>
+              <div className="flex gap-8">
+                {navLinks.slice(0, 4).map((link, i) => (
+                  <a key={i} href="#" className="text-blue-900 hover:text-blue-600 font-medium">
+                    {link}
+                  </a>
+                ))}
               </div>
             </div>
             
-            {/* Split Layout */}
-            <div className="flex-1 flex relative">
+            {/* Split Layout - Desktop Style */}
+            <div className="flex-1 flex relative h-[600px]">
               {/* Left: Image (30%) */}
               <div className="w-[30%] relative">
                 <img 
@@ -302,33 +334,33 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
                 />
                 
                 {/* Certification Badges - Floating over boundary */}
-                <div className="absolute -right-4 top-8 flex flex-col gap-2">
+                <div className="absolute -right-6 top-16 flex flex-col gap-3">
                   {[1, 2, 3].map(i => (
                     <div 
                       key={i}
-                      className="w-8 h-8 bg-white rounded-sm shadow-md flex items-center justify-center"
+                      className="w-12 h-12 bg-white rounded-sm shadow-lg flex items-center justify-center"
                     >
-                      <Shield className="w-5 h-5 text-blue-600" />
+                      <Shield className="w-7 h-7 text-blue-600" />
                     </div>
                   ))}
                 </div>
               </div>
               
               {/* Right: Content (70%) */}
-              <div className="flex-1 p-8 flex flex-col justify-center bg-white shadow-md">
-                <h1 className="text-3xl font-bold mb-4 text-blue-900">
+              <div className="flex-1 p-12 flex flex-col justify-center bg-white shadow-md">
+                <h1 className="text-5xl font-bold mb-6 text-blue-900">
                   About {data.businessName}
                 </h1>
-                <p className="text-gray-700 leading-relaxed line-clamp-4 mb-6">
+                <p className="text-lg text-gray-700 leading-relaxed mb-8 max-w-2xl">
                   {data.aboutSnippet}
                 </p>
-                <div className="flex gap-4">
+                <div className="flex gap-6">
                   {[1, 2, 3].map(i => (
                     <div 
                       key={i}
-                      className="w-12 h-12 rounded-full border-2 border-blue-600 flex items-center justify-center bg-white shadow-sm"
+                      className="w-16 h-16 rounded-full border-2 border-blue-600 flex items-center justify-center bg-white shadow-md"
                     >
-                      <Shield className="w-6 h-6 text-blue-600" />
+                      <Shield className="w-8 h-8 text-blue-600" />
                     </div>
                   ))}
                 </div>
@@ -340,19 +372,22 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
       case 'neighborhood-menu':
         return (
           <div className="w-full h-full bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
-            {/* Search Bar */}
-            <div className="h-16 bg-gray-50 border-b flex items-center px-6 gap-4">
-              <div className="flex-1 h-10 bg-white border rounded-lg px-4 flex items-center text-gray-400 shadow-sm">
+            {/* Search Bar - Desktop */}
+            <div className="h-20 bg-gray-50 border-b flex items-center justify-between px-12">
+              <div className="flex-1 max-w-2xl h-12 bg-white border-2 rounded-lg px-6 flex items-center text-gray-400 shadow-sm text-lg">
                 Search menu items...
+              </div>
+              <div className="text-xl font-bold text-emerald-600">
+                {data.businessName}
               </div>
             </div>
             
-            {/* Product Grid */}
-            <div className="flex-1 p-4 grid grid-cols-2 gap-2">
-              {[1, 2, 3, 4].map(i => (
+            {/* Product Grid - Desktop 4 Column */}
+            <div className="flex-1 p-8 grid grid-cols-4 gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                 <div key={i} className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
                   {/* Thumbnail - Use industry image for first card */}
-                  <div className="w-full h-32 relative">
+                  <div className="w-full h-48 relative">
                     {i === 1 ? (
                       <img 
                         src={industryImage} 
@@ -361,29 +396,30 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
                       />
                     ) : (
                       <div className={`w-full h-full bg-gradient-to-br ${
-                        i === 2 ? 'from-emerald-100 to-emerald-200' :
-                        i === 3 ? 'from-blue-100 to-blue-200' :
-                        'from-purple-100 to-purple-200'
+                        i % 4 === 0 ? 'from-emerald-100 to-emerald-200' :
+                        i % 4 === 1 ? 'from-blue-100 to-blue-200' :
+                        i % 4 === 2 ? 'from-purple-100 to-purple-200' :
+                        'from-orange-100 to-orange-200'
                       }`}></div>
                     )}
                     
                     {/* Price Tag */}
-                    <div className="absolute top-2 right-2 bg-emerald-500 text-white px-2 py-1 rounded-full text-[10px] font-bold shadow-sm">
+                    <div className="absolute top-3 right-3 bg-emerald-500 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md">
                       ${120 + i * 15}
                     </div>
                     
                     {/* Add to Cart Button */}
-                    <div className="absolute bottom-2 left-2">
-                      <button className="bg-emerald-500 text-white text-[8px] rounded-full px-2 py-0.5 font-semibold shadow-sm hover:bg-emerald-600 transition-colors">
+                    <div className="absolute bottom-3 left-3">
+                      <button className="bg-emerald-500 text-white text-xs rounded-full px-3 py-1.5 font-semibold shadow-md hover:bg-emerald-600 transition-colors">
                         Add to Cart
                       </button>
                     </div>
                   </div>
                   
                   {/* Product Info */}
-                  <div className="p-3">
-                    <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div className="h-2 bg-gray-200 rounded w-1/2"></div>
+                  <div className="p-4">
+                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                   </div>
                 </div>
               ))}
@@ -394,14 +430,14 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
       case 'town-square':
         return (
           <div className="w-full h-full bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
-            {/* Tab Navigation */}
-            <div className="h-12 bg-gray-50 border-b flex items-center px-6 gap-6">
+            {/* Tab Navigation - Desktop */}
+            <div className="h-16 bg-gray-50 border-b flex items-center px-12 gap-8">
               {navLinks.slice(0, 4).map((link, i) => (
                 <button
                   key={i}
-                  className={`text-sm font-medium transition-colors ${
+                  className={`text-base font-medium transition-colors pb-2 ${
                     i === 0 
-                      ? 'text-purple-600 border-b-2 border-purple-500 pb-2' 
+                      ? 'text-purple-600 border-b-2 border-purple-500' 
                       : 'text-gray-600 hover:text-purple-600'
                   }`}
                 >
@@ -410,46 +446,63 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
               ))}
             </div>
             
-            {/* Main Content */}
-            <div className="flex-1 flex">
-              {/* Calendar Sidebar (30%) */}
-              <div className="w-[30%] border-r bg-gray-50 p-4">
-                {/* Calendar Icon - Page Tear Style */}
-                <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4">
-                  {/* Red Header */}
-                  <div className="bg-red-500 h-8 flex items-center justify-center">
-                    <span className="text-white text-xs font-bold uppercase">{monthName}</span>
+            {/* Main Content - Dashboard Layout */}
+            <div className="flex-1 flex h-[600px]">
+              {/* Calendar Sidebar (25%) */}
+              <div className="w-[25%] border-r bg-gray-50 p-6">
+                {/* Detailed Calendar Widget */}
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                  {/* Calendar Header */}
+                  <div className="bg-red-500 h-12 flex items-center justify-center">
+                    <span className="text-white text-sm font-bold uppercase">{monthName} {currentDate.getFullYear()}</span>
                   </div>
-                  {/* White Body */}
-                  <div className="h-16 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-gray-900">{dayOfMonth}</span>
+                  {/* Calendar Grid */}
+                  <div className="p-4">
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
+                        <div key={day} className="text-xs text-gray-500 text-center font-semibold">{day}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                        <div 
+                          key={day} 
+                          className={`aspect-square flex items-center justify-center text-xs rounded ${
+                            day === dayOfMonth 
+                              ? 'bg-purple-500 text-white font-bold' 
+                              : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          {day}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 
-                {/* Mini Calendar Grid */}
-                <div className="grid grid-cols-3 gap-1">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (
-                    <div 
-                      key={i} 
-                      className="aspect-square bg-white border rounded flex items-center justify-center text-xs shadow-sm"
-                      style={{ borderColor: i === dayOfMonth ? strategy.colors.accent : '#e5e7eb' }}
-                    >
-                      {i}
+                {/* Upcoming Events */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-700 mb-2">Upcoming Events</h3>
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-white p-3 rounded shadow-sm border border-gray-200">
+                      <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
+                      <div className="h-2 bg-gray-200 rounded w-1/2"></div>
                     </div>
                   ))}
                 </div>
               </div>
               
-              {/* Feed (70%) */}
-              <div className="flex-1 p-6">
-                <h2 className="text-2xl font-bold mb-4 text-purple-900">
+              {/* Feed (75%) - Masonry Style */}
+              <div className="flex-1 p-8 overflow-y-auto">
+                <h2 className="text-3xl font-bold mb-6 text-purple-900">
                   Community Updates
                 </h2>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="border-b pb-4">
-                      <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div className="grid grid-cols-2 gap-6">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                      <div className="h-5 bg-gray-300 rounded w-3/4 mb-3"></div>
+                      <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-2/3"></div>
                     </div>
                   ))}
                 </div>
@@ -463,25 +516,32 @@ function PersonalizedPreview({ strategyId, businessProfile, scrapedData }: Perso
     }
   }
 
+  // Generate domain from business name
+  const domain = data.businessName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '') || 'angellimo'
+  
   return (
-    <div className="w-full h-full rounded-xl border border-white/20 shadow-2xl bg-white overflow-hidden" style={{ transform: 'scale(0.85)', transformOrigin: 'top left' }}>
-      {/* Browser Chrome - Address Bar with Traffic Lights */}
-      <div className="h-6 bg-gray-50 border-b flex items-center px-2 gap-1.5">
-        {/* Traffic Light Dots */}
+    <div className="w-full h-full rounded-xl border border-white/20 shadow-2xl bg-white overflow-hidden">
+      {/* Browser Chrome - Elegant Address Bar */}
+      <div className="h-8 bg-slate-100 border-b border-slate-200 flex items-center px-3 gap-2">
+        {/* Traffic Light Dots - Smaller and Desaturated */}
         <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-inner"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-inner"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-inner"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-inner"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-inner"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-green-400 shadow-inner"></div>
         </div>
-        {/* Address Bar */}
-        <div className="flex-1 h-4 bg-white border border-gray-200 rounded mx-2 px-2 text-[8px] text-gray-400 flex items-center">
-          {data.businessName.toLowerCase().replace(/\s+/g, '')}.com
+        {/* Address Bar - White Pill Centered */}
+        <div className="flex-1 flex justify-center">
+          <div className="h-5 bg-white border border-slate-300 rounded-full px-4 flex items-center justify-center text-[10px] text-gray-400 max-w-xs">
+            {domain}.com
+          </div>
         </div>
       </div>
       
-      {/* Preview Content */}
-      <div className="h-[calc(100%-1.5rem)]">
-        {renderPreview()}
+      {/* Scaled Desktop Content Container */}
+      <div className="relative w-full h-[calc(100%-2rem)] overflow-hidden bg-white rounded-b-xl">
+        <div className="origin-top-left transform scale-[0.45] w-[222%] h-[222%] bg-white">
+          {renderPreview()}
+        </div>
       </div>
     </div>
   )
