@@ -25,3 +25,4 @@ export interface BusinessProfile {
   markdown_report: string; // The full dossier text
 }
 
+
