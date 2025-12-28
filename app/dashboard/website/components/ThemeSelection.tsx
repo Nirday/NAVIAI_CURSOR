@@ -43,168 +43,366 @@ interface Strategy {
   tradeOff: string;
 }
 
-// --- 2. THE SIMULATION ENGINE (The "Brain") ---
+// --- 2. THE GENERATIVE AI ENGINE (The "Brain") ---
 
-const synthesizeIndustryData = (inputKeyword: string = 'general'): IndustryArchitecture => {
-  const keyword = inputKeyword.toLowerCase();
+// Vibe Detection Types
+type VibeType = 'calming' | 'tech' | 'playful' | 'serious' | 'luxury' | 'energetic' | 'trustworthy' | 'creative' | 'natural' | 'professional';
 
-  // ARCHETYPE: TRANSPORTATION & LUXURY
-  if (['limo', 'car', 'transport', 'shuttle', 'driver', 'taxi', 'limousine', 'chauffeur'].some(k => keyword.includes(k))) {
+interface VibeProfile {
+  vibe: VibeType;
+  palette: {
+    primary: string;
+    accent: string;
+    button: string;
+    text: string;
+  };
+  fontStyle: 'sans' | 'serif';
+}
+
+// Token-based Vibe Detection (Simulates LLM reasoning)
+const detectVibe = (tokens: string[]): VibeProfile => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  // Health/Wellness/Balance/Yoga -> Calming
+  if (['health', 'wellness', 'balance', 'yoga', 'meditation', 'spa', 'therapy', 'chiropractor', 'massage', 'acupuncture', 'holistic', 'healing', 'care', 'wellbeing'].some(t => text.includes(t))) {
     return {
-      id: 'transport',
-      label: 'Luxury Transport',
-      palette: {
-        primary: 'bg-slate-950',
-        accent: 'text-amber-400',
-        button: 'bg-gradient-to-r from-amber-500 to-amber-600',
-        text: 'text-slate-50'
-      },
-      vocabulary: {
-        cta: "Book Chauffeur",
-        navItems: ["Fleet", "Services", "Rates", "Account"],
-        heroTitle: "Premium Travel in {city}",
-        subTitle: "Experience the ultimate in comfort and style."
-      },
-      services: ["Airport Transfers", "Corporate Travel", "Special Events", "Hourly Charters"],
-      trustSignals: ["SPAB Certified", "Licensed & Insured", "24/7 Dispatch"],
-      imageQuery: "black luxury car interior chauffeur"
-    };
-  }
-
-  // ARCHETYPE: MEDICAL & HEALTH
-  if (['dentist', 'doctor', 'clinic', 'health', 'med', 'chiro', 'physician', 'therapy', 'veterinary', 'vet'].some(k => keyword.includes(k))) {
-    return {
-      id: 'medical',
-      label: 'Medical Practice',
-      palette: {
-        primary: 'bg-white',
-        accent: 'text-sky-600',
-        button: 'bg-sky-600',
-        text: 'text-slate-800'
-      },
-      vocabulary: {
-        cta: "Book Appointment",
-        navItems: ["Our Team", "New Patients", "Services", "Portal"],
-        heroTitle: "Compassionate Care in {city}",
-        subTitle: "Modern medicine with a personal touch."
-      },
-      services: ["General Checkups", "Cosmetic Procedures", "Emergency Care", "Pediatrics"],
-      trustSignals: ["Board Certified", "Top Rated", "Accepting Insurance"],
-      imageQuery: "modern medical office doctor smile"
-    };
-  }
-
-  // ARCHETYPE: TRADES & HOME SERVICES
-  if (['plumber', 'hvac', 'roof', 'electric', 'build', 'contractor', 'repair', 'handyman', 'painter', 'landscaper', 'arborist', 'tree'].some(k => keyword.includes(k))) {
-    return {
-      id: 'trade',
-      label: 'Home Services',
-      palette: {
-        primary: 'bg-slate-50',
-        accent: 'text-red-600',
-        button: 'bg-red-600',
-        text: 'text-slate-900'
-      },
-      vocabulary: {
-        cta: "Get Free Quote",
-        navItems: ["Services", "Projects", "Reviews", "Contact"],
-        heroTitle: "Reliable {keyword} in {city}",
-        subTitle: "Done right the first time. 100% Guaranteed."
-      },
-      services: ["Emergency Repairs", "Installations", "Maintenance", "Inspections"],
-      trustSignals: ["Licensed", "Bonded", "Insured"],
-      imageQuery: "construction worker tools house repair"
-    };
-  }
-
-  // ARCHETYPE: DINING & FOOD
-  if (['restaurant', 'food', 'cafe', 'bakery', 'bar', 'pub', 'brewery', 'pizza', 'sushi', 'dining', 'chef', 'catering'].some(k => keyword.includes(k))) {
-    return {
-      id: 'dining',
-      label: 'Dining & Food',
-      palette: {
-        primary: 'bg-white',
-        accent: 'text-orange-600',
-        button: 'bg-orange-600',
-        text: 'text-slate-800'
-      },
-      vocabulary: {
-        cta: "Order Now",
-        navItems: ["Menu", "About", "Catering", "Reservations"],
-        heroTitle: "Exceptional Dining in {city}",
-        subTitle: "Fresh ingredients, authentic flavors."
-      },
-      services: ["Dine In", "Takeout", "Catering", "Private Events"],
-      trustSignals: ["Fresh Ingredients", "Health Department Approved", "Award Winning"],
-      imageQuery: "restaurant food dining elegant"
-    };
-  }
-
-  // ARCHETYPE: RETAIL & E-COMMERCE
-  if (['retail', 'store', 'shop', 'boutique', 'market', 'merchant', 'seller', 'ecommerce', 'online', 'product'].some(k => keyword.includes(k))) {
-    return {
-      id: 'retail',
-      label: 'Retail & E-commerce',
+      vibe: 'calming',
       palette: {
         primary: 'bg-white',
         accent: 'text-emerald-600',
         button: 'bg-emerald-600',
         text: 'text-slate-800'
       },
-      vocabulary: {
-        cta: "Shop Now",
-        navItems: ["Products", "Collections", "About", "Contact"],
-        heroTitle: "Quality Products in {city}",
-        subTitle: "Shop with confidence, delivered to your door."
-      },
-      services: ["Product Catalog", "Special Offers", "Gift Services", "Customer Support"],
-      trustSignals: ["Secure Checkout", "30-Day Returns", "Free Shipping"],
-      imageQuery: "retail store products shopping"
+      fontStyle: 'sans'
     };
   }
-
-  // ARCHETYPE: LEGAL & PROFESSIONAL
-  if (['law', 'attorney', 'lawyer', 'legal', 'court', 'litigation', 'paralegal', 'notary'].some(k => keyword.includes(k))) {
+  
+  // Tech/Cyber/Data/Software -> Tech
+  if (['tech', 'cyber', 'data', 'software', 'digital', 'it', 'computer', 'network', 'security', 'cloud', 'saas', 'platform', 'app', 'developer', 'programming'].some(t => text.includes(t))) {
     return {
-      id: 'legal',
-      label: 'Legal Services',
+      vibe: 'tech',
+      palette: {
+        primary: 'bg-slate-900',
+        accent: 'text-cyan-400',
+        button: 'bg-cyan-600',
+        text: 'text-slate-50'
+      },
+      fontStyle: 'sans'
+    };
+  }
+  
+  // Kids/Fun/Party/Entertainment -> Playful
+  if (['kid', 'child', 'fun', 'party', 'event', 'entertainment', 'play', 'game', 'toy', 'birthday', 'celebration', 'festival'].some(t => text.includes(t))) {
+    return {
+      vibe: 'playful',
+      palette: {
+        primary: 'bg-white',
+        accent: 'text-purple-600',
+        button: 'bg-gradient-to-r from-purple-500 to-pink-500',
+        text: 'text-slate-800'
+      },
+      fontStyle: 'sans'
+    };
+  }
+  
+  // Finance/Law/Consult/Account -> Serious
+  if (['finance', 'law', 'legal', 'attorney', 'account', 'consult', 'advisory', 'financial', 'tax', 'audit', 'compliance', 'forensic'].some(t => text.includes(t))) {
+    return {
+      vibe: 'serious',
       palette: {
         primary: 'bg-slate-900',
         accent: 'text-blue-400',
         button: 'bg-blue-600',
         text: 'text-slate-50'
       },
-      vocabulary: {
-        cta: "Free Consultation",
-        navItems: ["Practice Areas", "Our Team", "Resources", "Contact"],
-        heroTitle: "Expert Legal Services in {city}",
-        subTitle: "Protecting your rights with proven expertise."
-      },
-      services: ["Legal Consultation", "Case Review", "Document Preparation", "Court Representation"],
-      trustSignals: ["Bar Certified", "Licensed Attorney", "Years of Experience"],
-      imageQuery: "law legal professional office"
+      fontStyle: 'serif'
     };
   }
-
-  // DEFAULT ARCHETYPE (General Business)
+  
+  // Luxury/Premium/Elite -> Luxury
+  if (['luxury', 'premium', 'elite', 'exclusive', 'high-end', 'limo', 'chauffeur', 'concierge', 'private', 'boutique'].some(t => text.includes(t))) {
+    return {
+      vibe: 'luxury',
+      palette: {
+        primary: 'bg-slate-950',
+        accent: 'text-amber-400',
+        button: 'bg-gradient-to-r from-amber-500 to-amber-600',
+        text: 'text-slate-50'
+      },
+      fontStyle: 'serif'
+    };
+  }
+  
+  // Food/Restaurant/Energy -> Energetic
+  if (['food', 'restaurant', 'cafe', 'bakery', 'pizza', 'sushi', 'dining', 'chef', 'catering', 'bar', 'brewery'].some(t => text.includes(t))) {
+    return {
+      vibe: 'energetic',
+      palette: {
+        primary: 'bg-white',
+        accent: 'text-orange-600',
+        button: 'bg-orange-600',
+        text: 'text-slate-800'
+      },
+      fontStyle: 'sans'
+    };
+  }
+  
+  // Medical/Doctor/Clinic -> Trustworthy
+  if (['medical', 'doctor', 'clinic', 'dentist', 'physician', 'veterinary', 'vet', 'hospital', 'pharmacy', 'nurse'].some(t => text.includes(t))) {
+    return {
+      vibe: 'trustworthy',
+      palette: {
+        primary: 'bg-white',
+        accent: 'text-sky-600',
+        button: 'bg-sky-600',
+        text: 'text-slate-800'
+      },
+      fontStyle: 'sans'
+    };
+  }
+  
+  // Creative/Design/Art -> Creative
+  if (['creative', 'design', 'art', 'photography', 'video', 'media', 'marketing', 'brand', 'graphic', 'artist', 'studio', 'pottery', 'ceramic'].some(t => text.includes(t))) {
+    return {
+      vibe: 'creative',
+      palette: {
+        primary: 'bg-white',
+        accent: 'text-indigo-600',
+        button: 'bg-indigo-600',
+        text: 'text-slate-800'
+      },
+      fontStyle: 'sans'
+    };
+  }
+  
+  // Nature/Outdoor/Animal -> Natural
+  if (['nature', 'outdoor', 'animal', 'pet', 'dog', 'cat', 'walk', 'garden', 'landscape', 'tree', 'plant', 'green'].some(t => text.includes(t))) {
+    return {
+      vibe: 'natural',
+      palette: {
+        primary: 'bg-white',
+        accent: 'text-green-600',
+        button: 'bg-green-600',
+        text: 'text-slate-800'
+      },
+      fontStyle: 'sans'
+    };
+  }
+  
+  // Trade/Service/Repair -> Professional
+  if (['trade', 'service', 'repair', 'plumber', 'electric', 'contractor', 'build', 'hvac', 'roof', 'handyman'].some(t => text.includes(t))) {
+    return {
+      vibe: 'professional',
+      palette: {
+        primary: 'bg-slate-50',
+        accent: 'text-red-600',
+        button: 'bg-red-600',
+        text: 'text-slate-900'
+      },
+      fontStyle: 'sans'
+    };
+  }
+  
+  // Default: Professional
   return {
-    id: 'general',
-    label: 'Local Business',
+    vibe: 'professional',
     palette: {
       primary: 'bg-white',
       accent: 'text-indigo-600',
       button: 'bg-indigo-600',
       text: 'text-gray-800'
     },
-    vocabulary: {
-      cta: "Contact Us",
-      navItems: ["Home", "About", "Services", "Contact"],
-      heroTitle: "Quality Service in {city}",
-      subTitle: "Your trusted local partner."
-    },
-    services: ["Professional Services", "Consultation", "Support", "Solutions"],
-    trustSignals: ["Locally Owned", "5-Star Rated", "Satisfaction Guaranteed"],
-    imageQuery: "modern office business team"
+    fontStyle: 'sans'
+  };
+};
+
+// Dynamic Vocabulary Construction
+const generateVocabulary = (tokens: string[], vibe: VibeType, businessName: string): IndustryArchitecture['vocabulary'] => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  // CTA Detection
+  let cta = "Contact Us";
+  if (text.includes('health') || text.includes('care') || text.includes('doctor') || text.includes('clinic') || text.includes('appointment')) {
+    cta = "Book Appointment";
+  } else if (text.includes('shop') || text.includes('store') || text.includes('retail') || text.includes('product')) {
+    cta = "Shop Now";
+  } else if (text.includes('service') || text.includes('quote') || text.includes('estimate') || text.includes('repair')) {
+    cta = "Get Free Quote";
+  } else if (text.includes('food') || text.includes('restaurant') || text.includes('order') || text.includes('menu')) {
+    cta = "Order Now";
+  } else if (text.includes('book') || text.includes('reserve') || text.includes('chauffeur') || text.includes('limo')) {
+    cta = "Book Now";
+  } else if (text.includes('consult') || text.includes('legal') || text.includes('attorney')) {
+    cta = "Free Consultation";
+  }
+  
+  // Nav Items
+  const navItems: string[] = [];
+  if (text.includes('health') || text.includes('medical')) {
+    navItems.push("Our Team", "Services", "New Patients", "Portal");
+  } else if (text.includes('shop') || text.includes('retail')) {
+    navItems.push("Products", "Collections", "About", "Contact");
+  } else if (text.includes('food') || text.includes('restaurant')) {
+    navItems.push("Menu", "About", "Catering", "Reservations");
+  } else if (text.includes('service') || text.includes('trade')) {
+    navItems.push("Services", "Projects", "Reviews", "Contact");
+  } else {
+    navItems.push("Home", "About", "Services", "Contact");
+  }
+  
+  // Hero Title
+  const cityPlaceholder = "{city}";
+  let heroTitle = `Quality Service in ${cityPlaceholder}`;
+  if (text.includes('health') || text.includes('care')) {
+    heroTitle = `Compassionate Care in ${cityPlaceholder}`;
+  } else if (text.includes('luxury') || text.includes('premium')) {
+    heroTitle = `Premium Service in ${cityPlaceholder}`;
+  } else if (text.includes('food') || text.includes('dining')) {
+    heroTitle = `Exceptional Dining in ${cityPlaceholder}`;
+  }
+  
+  // Subtitle
+  let subTitle = "Your trusted local partner.";
+  if (vibe === 'calming') {
+    subTitle = "Holistic wellness for your mind and body.";
+  } else if (vibe === 'tech') {
+    subTitle = "Innovative solutions for modern businesses.";
+  } else if (vibe === 'playful') {
+    subTitle = "Making every moment memorable.";
+  } else if (vibe === 'serious') {
+    subTitle = "Protecting your interests with proven expertise.";
+  } else if (vibe === 'luxury') {
+    subTitle = "Experience the ultimate in comfort and style.";
+  } else if (vibe === 'energetic') {
+    subTitle = "Fresh ingredients, authentic flavors.";
+  } else if (vibe === 'trustworthy') {
+    subTitle = "Modern medicine with a personal touch.";
+  } else if (vibe === 'creative') {
+    subTitle = "Bringing your vision to life.";
+  } else if (vibe === 'natural') {
+    subTitle = "Caring for what matters most.";
+  }
+  
+  return { cta, navItems, heroTitle, subTitle };
+};
+
+// Generate Services Array
+const generateServices = (tokens: string[], vibe: VibeType): string[] => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  if (text.includes('health') || text.includes('wellness') || text.includes('chiropractor')) {
+    return ["Wellness Consultation", "Therapeutic Services", "Preventive Care", "Holistic Treatment"];
+  } else if (text.includes('dog') || text.includes('pet') || text.includes('walk')) {
+    return ["Dog Walking", "Pet Sitting", "Pet Care Services", "Daily Visits"];
+  } else if (text.includes('cyber') || text.includes('security') || text.includes('tech')) {
+    return ["Security Assessment", "Threat Monitoring", "Incident Response", "Compliance Consulting"];
+  } else if (text.includes('pottery') || text.includes('ceramic') || text.includes('art')) {
+    return ["Custom Pottery", "Workshop Classes", "Ceramic Repair", "Artisan Pieces"];
+  } else if (text.includes('pizza') || text.includes('food')) {
+    return ["Dine In", "Takeout", "Catering", "Private Events"];
+  } else if (text.includes('doctor') || text.includes('medical')) {
+    return ["General Checkups", "Specialized Care", "Emergency Services", "Preventive Medicine"];
+  } else if (text.includes('service') || text.includes('repair')) {
+    return ["Emergency Repairs", "Installations", "Maintenance", "Inspections"];
+  }
+  
+  return ["Primary Service", "Secondary Service", "Specialty Service", "Consultation"];
+};
+
+// Generate Trust Signals
+const generateTrustSignals = (tokens: string[], vibe: VibeType): string[] => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  if (text.includes('health') || text.includes('medical') || text.includes('doctor')) {
+    return ["Board Certified", "Top Rated", "Accepting Insurance", "Years of Experience"];
+  } else if (text.includes('legal') || text.includes('attorney') || text.includes('law')) {
+    return ["Bar Certified", "Licensed Attorney", "Client Confidentiality", "Proven Track Record"];
+  } else if (text.includes('service') || text.includes('trade') || text.includes('repair')) {
+    return ["Licensed", "Bonded", "Insured", "Satisfaction Guaranteed"];
+  } else if (text.includes('food') || text.includes('restaurant')) {
+    return ["Fresh Ingredients", "Health Department Approved", "Award Winning", "Local Favorite"];
+  } else if (text.includes('shop') || text.includes('retail')) {
+    return ["Secure Checkout", "30-Day Returns", "Free Shipping", "Customer Reviews"];
+  } else if (text.includes('tech') || text.includes('cyber')) {
+    return ["Certified Professionals", "GDPR Compliant", "Secure Infrastructure", "24/7 Support"];
+  }
+  
+  return ["Locally Owned", "5-Star Rated", "Satisfaction Guaranteed", "Trusted Service"];
+};
+
+// Generate Image Query
+const generateImageQuery = (tokens: string[], vibe: VibeType): string => {
+  const text = tokens.join(' ').toLowerCase();
+  
+  if (text.includes('dog') || text.includes('pet') || text.includes('walk')) {
+    return "dog walker professional pet care";
+  } else if (text.includes('cyber') || text.includes('security')) {
+    return "cybersecurity technology professional";
+  } else if (text.includes('pottery') || text.includes('ceramic')) {
+    return "pottery studio ceramic art handmade";
+  } else if (text.includes('health') || text.includes('wellness') || text.includes('chiropractor')) {
+    return "wellness center health professional calm";
+  } else if (text.includes('pizza') || text.includes('food')) {
+    return "pizza restaurant food dining";
+  } else if (text.includes('luxury') || text.includes('limo')) {
+    return "black luxury car interior chauffeur";
+  } else if (text.includes('medical') || text.includes('doctor')) {
+    return "modern medical office doctor smile";
+  } else if (text.includes('tech') || text.includes('digital')) {
+    return "technology computer modern office";
+  }
+  
+  return "modern office business professional";
+};
+
+// Main Generative Function (Simulates AI call)
+const generateThemeConfig = async (businessDescription: string): Promise<IndustryArchitecture> => {
+  // Simulate AI processing delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Tokenize input
+  const tokens = businessDescription
+    .toLowerCase()
+    .split(/[\s\-_]+/)
+    .filter(t => t.length > 2)
+    .map(t => t.replace(/[^a-z0-9]/g, ''));
+  
+  // Detect vibe
+  const vibeProfile = detectVibe(tokens);
+  
+  // Generate vocabulary
+  const vocabulary = generateVocabulary(tokens, vibeProfile.vibe, businessDescription);
+  
+  // Generate services
+  const services = generateServices(tokens, vibeProfile.vibe);
+  
+  // Generate trust signals
+  const trustSignals = generateTrustSignals(tokens, vibeProfile.vibe);
+  
+  // Generate image query
+  const imageQuery = generateImageQuery(tokens, vibeProfile.vibe);
+  
+  // Determine label
+  let label = 'Local Business';
+  if (vibeProfile.vibe === 'calming') label = 'Wellness & Health';
+  else if (vibeProfile.vibe === 'tech') label = 'Technology Services';
+  else if (vibeProfile.vibe === 'playful') label = 'Entertainment & Events';
+  else if (vibeProfile.vibe === 'serious') label = 'Professional Services';
+  else if (vibeProfile.vibe === 'luxury') label = 'Luxury Services';
+  else if (vibeProfile.vibe === 'energetic') label = 'Dining & Food';
+  else if (vibeProfile.vibe === 'trustworthy') label = 'Medical Practice';
+  else if (vibeProfile.vibe === 'creative') label = 'Creative Services';
+  else if (vibeProfile.vibe === 'natural') label = 'Pet & Nature Services';
+  else if (vibeProfile.vibe === 'professional') label = 'Home Services';
+  
+  return {
+    id: vibeProfile.vibe,
+    label,
+    palette: vibeProfile.palette,
+    vocabulary,
+    services,
+    trustSignals,
+    imageQuery
   };
 };
 
@@ -596,6 +794,8 @@ export default function ThemeSelection({
 }: ThemeSelectionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(true);
+  const [architecture, setArchitecture] = useState<IndustryArchitecture | null>(null);
   
   const currentStrategy = STRATEGIES[currentIndex];
   
@@ -609,8 +809,36 @@ export default function ThemeSelection({
     aboutSnippet: scrapedData?.aboutSnippet
   };
   
-  // Synthesize industry architecture
-  const architecture = synthesizeIndustryData(mergedData.industryKeyword || 'general');
+  // Generate theme config on mount
+  useEffect(() => {
+    const generateConfig = async () => {
+      setIsGenerating(true);
+      
+      // Build business description from available data
+      const businessDescription = [
+        mergedData.businessName,
+        mergedData.industryKeyword,
+        businessProfile?.industry,
+        ...(businessProfile?.services?.map(s => s.name) || [])
+      ]
+        .filter(Boolean)
+        .join(' ');
+      
+      try {
+        const generated = await generateThemeConfig(businessDescription || 'general business');
+        setArchitecture(generated);
+      } catch (error) {
+        console.error('Error generating theme config:', error);
+        // Fallback to default
+        const fallback = await generateThemeConfig('general business');
+        setArchitecture(fallback);
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+    
+    generateConfig();
+  }, [mergedData.businessName, mergedData.industryKeyword, businessProfile?.industry, businessProfile?.services]);
   
   useEffect(() => {
     if (initialSelection) {
@@ -658,13 +886,29 @@ export default function ThemeSelection({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left: Live Preview (60%) */}
         <div className="w-full lg:w-[60%] bg-gray-100 flex items-center justify-center p-4 lg:p-8">
-          <div className={`w-full max-w-2xl transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-            <ThemePreview 
-              strategy={currentStrategy}
-              scrapedData={mergedData}
-              architecture={architecture}
-            />
-          </div>
+          {isGenerating ? (
+            <div className="w-full max-w-2xl flex flex-col items-center justify-center p-12">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mb-6"></div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Navi is analyzing your industry...
+              </h3>
+              <p className="text-gray-600 text-center max-w-md">
+                We're generating a custom theme configuration based on your business type.
+              </p>
+            </div>
+          ) : architecture ? (
+            <div className={`w-full max-w-2xl transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+              <ThemePreview 
+                strategy={currentStrategy}
+                scrapedData={mergedData}
+                architecture={architecture}
+              />
+            </div>
+          ) : (
+            <div className="w-full max-w-2xl flex items-center justify-center p-12">
+              <p className="text-gray-500">Unable to generate theme configuration.</p>
+            </div>
+          )}
         </div>
 
         {/* Right: Strategic Proposal (40%) */}
