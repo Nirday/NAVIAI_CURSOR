@@ -3,6 +3,123 @@
 import React, { useState } from 'react'
 import { Check, AlertCircle, CheckCircle2 } from 'lucide-react'
 
+// ThemePreview Component - High-fidelity CSS skeleton previews
+interface ThemePreviewProps {
+  themeId: string
+}
+
+function ThemePreview({ themeId }: ThemePreviewProps) {
+  switch (themeId) {
+    case 'emergency-response':
+      return (
+        <div className="w-full h-full bg-gray-50 p-2 flex flex-col gap-2">
+          {/* Sticky Header */}
+          <div className="h-6 bg-gray-200 rounded flex items-center justify-between px-2">
+            <div className="w-16 h-2 bg-slate-300 rounded"></div>
+            <div className="w-12 h-3 bg-red-500 rounded"></div>
+          </div>
+          {/* Hero Section with CTA */}
+          <div className="flex-1 flex flex-col items-center justify-center gap-2">
+            <div className="w-28 h-9 bg-red-500 rounded-lg shadow-sm"></div>
+            <div className="w-36 h-5 bg-slate-400 rounded"></div>
+            <div className="w-32 h-4 bg-slate-300 rounded mt-1"></div>
+          </div>
+          {/* Map Placeholder */}
+          <div className="h-14 bg-slate-300 rounded border border-slate-400"></div>
+        </div>
+      )
+
+    case 'local-showroom':
+      return (
+        <div className="w-full h-full bg-gray-50 relative overflow-hidden">
+          {/* Full-height Image Placeholder with gradient */}
+          <div className="w-full h-full bg-gradient-to-br from-slate-300 via-slate-200 to-slate-300"></div>
+          {/* Overlay Logo/Text - Elegant centered */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-20 h-4 bg-gray-200/80 rounded"></div>
+              <div className="w-16 h-2 bg-gray-200/60 rounded"></div>
+            </div>
+          </div>
+        </div>
+      )
+
+    case 'community-pillar':
+      return (
+        <div className="w-full h-full bg-gray-50 p-2 flex flex-col gap-2">
+          {/* Split Layout */}
+          <div className="flex-1 flex gap-2">
+            {/* Left: Image */}
+            <div className="w-2/5 bg-slate-300 rounded"></div>
+            {/* Right: Text Lines (Bio) */}
+            <div className="flex-1 flex flex-col gap-1.5 justify-center px-1">
+              <div className="w-full h-2 bg-slate-400 rounded"></div>
+              <div className="w-4/5 h-2 bg-slate-400 rounded"></div>
+              <div className="w-full h-2 bg-slate-400 rounded"></div>
+              <div className="w-3/5 h-2 bg-slate-400 rounded"></div>
+              <div className="w-5/6 h-2 bg-slate-400 rounded"></div>
+            </div>
+          </div>
+          {/* Trust Badges Row */}
+          <div className="flex gap-2 justify-center items-center">
+            <div className="w-7 h-7 bg-slate-300 rounded-full border border-slate-400"></div>
+            <div className="w-7 h-7 bg-slate-300 rounded-full border border-slate-400"></div>
+            <div className="w-7 h-7 bg-slate-300 rounded-full border border-slate-400"></div>
+          </div>
+        </div>
+      )
+
+    case 'neighborhood-menu':
+      return (
+        <div className="w-full h-full bg-gray-50 p-2 flex flex-col gap-2">
+          {/* Search Bar */}
+          <div className="h-7 bg-gray-200 rounded flex items-center px-2 gap-2">
+            <div className="w-4 h-4 bg-slate-300 rounded"></div>
+            <div className="flex-1 h-3 bg-slate-300 rounded"></div>
+          </div>
+          {/* Product Grid */}
+          <div className="flex-1 grid grid-cols-2 gap-1.5">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex flex-col gap-1">
+                <div className="w-full h-14 bg-slate-300 rounded"></div>
+                <div className="w-4/5 h-1.5 bg-slate-400 rounded"></div>
+                <div className="w-2/3 h-1.5 bg-slate-400 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+
+    case 'town-square':
+      return (
+        <div className="w-full h-full bg-gray-50 p-2 flex gap-2">
+          {/* Calendar Widget */}
+          <div className="w-1/3 flex flex-col gap-1">
+            <div className="h-3 bg-gray-200 rounded"></div>
+            <div className="flex-1 bg-slate-300 rounded grid grid-cols-3 gap-0.5 p-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+                <div key={i} className="aspect-square bg-gray-200 rounded border border-slate-400"></div>
+              ))}
+            </div>
+          </div>
+          {/* Feed List */}
+          <div className="flex-1 flex flex-col gap-1.5 justify-center px-1">
+            <div className="h-2.5 bg-slate-400 rounded"></div>
+            <div className="h-2.5 bg-slate-400 rounded w-5/6"></div>
+            <div className="h-2.5 bg-slate-400 rounded"></div>
+            <div className="h-2.5 bg-slate-400 rounded w-4/5"></div>
+            <div className="h-2.5 bg-slate-400 rounded"></div>
+          </div>
+        </div>
+      )
+
+    default:
+      return (
+        <div className="w-full h-full bg-gray-200"></div>
+      )
+  }
+}
+
 export interface ThemeOption {
   id: string
   title: string
@@ -240,18 +357,17 @@ export default function ThemeSelection({
                 )}
 
                 {/* Browser Window Preview */}
-                <div className="relative h-32 rounded-t-lg overflow-hidden">
+                <div className="relative h-48 rounded-t-lg overflow-hidden bg-white border-b border-gray-200">
                   {/* Browser Chrome */}
                   <div className="absolute top-0 left-0 right-0 h-8 bg-gray-800 flex items-center gap-1.5 px-3 z-10">
                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
                     <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   </div>
-                  {/* Theme Preview */}
-                  <div 
-                    className="w-full h-full"
-                    style={{ background: theme.visualColor }}
-                  />
+                  {/* Theme Preview Skeleton */}
+                  <div className="w-full h-full pt-8">
+                    <ThemePreview themeId={theme.id} />
+                  </div>
                 </div>
 
                 {/* Card Body */}
