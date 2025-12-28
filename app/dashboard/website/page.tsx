@@ -27,6 +27,7 @@ export default function WebsiteEditorPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [websiteTheme, setWebsiteTheme] = useState<'luxury_black_gold' | 'default'>('default')
   const [seoSchema, setSeoSchema] = useState<any>(null)
+  const [businessProfile, setBusinessProfile] = useState<any>(null)
 
   useEffect(() => {
     checkAuth()
@@ -44,6 +45,15 @@ export default function WebsiteEditorPage() {
         if (profileResponse.ok) {
           const profileData = await profileResponse.json()
           const profile = profileData.profile
+          
+          // Set businessProfile for ThemeSelection component
+          setBusinessProfile({
+            businessName: profile?.businessName,
+            industry: profile?.industry,
+            location: profile?.location,
+            contactInfo: profile?.contactInfo,
+            services: profile?.services
+          })
           
           console.log('📊 Profile fetched:', { 
             hasProfile: !!profile,
@@ -396,6 +406,7 @@ export default function WebsiteEditorPage() {
         <ThemeSelection
           onSelect={handleThemeSelect}
           onContinue={handleThemeSelect}
+          businessProfile={businessProfile}
         />
       </div>
     )

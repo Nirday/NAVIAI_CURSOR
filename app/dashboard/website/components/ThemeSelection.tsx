@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, CheckCircle2, MapPin, Phone } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle2, MapPin, Phone, Shield, Star } from 'lucide-react'
 
 // Business Profile Interface
 interface BusinessProfile {
@@ -113,33 +113,44 @@ interface PersonalizedPreviewProps {
 }
 
 function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPreviewProps) {
-  const businessName = businessProfile?.businessName || 'Your Business'
-  const service = businessProfile?.services?.[0]?.name || businessProfile?.industry || 'Premium Service'
-  const city = businessProfile?.location?.city || 'Your City'
-  const phone = businessProfile?.contactInfo?.phone || '(555) 123-4567'
+  // Demo data fallback for development
+  const demoData = { 
+    name: "Elite Transporters", 
+    city: "San Francisco", 
+    service: "Luxury Private Shuttle" 
+  }
+  
+  // Use real data if available, otherwise use demo data
+  const data = {
+    name: businessProfile?.businessName || demoData.name,
+    city: businessProfile?.location?.city || demoData.city,
+    service: businessProfile?.services?.[0]?.name || businessProfile?.industry || demoData.service,
+    phone: businessProfile?.contactInfo?.phone || '(415) 555-0123'
+  }
+  
   const strategy = STRATEGIES.find(s => s.id === strategyId) || STRATEGIES[0]
 
   const renderPreview = () => {
     switch (strategyId) {
       case 'emergency-response':
         return (
-          <div className="w-full h-full bg-white flex flex-col" style={{ fontFamily: strategy.fontStyle === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif' }}>
+          <div className="w-full h-full bg-gradient-to-br from-slate-50 to-orange-50 flex flex-col" style={{ fontFamily: strategy.fontStyle === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif' }}>
             {/* Sticky Header */}
-            <div className="h-14 bg-white border-b shadow-sm flex items-center justify-between px-6 sticky top-0 z-10">
-              <div className="text-lg font-bold" style={{ color: strategy.colors.primary === '#FFFFFF' ? '#1F2937' : strategy.colors.primary }}>
-                {businessName}
+            <div className="h-14 bg-white/80 backdrop-blur-sm border-b shadow-sm flex items-center justify-between px-6 sticky top-0 z-10">
+              <div className="text-lg font-bold tracking-tight" style={{ color: strategy.colors.primary === '#FFFFFF' ? '#1F2937' : strategy.colors.primary }}>
+                {data.name}
               </div>
-              <div className="px-4 py-2 rounded-lg font-semibold text-white" style={{ backgroundColor: strategy.colors.accent }}>
+              <div className="px-4 py-2 rounded-lg font-semibold text-white shadow-lg shadow-orange-200" style={{ backgroundColor: strategy.colors.accent }}>
                 Call Now
               </div>
             </div>
             {/* Hero Section */}
             <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-12">
-              <h1 className="text-4xl font-bold text-center" style={{ color: strategy.colors.primary === '#FFFFFF' ? '#1F2937' : strategy.colors.primary }}>
-                {service} in {city}
+              <h1 className="text-4xl font-bold text-center tracking-tight" style={{ color: strategy.colors.primary === '#FFFFFF' ? '#1F2937' : strategy.colors.primary }}>
+                {data.service} in {data.city}
               </h1>
-              <div className="px-8 py-4 rounded-xl font-bold text-white text-xl shadow-lg" style={{ backgroundColor: strategy.colors.accent }}>
-                {phone}
+              <div className="px-8 py-4 rounded-xl font-bold text-white text-xl shadow-lg shadow-orange-200" style={{ backgroundColor: strategy.colors.accent }}>
+                {data.phone}
               </div>
               <p className="text-gray-600 text-center max-w-md">
                 24/7 Emergency Service • Available Now
@@ -149,7 +160,7 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
             <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 border-t flex items-center justify-center">
               <div className="flex items-center gap-2 text-gray-600">
                 <MapPin className="w-5 h-5" />
-                <span>Serving {city} and surrounding areas</span>
+                <span>Serving {data.city} & Bay Area</span>
               </div>
             </div>
           </div>
@@ -158,38 +169,43 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
       case 'local-showroom':
         return (
           <div className="w-full h-full relative overflow-hidden" style={{ fontFamily: 'Georgia, serif' }}>
-            {/* Full-bleed Image Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-700 to-amber-900"></div>
+            {/* Full-bleed Image Background with dark luxury theme */}
+            <div className="absolute inset-0 bg-slate-900"></div>
+            {/* Subtle pattern overlay */}
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(212,175,55,0.3) 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
             {/* Overlay Content */}
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
-              <div className="text-5xl font-serif mb-4 text-white" style={{ color: strategy.colors.accent }}>
-                {businessName}
+              <div className="text-5xl font-serif mb-4 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 bg-clip-text text-transparent">
+                {data.name}
               </div>
               <div className="text-2xl font-serif text-white/90 mb-8">
-                {service} in {city}
+                {data.service} in {data.city}
               </div>
-              <div className="w-32 h-0.5 bg-amber-400"></div>
+              <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
             </div>
           </div>
         )
 
       case 'community-pillar':
         return (
-          <div className="w-full h-full bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
+          <div className="w-full h-full bg-gray-50 flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
             {/* Header */}
-            <div className="h-16 bg-white border-b flex items-center px-8">
+            <div className="h-16 bg-white border-b shadow-md flex items-center px-8">
               <div className="text-xl font-bold" style={{ color: strategy.colors.secondary }}>
-                {businessName}
+                {data.name}
               </div>
             </div>
             {/* Split Layout */}
             <div className="flex-1 flex">
               {/* Left: Image */}
-              <div className="w-2/5 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-                <div className="w-24 h-24 rounded-full bg-white border-4" style={{ borderColor: strategy.colors.accent }}></div>
+              <div className="w-2/5 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-blue-400/10"></div>
+                <div className="w-24 h-24 rounded-full bg-white border-4 shadow-lg flex items-center justify-center" style={{ borderColor: strategy.colors.accent }}>
+                  <Shield className="w-12 h-12" style={{ color: strategy.colors.accent }} />
+                </div>
               </div>
               {/* Right: Content */}
-              <div className="flex-1 p-8 flex flex-col justify-center">
+              <div className="flex-1 p-8 flex flex-col justify-center bg-white shadow-md">
                 <h1 className="text-3xl font-bold mb-4" style={{ color: strategy.colors.secondary }}>
                   Meet Our Team
                 </h1>
@@ -201,7 +217,9 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
                 </div>
                 <div className="flex gap-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="w-12 h-12 rounded-full border-2" style={{ borderColor: strategy.colors.accent }}></div>
+                    <div key={i} className="w-12 h-12 rounded-full border-2 flex items-center justify-center" style={{ borderColor: strategy.colors.accent }}>
+                      <Shield className="w-6 h-6" style={{ color: strategy.colors.accent }} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -214,17 +232,23 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
           <div className="w-full h-full bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
             {/* Search Bar */}
             <div className="h-16 bg-gray-50 border-b flex items-center px-6 gap-4">
-              <div className="flex-1 h-10 bg-white border rounded-lg px-4 flex items-center text-gray-400">
+              <div className="flex-1 h-10 bg-white border rounded-lg px-4 flex items-center text-gray-400 shadow-sm">
                 Search menu items...
               </div>
             </div>
             {/* Product Grid */}
             <div className="flex-1 p-6 grid grid-cols-2 gap-4">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="flex flex-col">
-                  <div className="w-full h-32 bg-gradient-to-br from-green-100 to-green-200 rounded-lg mb-2"></div>
-                  <div className="h-4 bg-gray-300 rounded w-3/4 mb-1"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div key={i} className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="w-full h-32 bg-gradient-to-br from-emerald-100 to-emerald-200 relative">
+                    <div className="absolute top-2 right-2 bg-emerald-600 text-white px-2 py-1 rounded-full text-xs font-bold">
+                      ${150 + i * 25}
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-1"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -235,11 +259,11 @@ function PersonalizedPreview({ strategyId, businessProfile }: PersonalizedPrevie
         return (
           <div className="w-full h-full bg-white flex" style={{ fontFamily: 'system-ui, sans-serif' }}>
             {/* Calendar Sidebar */}
-            <div className="w-1/3 border-r bg-gray-50 p-4">
+            <div className="w-1/3 border-r bg-gray-50 p-4 shadow-md">
               <div className="h-6 bg-gray-300 rounded mb-3"></div>
               <div className="grid grid-cols-3 gap-1">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (
-                  <div key={i} className="aspect-square bg-white border rounded flex items-center justify-center text-xs" style={{ borderColor: strategy.colors.accent }}>
+                  <div key={i} className="aspect-square bg-white border rounded flex items-center justify-center text-xs shadow-sm" style={{ borderColor: strategy.colors.accent }}>
                     {i}
                   </div>
                 ))}
@@ -301,6 +325,13 @@ export default function ThemeSelection({
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const currentStrategy = STRATEGIES[currentIndex]
+  
+  // Demo data fallback for development
+  const demoData = { 
+    name: "Elite Transporters", 
+    city: "San Francisco", 
+    service: "Luxury Private Shuttle" 
+  }
 
   useEffect(() => {
     if (initialSelection) {
@@ -412,9 +443,9 @@ export default function ThemeSelection({
             {/* Approve Button */}
             <button
               onClick={handleApprove}
-              className="w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              className="w-full px-8 py-5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
-              Approve this Strategy
+              Initialize {businessProfile?.businessName || 'Elite Transporters'} with Strategy {currentIndex + 1}
             </button>
           </div>
         </div>
@@ -462,9 +493,9 @@ export default function ThemeSelection({
             </div>
             <button
               onClick={handleApprove}
-              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-base rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
-              Approve this Strategy
+              Initialize {businessProfile?.businessName || 'Elite Transporters'} with Strategy {currentIndex + 1}
             </button>
           </div>
         </div>
