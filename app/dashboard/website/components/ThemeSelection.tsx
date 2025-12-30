@@ -1113,7 +1113,10 @@ interface ThemeSelectionProps {
   businessProfile?: {
     businessName?: string;
     industry?: string;
-    location?: { city?: string };
+    location?: { 
+      city?: string;
+      state?: string;
+    };
     contactInfo?: { phone?: string };
     services?: Array<{ name: string }>;
   };
