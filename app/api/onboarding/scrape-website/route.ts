@@ -69,9 +69,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Normalize URL: ensure it has a protocol
+    let normalizedUrl = url.trim()
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = `https://${normalizedUrl}`
+    }
+
     // Validate URL format
+    let validUrl: URL
     try {
-      new URL(url)
+      validUrl = new URL(normalizedUrl)
     } catch {
       return NextResponse.json(
         { error: 'Invalid URL format' },
@@ -91,7 +98,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Real scraping in production
-    const scrapedData = await scrapeWebsiteForProfile(url)
+    console.log('Attempting to scrape website:', normalizedUrl)
+    const scrapedData = await scrapeWebsiteForProfile(normalizedUrl)
 
     return NextResponse.json({
       success: true,
