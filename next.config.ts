@@ -2,9 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Explicitly disable Turbopack for production builds
-  // Next.js 16 enables Turbopack by default, but it's still experimental
-  // Using webpack for more stable builds
+  // Explicitly use webpack instead of Turbopack
+  // Next.js 16 enables Turbopack by default, but webpack is needed for Node.js module fallbacks
   
   webpack: (config, { isServer }) => {
     // Mark Node.js built-in modules as external for client-side builds
