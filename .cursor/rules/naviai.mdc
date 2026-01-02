@@ -1,4 +1,6 @@
 ---
+description: General rules for Navi AI behavior
+globs: 
 alwaysApply: true
 ---
 
