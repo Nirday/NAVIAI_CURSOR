@@ -1,62 +1,169 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { scrapeWebsiteForProfile } from '@/libs/chat-core/src/scraper'
+import * as cheerio from 'cheerio'
+import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60 // 60 seconds for scraping + AI
 
-// Check if we're in mock mode
-const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
-                   !process.env.NEXT_PUBLIC_SUPABASE_URL || 
-                   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-                   process.env.NEXT_PUBLIC_SUPABASE_URL === 'http://localhost:54321' ||
-                   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === 'mock-key'
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+})
 
-// Mock scraped data for testing
-function getMockScrapedData(url: string) {
-  // Extract domain name for business name
-  let domain = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
-  const businessName = domain.split('.')[0]
-    .split('-')
-    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+// ============================================================================
+// RESILIENT SCRAPER - Always works, regardless of mock mode
+// Mock mode only affects AUTH, not scraping!
+// ============================================================================
 
-  return {
-    businessName: businessName || 'Sample Business',
-    industry: 'Retail',
-    location: {
-      address: '123 Main Street',
-      city: 'San Francisco',
-      state: 'CA',
-      zipCode: '94102',
-      country: 'US'
-    },
-    contactInfo: {
-      phone: '(555) 123-4567',
-      email: `info@${domain}`,
-      website: url
-    },
-    services: [
-      { name: 'Product Sales', description: 'Main product offerings' },
-      { name: 'Customer Support', description: 'Dedicated support team' }
-    ],
-    hours: [
-      { day: 'Monday', open: '9:00 AM', close: '5:00 PM' },
-      { day: 'Tuesday', open: '9:00 AM', close: '5:00 PM' },
-      { day: 'Wednesday', open: '9:00 AM', close: '5:00 PM' },
-      { day: 'Thursday', open: '9:00 AM', close: '5:00 PM' },
-      { day: 'Friday', open: '9:00 AM', close: '5:00 PM' }
-    ],
-    brandVoice: 'professional' as const,
-    targetAudience: 'Small business owners and entrepreneurs',
-    customAttributes: [],
-    confidence: 0.8,
-    extractionMethod: 'mock' as const
+/**
+ * Attempt 1: Browser Spoof Fetch
+ */
+async function attemptBrowserFetch(url: string): Promise<string | null> {
+  try {
+    console.log('[Scraper] Attempt 1: Browser spoof fetch...')
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15000)
+    })
+
+    if (response.status === 403 || response.status === 429 || response.status >= 500) {
+      console.log(`[Scraper] Blocked with status ${response.status}`)
+      return null
+    }
+
+    if (!response.ok) {
+      return null
+    }
+
+    const html = await response.text()
+    
+    // Check for Cloudflare block
+    if (html.toLowerCase().includes('cloudflare') && html.toLowerCase().includes('challenge')) {
+      console.log('[Scraper] Cloudflare challenge detected')
+      return null
+    }
+
+    // Clean HTML with Cheerio
+    const $ = cheerio.load(html)
+    $('script, style, nav, aside, .ads').remove()
+    
+    const text = $('body').text().replace(/\s+/g, ' ').trim()
+    
+    if (text.length < 500) {
+      console.log(`[Scraper] Insufficient content: ${text.length} chars`)
+      return null
+    }
+    
+    console.log(`[Scraper] ✓ Browser fetch success: ${text.length} chars`)
+    return text.substring(0, 25000)
+    
+  } catch (error) {
+    console.log(`[Scraper] Browser fetch error:`, error)
+    return null
+  }
+}
+
+/**
+ * Attempt 2: Jina Reader API (Anti-Block Fallback) - CRITICAL
+ */
+async function attemptJinaFetch(url: string): Promise<string | null> {
+  try {
+    console.log('[Scraper] Attempt 2: Jina Reader fallback...')
+    
+    const jinaUrl = `https://r.jina.ai/${url}`
+    
+    const response = await fetch(jinaUrl, {
+      headers: { 'Accept': 'text/plain' },
+      signal: AbortSignal.timeout(30000)
+    })
+
+    if (!response.ok) {
+      console.log(`[Scraper] Jina failed with status ${response.status}`)
+      return null
+    }
+
+    const text = await response.text()
+    
+    if (!text || text.length < 200) {
+      return null
+    }
+    
+    console.log(`[Scraper] ✓ Jina success: ${text.length} chars`)
+    return text.substring(0, 25000)
+    
+  } catch (error) {
+    console.log(`[Scraper] Jina error:`, error)
+    return null
+  }
+}
+
+/**
+ * OpenAI: Extract business profile from text
+ */
+async function extractProfileWithAI(content: string, websiteUrl: string) {
+  const SYSTEM_PROMPT = `You are a business data extractor. Analyze website text and extract:
+- businessName: exact business name
+- industry: business type/category
+- location: { address, city, state, zipCode, country }
+- contactInfo: { phone, email, website }
+- services: array of { name, description } for each service offered
+- targetAudience: who they serve
+- brandVoice: "professional", "casual", "luxury", or "friendly"
+
+Return ONLY valid JSON. Use empty strings for missing data.`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: `Extract business profile from:\n\n${content}` }
+      ],
+      temperature: 0.1,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' }
+    })
+
+    const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}')
+    
+    return {
+      businessName: parsed.businessName || '',
+      industry: parsed.industry || '',
+      location: {
+        address: parsed.location?.address || '',
+        city: parsed.location?.city || '',
+        state: parsed.location?.state || '',
+        zipCode: parsed.location?.zipCode || '',
+        country: parsed.location?.country || 'US'
+      },
+      contactInfo: {
+        phone: parsed.contactInfo?.phone || '',
+        email: parsed.contactInfo?.email || '',
+        website: websiteUrl
+      },
+      services: Array.isArray(parsed.services) ? parsed.services : [],
+      targetAudience: parsed.targetAudience || '',
+      brandVoice: parsed.brandVoice || 'professional',
+      customAttributes: [],
+      confidence: 0.85,
+      extractionMethod: 'ai' as const
+    }
+    
+  } catch (error) {
+    console.error('[AI] Extraction error:', error)
+    throw error
   }
 }
 
 /**
  * POST /api/onboarding/scrape-website
- * Scrapes a website to extract business profile information
- * In mock mode, returns sample data for testing
+ * ALWAYS does real scraping - mock mode only affects auth, not scraping!
  */
 export async function POST(req: NextRequest) {
   try {
@@ -69,16 +176,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Normalize URL: ensure it has a protocol
+    // Normalize URL
     let normalizedUrl = url.trim()
     if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
       normalizedUrl = `https://${normalizedUrl}`
     }
 
-    // Validate URL format
-    let validUrl: URL
+    // Validate URL
     try {
-      validUrl = new URL(normalizedUrl)
+      new URL(normalizedUrl)
     } catch {
       return NextResponse.json(
         { error: 'Invalid URL format' },
@@ -86,36 +192,42 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // In mock mode, return sample data (no delay for faster testing)
-    if (isMockMode) {
-      const mockData = getMockScrapedData(url)
-      
-      return NextResponse.json({
-        success: true,
-        data: mockData,
-        message: 'Website scraped successfully (mock mode)'
-      })
+    console.log('[Scrape API] Starting scrape for:', normalizedUrl)
+
+    // Step 1: Try browser fetch, then Jina fallback
+    let content = await attemptBrowserFetch(normalizedUrl)
+    if (!content) {
+      content = await attemptJinaFetch(normalizedUrl)
     }
 
-    // Real scraping in production
-    console.log('Attempting to scrape website:', normalizedUrl)
-    const scrapedData = await scrapeWebsiteForProfile(normalizedUrl)
+    if (!content) {
+      console.log('[Scrape API] All scraping attempts failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Could not access website. It may be blocking automated access.',
+        data: null
+      }, { status: 500 })
+    }
+
+    // Step 2: Extract profile with AI
+    const scrapedData = await extractProfileWithAI(content, normalizedUrl)
+
+    console.log(`[Scrape API] ✓ Success: ${scrapedData.businessName}`)
 
     return NextResponse.json({
       success: true,
       data: scrapedData,
       message: 'Website scraped successfully'
     })
+
   } catch (error: any) {
-    console.error('Error scraping website:', error)
+    console.error('[Scrape API] Error:', error)
     
-    return NextResponse.json(
-      { 
-        error: error.message || 'Failed to scrape website. Please check the URL and try again.',
-        details: error.name === 'ScrapingError' ? error.message : undefined
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Failed to scrape website',
+      data: null
+    }, { status: 500 })
   }
 }
 
