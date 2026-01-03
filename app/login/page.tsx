@@ -2,27 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
-import { supabase } from '@/lib/supabase'
-
-// TEMPORARY: Force mock mode ON until Supabase is properly configured
-// TODO: Remove this hardcode when ready to use real Supabase
-const isMockMode = true
-
-// Create browser client ONCE outside component (singleton pattern)
-// This prevents "Multiple GoTrueClient instances" warning
-let browserClient: ReturnType<typeof createBrowserClient> | null = null
-function getBrowserClient() {
-  if (!browserClient && !isMockMode) {
-    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
-  }
-  return browserClient
-}
 
 /**
- * Login Page - Clean Implementation
- * Supports both real Supabase and mock mode
- * Includes demo credentials for easy testing
+ * Login Page - MOCK MODE
+ * Demo login goes straight to dashboard
+ * TODO: Re-enable real auth when Supabase is configured
  */
 export default function LoginPage() {
   const router = useRouter()
@@ -33,8 +17,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
-  // Use singleton client to prevent multiple instances
-  const supabaseClient = isMockMode ? supabase : getBrowserClient()!
+  // MOCK MODE: Always true
+  const isMockMode = true
 
   // Demo credentials - always available for testing
   const DEMO_CREDENTIALS = [
@@ -44,134 +28,21 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true)
-    // In mock mode, don't auto-redirect - user must explicitly click login
-    // This prevents the redirect loop
-    if (isMockMode) {
-      return
-    }
-    // Only check auth once on mount, don't run repeatedly
-    let isMounted = true
-    const checkAuthOnce = async () => {
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession()
-        if (session && isMounted) {
-          // Use window.location for full page reload to ensure middleware runs
-          window.location.href = '/dashboard'
-        }
-      } catch (err) {
-        console.error('Auth check error:', err)
-      }
-    }
-    checkAuthOnce()
-    return () => {
-      isMounted = false
-    }
+    // MOCK MODE: No auto-redirect, user must click login
   }, [])
 
+  // MOCK MODE: All logins just redirect to dashboard
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
     setLoading(true)
-
-    try {
-      if (isSignUp) {
-        // Handle sign up
-        const { data, error: signUpError } = await supabaseClient.auth.signUp({
-          email,
-          password
-        })
-
-        if (signUpError) {
-          throw signUpError
-        }
-
-        if (data.session) {
-          // Auto-confirmed, wait a moment for session to sync, then redirect
-          await new Promise(resolve => setTimeout(resolve, 200))
-          window.location.href = '/dashboard'
-        } else {
-          // Email confirmation required
-          setError('Please check your email to confirm your account, then sign in.')
-          setLoading(false)
-        }
-      } else {
-        // Handle sign in
-        const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-          email,
-          password
-        })
-
-        if (signInError) {
-          throw signInError
-        }
-
-        if (data.session) {
-          // Successfully signed in, wait a moment for session to sync, then redirect
-          await new Promise(resolve => setTimeout(resolve, 200))
-          window.location.href = '/dashboard'
-        } else {
-          setError('Sign in failed: No session created')
-          setLoading(false)
-        }
-      }
-    } catch (err: any) {
-      setError(err.message || `Failed to ${isSignUp ? 'sign up' : 'sign in'}`)
-      setLoading(false)
-    }
+    // Just go to dashboard - mock mode handles everything
+    window.location.href = '/dashboard'
   }
 
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
-    setError(null)
     setLoading(true)
-
-    try {
-      // In mock mode, skip all auth and just go straight to dashboard
-      if (isMockMode) {
-        // Just redirect - dashboard will handle mock user
-        window.location.href = '/dashboard'
-        return
-      } else {
-        // For real Supabase, first ensure the demo user exists and is confirmed
-        try {
-          const demoRes = await fetch('/api/auth/demo-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: demoEmail, password: demoPassword })
-          })
-
-          const demoResult = await demoRes.json()
-
-          if (!demoRes.ok) {
-            throw new Error(demoResult.error || 'Failed to setup demo user')
-          }
-        } catch (apiError: any) {
-          // If API fails, try direct login anyway (user might already exist)
-          console.warn('Demo login API error:', apiError)
-        }
-
-        // Now sign in with the confirmed user
-        const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-          email: demoEmail,
-          password: demoPassword
-        })
-
-        if (signInError) {
-          throw signInError
-        }
-
-        if (data.session) {
-          // Wait a moment for session to sync, then redirect with full page reload
-          await new Promise(resolve => setTimeout(resolve, 200))
-          window.location.href = '/dashboard'
-        } else {
-          setError('Demo login failed: No session created')
-          setLoading(false)
-        }
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in with demo credentials')
-      setLoading(false)
-    }
+    // Just go to dashboard - mock mode handles everything
+    window.location.href = '/dashboard'
   }
 
   if (!mounted) {
