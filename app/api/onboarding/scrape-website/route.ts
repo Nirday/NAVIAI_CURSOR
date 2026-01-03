@@ -5,9 +5,18 @@ import OpenAI from 'openai'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // 60 seconds for scraping + AI
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization to avoid build errors
+let openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY not set')
+    }
+    openai = new OpenAI({ apiKey })
+  }
+  return openai
+}
 
 // ============================================================================
 // RESILIENT SCRAPER - Always works, regardless of mock mode
@@ -104,59 +113,182 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
 }
 
 /**
- * OpenAI: Extract business profile from text
+ * DEEP DIVE INTELLIGENCE ENGINE
+ * Senior Forensic Business Auditor - Extracts the "Hard Reality" from websites
  */
 async function extractProfileWithAI(content: string, websiteUrl: string) {
-  const SYSTEM_PROMPT = `You are a business data extractor. Analyze website text and extract:
-- businessName: exact business name
-- industry: business type/category
-- location: { address, city, state, zipCode, country }
-- contactInfo: { phone, email, website }
-- services: array of { name, description } for each service offered
-- targetAudience: who they serve
-- brandVoice: "professional", "casual", "luxury", or "friendly"
+  const SYSTEM_PROMPT = `ROLE: Senior Forensic Business Auditor & Intelligence Analyst
+TASK: Perform a DEEP DIVE analysis of this business. Extract EVERY piece of operational intelligence you can find. Be forensic - no detail is too small.
 
-Return ONLY valid JSON. Use empty strings for missing data.`
+EXTRACTION REQUIREMENTS:
+
+1. OPERATIONAL IDENTITY
+- businessName: Exact legal/brand name
+- tagline: Their main slogan or value proposition
+- industry: Specific industry category (e.g., "Chiropractic Care", "Auto Detailing", "Wedding Photography")
+- ownerName: Principal/founder name if mentioned
+- ownerCredentials: Degrees, certifications (e.g., "DC", "MBA", "Certified Master")
+- yearsInBusiness: How long they've operated (extract from "Est. 2010" or "20 years experience")
+- location: { address, city, state, zipCode, country, neighborhood }
+
+2. CONTACT CHANNELS
+- phone: Primary phone number (formatted)
+- email: Contact email
+- hours: Operating hours (e.g., "Mon-Fri 9am-6pm, Sat 10am-2pm")
+- bookingMethod: How customers book ("Online Booking", "Phone Only", "Walk-ins Welcome")
+- emergencyAvailability: 24/7, after-hours, weekend availability
+
+3. SERVICE & ASSET INVENTORY (Be EXHAUSTIVE)
+- coreServices: Array of { name, description, price } - List EVERY service mentioned with prices if found
+- hardAssets: Array of specific equipment, machines, technology mentioned (e.g., "Cold Laser Therapy Machine", "Tesla Model S Fleet", "Hasselblad Camera")
+- specializations: Niche expertise (e.g., "Webster Certified", "Pediatric Focus", "Luxury Weddings")
+- productLines: Physical products sold
+
+4. AUTHORITY & TRUST SIGNALS
+- credentials: Array of ALL licenses, certifications, memberships found
+- awards: Industry awards, recognitions
+- affiliations: Professional associations, franchises
+- insuranceAccepted: Insurance plans if applicable
+- killShot: The ONE most impressive/unique fact that differentiates them
+
+5. DIGITAL & OPERATIONAL MATURITY
+- websiteQuality: "Modern/Professional", "Dated/Needs Update", "Basic/Template"
+- hasOnlineBooking: true/false
+- hasBlog: true/false
+- blogPostCount: Number if determinable
+- socialProfiles: { facebook, instagram, linkedin, youtube, tiktok } URLs if found
+- hasReviews: true/false
+- reviewPlatforms: Array of platforms mentioned (Google, Yelp, etc.)
+
+6. TARGET MARKET INTELLIGENCE
+- targetAudience: Who they specifically serve (be detailed: "Busy tech professionals in Silicon Valley", "Families with children under 12")
+- serviceArea: Geographic coverage
+- languages: Languages offered
+- accessibilityFeatures: Wheelchair access, etc.
+
+7. PRICING INTELLIGENCE
+- pricingModel: "Premium", "Mid-Market", "Budget", "Not Listed"
+- pricePoints: Array of specific prices found (e.g., "$150/hour", "$99 first visit")
+- paymentMethods: Accepted payment forms
+- financingOptions: Payment plans, etc.
+
+8. GAP ANALYSIS (Your assessment)
+- bookingFriction: "Low" (instant book), "Medium" (form), "High" (phone only)
+- contentGap: "None", "Needs Blog", "Needs Social", "Needs Video"
+- seoOpportunity: Brief assessment
+- competitiveAdvantage: What makes them stand out
+- improvementAreas: Top 3 areas for improvement
+
+9. BRAND PERSONALITY
+- brandVoice: "professional", "friendly", "luxury", "casual", "clinical", "warm"
+- visualStyle: "Modern/Minimalist", "Traditional", "Playful", "Corporate"
+- uniqueSellingProposition: Their main USP in one sentence
+
+Return ONLY valid JSON with ALL these fields. Use empty strings/arrays for missing data. Be thorough - extract EVERYTHING.`
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Extract business profile from:\n\n${content}` }
+        { role: 'user', content: `Perform a DEEP DIVE forensic analysis of this business website:\n\nURL: ${websiteUrl}\n\nCONTENT:\n${content}` }
       ],
-      temperature: 0.1,
-      max_tokens: 2000,
+      temperature: 0.2,
+      max_tokens: 4000,
       response_format: { type: 'json_object' }
     })
 
     const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}')
     
+    // Build comprehensive profile
     return {
+      // Core Identity
       businessName: parsed.businessName || '',
+      tagline: parsed.tagline || '',
       industry: parsed.industry || '',
+      ownerName: parsed.ownerName || '',
+      ownerCredentials: parsed.ownerCredentials || '',
+      yearsInBusiness: parsed.yearsInBusiness || '',
+      
+      // Location
       location: {
         address: parsed.location?.address || '',
         city: parsed.location?.city || '',
         state: parsed.location?.state || '',
         zipCode: parsed.location?.zipCode || '',
-        country: parsed.location?.country || 'US'
+        country: parsed.location?.country || 'US',
+        neighborhood: parsed.location?.neighborhood || ''
       },
+      
+      // Contact
       contactInfo: {
-        phone: parsed.contactInfo?.phone || '',
-        email: parsed.contactInfo?.email || '',
+        phone: parsed.phone || '',
+        email: parsed.email || '',
         website: websiteUrl
       },
-      services: Array.isArray(parsed.services) ? parsed.services : [],
+      hours: parsed.hours || '',
+      bookingMethod: parsed.bookingMethod || '',
+      emergencyAvailability: parsed.emergencyAvailability || '',
+      
+      // Services & Assets (Deep)
+      services: Array.isArray(parsed.coreServices) ? parsed.coreServices.map((s: any) => ({
+        name: s.name || s,
+        description: s.description || '',
+        price: s.price || ''
+      })) : [],
+      hardAssets: Array.isArray(parsed.hardAssets) ? parsed.hardAssets : [],
+      specializations: Array.isArray(parsed.specializations) ? parsed.specializations : [],
+      productLines: Array.isArray(parsed.productLines) ? parsed.productLines : [],
+      
+      // Authority
+      credentials: Array.isArray(parsed.credentials) ? parsed.credentials : [],
+      awards: Array.isArray(parsed.awards) ? parsed.awards : [],
+      affiliations: Array.isArray(parsed.affiliations) ? parsed.affiliations : [],
+      insuranceAccepted: Array.isArray(parsed.insuranceAccepted) ? parsed.insuranceAccepted : [],
+      killShot: parsed.killShot || '',
+      
+      // Digital Maturity
+      websiteQuality: parsed.websiteQuality || 'Unknown',
+      hasOnlineBooking: parsed.hasOnlineBooking || false,
+      hasBlog: parsed.hasBlog || false,
+      blogPostCount: parsed.blogPostCount || 0,
+      socialProfiles: parsed.socialProfiles || {},
+      hasReviews: parsed.hasReviews || false,
+      reviewPlatforms: Array.isArray(parsed.reviewPlatforms) ? parsed.reviewPlatforms : [],
+      
+      // Target Market
       targetAudience: parsed.targetAudience || '',
+      serviceArea: parsed.serviceArea || '',
+      languages: Array.isArray(parsed.languages) ? parsed.languages : ['English'],
+      accessibilityFeatures: Array.isArray(parsed.accessibilityFeatures) ? parsed.accessibilityFeatures : [],
+      
+      // Pricing
+      pricingModel: parsed.pricingModel || 'Not Listed',
+      pricePoints: Array.isArray(parsed.pricePoints) ? parsed.pricePoints : [],
+      paymentMethods: Array.isArray(parsed.paymentMethods) ? parsed.paymentMethods : [],
+      financingOptions: parsed.financingOptions || '',
+      
+      // Gap Analysis
+      bookingFriction: parsed.bookingFriction || 'Unknown',
+      contentGap: parsed.contentGap || '',
+      seoOpportunity: parsed.seoOpportunity || '',
+      competitiveAdvantage: parsed.competitiveAdvantage || '',
+      improvementAreas: Array.isArray(parsed.improvementAreas) ? parsed.improvementAreas : [],
+      
+      // Brand
       brandVoice: parsed.brandVoice || 'professional',
+      visualStyle: parsed.visualStyle || '',
+      uniqueSellingProposition: parsed.uniqueSellingProposition || '',
+      
+      // Meta
       customAttributes: [],
-      confidence: 0.85,
-      extractionMethod: 'ai' as const
+      confidence: 0.9,
+      extractionMethod: 'deep-dive-ai' as const,
+      scrapedAt: new Date().toISOString()
     }
     
   } catch (error) {
-    console.error('[AI] Extraction error:', error)
+    console.error('[AI] Deep Dive extraction error:', error)
     throw error
   }
 }
