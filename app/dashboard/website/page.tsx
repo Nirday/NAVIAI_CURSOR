@@ -6,6 +6,11 @@ import { supabase } from '@/lib/supabase'
 import { HeroBlock } from './components/HeroBlock'
 import { FeatureBlock } from './components/FeatureBlock'
 
+// Check mock mode at module level
+const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
+                   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+                   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 // Define the types for our blocks
 type Block = 
   | { id: string; type: 'hero'; props: { headline: string; subheadline: string } }
@@ -51,6 +56,13 @@ export default function WebsiteEditorPage() {
   }, [userId]) // Run when userId is available
 
   const checkAuth = async () => {
+    // In mock mode, skip auth entirely
+    if (isMockMode) {
+      setUserId('mock-user-123')
+      setLoading(false)
+      return
+    }
+
     try {
       const { data: { session }, error } = await supabase.auth.getSession()
       if (error) throw error

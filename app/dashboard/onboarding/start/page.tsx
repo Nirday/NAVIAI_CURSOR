@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation'
 import OnboardingChatInterface from '@/apps/dashboard/components/OnboardingChatInterface'
 import { supabase } from '@/lib/supabase'
 
+// Check mock mode at module level
+const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
+                   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+                   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 /**
  * Onboarding Start Page
  * This is where new users without a business profile are directed
@@ -15,6 +20,12 @@ export default function OnboardingStartPage() {
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    // In mock mode, skip auth check entirely
+    if (isMockMode) {
+      setUserId('mock-user-123')
+      return
+    }
+
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
