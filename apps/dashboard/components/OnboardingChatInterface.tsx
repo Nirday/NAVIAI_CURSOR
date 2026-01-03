@@ -231,7 +231,119 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     return { isValid: true }
   }
 
-  // Format proofread summary
+  // Format DEEP DIVE Calibration Report (for website scraping)
+  const formatCalibrationReport = (scrapedData: any): string => {
+    let report = "## 🟢 NAVI CALIBRATION REPORT\n\n"
+    
+    // 1. Operational Baseline
+    report += "### 🏢 Operational Baseline\n"
+    report += `• **Business:** ${scrapedData.businessName || 'Not found'}\n`
+    if (scrapedData.tagline) report += `• **Tagline:** "${scrapedData.tagline}"\n`
+    report += `• **Industry:** ${scrapedData.industry || 'Not specified'}\n`
+    
+    const location = [
+      scrapedData.location?.address,
+      scrapedData.location?.city,
+      scrapedData.location?.state,
+      scrapedData.location?.zipCode
+    ].filter(Boolean).join(', ')
+    if (location) report += `• **Headquarters:** ${location}\n`
+    
+    if (scrapedData.ownerName) {
+      report += `• **Command:** ${scrapedData.ownerName}`
+      if (scrapedData.ownerCredentials) report += ` | ${scrapedData.ownerCredentials}`
+      report += "\n"
+    }
+    
+    if (scrapedData.contactInfo?.phone || scrapedData.contactInfo?.email) {
+      report += `• **Contact:** ${scrapedData.contactInfo?.phone || ''} | ${scrapedData.contactInfo?.email || ''}\n`
+    }
+    if (scrapedData.hours) report += `• **Hours:** ${scrapedData.hours}\n`
+    if (scrapedData.yearsInBusiness) report += `• **Experience:** ${scrapedData.yearsInBusiness}\n`
+    
+    // 2. Service & Asset Inventory
+    report += "\n### 🛠️ Service & Asset Inventory\n"
+    if (scrapedData.services && scrapedData.services.length > 0) {
+      report += "• **Core Services:**\n"
+      scrapedData.services.slice(0, 7).forEach((s: any) => {
+        const svc = typeof s === 'string' ? s : s.name
+        const price = typeof s === 'object' && s.price ? ` (${s.price})` : ''
+        report += `  - ${svc}${price}\n`
+      })
+    }
+    if (scrapedData.hardAssets && scrapedData.hardAssets.length > 0) {
+      report += `• **Hard Assets:** ${scrapedData.hardAssets.slice(0, 5).join(', ')}\n`
+    }
+    if (scrapedData.specializations && scrapedData.specializations.length > 0) {
+      report += `• **Specializations:** ${scrapedData.specializations.join(', ')}\n`
+    }
+    
+    // 3. Authority & Differentiation
+    report += "\n### 🛡️ Authority & Trust Signals\n"
+    if (scrapedData.credentials && scrapedData.credentials.length > 0) {
+      report += `• **Credentials:** ${scrapedData.credentials.join(', ')}\n`
+    }
+    if (scrapedData.awards && scrapedData.awards.length > 0) {
+      report += `• **Awards:** ${scrapedData.awards.join(', ')}\n`
+    }
+    if (scrapedData.killShot) {
+      report += `• **The "Kill Shot":** ${scrapedData.killShot}\n`
+    }
+    
+    // 4. Digital Maturity
+    report += "\n### 📊 Digital Maturity\n"
+    report += `• **Website Quality:** ${scrapedData.websiteQuality || 'Unknown'}\n`
+    report += `• **Online Booking:** ${scrapedData.hasOnlineBooking ? '✅ Yes' : '❌ No'}\n`
+    report += `• **Blog:** ${scrapedData.hasBlog ? '✅ Active' : '❌ None found'}\n`
+    
+    const socials = scrapedData.socialProfiles || {}
+    const activeSocials = Object.entries(socials).filter(([k, v]) => v).map(([k]) => k)
+    report += `• **Social Presence:** ${activeSocials.length > 0 ? activeSocials.join(', ') : 'None found'}\n`
+    
+    // 5. Target Market
+    report += "\n### 🎯 Target Market\n"
+    if (scrapedData.targetAudience) report += `• **Audience:** ${scrapedData.targetAudience}\n`
+    if (scrapedData.serviceArea) report += `• **Service Area:** ${scrapedData.serviceArea}\n`
+    
+    // 6. Pricing
+    report += "\n### 💰 Pricing Intelligence\n"
+    report += `• **Model:** ${scrapedData.pricingModel || 'Not Listed'}\n`
+    if (scrapedData.pricePoints && scrapedData.pricePoints.length > 0) {
+      report += `• **Price Points:** ${scrapedData.pricePoints.slice(0, 5).join(', ')}\n`
+    }
+    
+    // 7. Gap Analysis
+    report += "\n### ⚠️ Gap Analysis\n"
+    report += `• **Booking Friction:** ${scrapedData.bookingFriction || 'Unknown'}\n`
+    if (scrapedData.contentGap) report += `• **Content Gap:** ${scrapedData.contentGap}\n`
+    if (scrapedData.seoOpportunity) report += `• **SEO Opportunity:** ${scrapedData.seoOpportunity}\n`
+    if (scrapedData.improvementAreas && scrapedData.improvementAreas.length > 0) {
+      report += `• **Top Improvements:**\n`
+      scrapedData.improvementAreas.slice(0, 3).forEach((area: string) => {
+        report += `  - ${area}\n`
+      })
+    }
+    
+    // 8. Recommendation
+    report += "\n---\n\n"
+    
+    // Determine recommendation based on gaps
+    if (scrapedData.websiteQuality === 'Dated/Needs Update' || scrapedData.websiteQuality === 'Basic/Template') {
+      report += "**🚀 RECOMMENDED ACTION:** Your website could use a modern refresh. I recommend starting with the **Website Builder Module** - I've already drafted a high-conversion design based on your services.\n"
+    } else if (!scrapedData.hasBlog && scrapedData.contentGap) {
+      report += "**🚀 RECOMMENDED ACTION:** Your services are clear but your content footprint is small. I recommend the **Content & Blog Module** - I can draft SEO-optimized articles about your services.\n"
+    } else if (scrapedData.bookingFriction === 'High' || !scrapedData.hasOnlineBooking) {
+      report += "**🚀 RECOMMENDED ACTION:** I detected friction in your booking process. I recommend the **CRM & Booking Module** - let me set up 24/7 automated booking.\n"
+    } else {
+      report += "**🚀 STATUS:** Your digital presence looks solid! Let's fine-tune your profile and get you set up.\n"
+    }
+    
+    report += "\n---\n\n*Does this look accurate? Let me know if anything needs correcting!*"
+    
+    return report
+  }
+
+  // Format proofread summary (for manual entry)
   const formatProofreadSummary = (data: Partial<BusinessProfileData>, fromWebsite: boolean = false): string => {
     let summary = ""
     
@@ -457,7 +569,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
             const result = await response.json()
             const scrapedData = result.data
             
-            // Fill in data from scraped website
+            // Fill in data from scraped website (map to our internal format)
             const updatedData: Partial<BusinessProfileData> = {
               archetype: detectArchetype(scrapedData.industry || ''),
               identity: {
@@ -468,25 +580,26 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                 phone: scrapedData.contactInfo?.phone || '',
                 email: scrapedData.contactInfo?.email || '',
                 website: url,
-                hours: scrapedData.hours ? 
-                  scrapedData.hours.map((h: any) => `${h.day}: ${h.open}-${h.close}`).join(', ') : '',
-                social_links: []
+                hours: typeof scrapedData.hours === 'string' ? scrapedData.hours : '',
+                social_links: Object.entries(scrapedData.socialProfiles || {})
+                  .filter(([k, v]) => v)
+                  .map(([k, v]) => `${k}: ${v}`)
               },
               offering: {
-                core_services: scrapedData.services?.map((s: any) => s.name) || [],
+                core_services: scrapedData.services?.map((s: any) => typeof s === 'string' ? s : s.name) || [],
                 target_audience: scrapedData.targetAudience || '',
                 vibe_mission: scrapedData.brandVoice || ''
               },
               credibility: {
-                owner_name: '',
-                owner_bio: '',
-                credentials: [],
-                years_in_business: ''
+                owner_name: scrapedData.ownerName || '',
+                owner_bio: scrapedData.uniqueSellingProposition || '',
+                credentials: scrapedData.credentials || [],
+                years_in_business: scrapedData.yearsInBusiness || ''
               },
               logistics: {
-                payment_methods: [],
-                insurance_accepted: false,
-                booking_policy: '',
+                payment_methods: scrapedData.paymentMethods || [],
+                insurance_accepted: scrapedData.insuranceAccepted?.length > 0,
+                booking_policy: scrapedData.bookingMethod || '',
                 specific_policy: ''
               }
             }
@@ -501,11 +614,12 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               fromWebsite: true
             })
             
-            const summary = formatProofreadSummary(updatedData, true)
+            // Show the FULL Deep Dive Calibration Report
+            const calibrationReport = formatCalibrationReport(scrapedData)
             const reviewMsg: Message = {
               id: `assistant_${Date.now()}`,
               role: 'assistant',
-              content: summary,
+              content: calibrationReport,
               timestamp: new Date()
             }
             setMessages(prev => [...prev, reviewMsg])
