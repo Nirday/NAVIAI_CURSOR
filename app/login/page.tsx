@@ -5,14 +5,9 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { supabase } from '@/lib/supabase'
 
-// Check if we're in mock mode - do this outside component to avoid re-evaluation
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
-                   !supabaseUrl || 
-                   !supabaseAnonKey || 
-                   supabaseUrl === 'http://localhost:54321' || 
-                   supabaseAnonKey === 'mock-key'
+// TEMPORARY: Force mock mode ON until Supabase is properly configured
+// TODO: Remove this hardcode when ready to use real Supabase
+const isMockMode = true
 
 // Create browser client ONCE outside component (singleton pattern)
 // This prevents "Multiple GoTrueClient instances" warning

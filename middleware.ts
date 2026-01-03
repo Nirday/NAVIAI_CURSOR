@@ -14,14 +14,9 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // Check if we're in mock mode
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
-                     !supabaseUrl || 
-                     !supabaseAnonKey ||
-                     supabaseUrl === 'http://localhost:54321' ||
-                     supabaseAnonKey === 'mock-key'
+  // TEMPORARY: Force mock mode ON until Supabase is properly configured
+  // TODO: Remove this hardcode when ready to use real Supabase
+  const isMockMode = true
 
   // In mock mode, skip Supabase auth check (sessions are client-side only)
   if (isMockMode) {

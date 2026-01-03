@@ -6,10 +6,9 @@ import ChatInterface from '@/apps/dashboard/components/ChatInterface'
 import OnboardingChatInterface from '@/apps/dashboard/components/OnboardingChatInterface'
 import { supabase } from '@/lib/supabase'
 
-// Check mock mode at module level
-const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
-                   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-                   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// TEMPORARY: Force mock mode ON until Supabase is properly configured
+// TODO: Remove this hardcode when ready to use real Supabase
+const isMockMode = true
 
 /**
  * Chat Page

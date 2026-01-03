@@ -6,10 +6,9 @@ import { supabase } from '@/lib/supabase'
 import { HeroBlock } from './components/HeroBlock'
 import { FeatureBlock } from './components/FeatureBlock'
 
-// Check mock mode at module level
-const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
-                   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-                   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// TEMPORARY: Force mock mode ON until Supabase is properly configured
+// TODO: Remove this hardcode when ready to use real Supabase
+const isMockMode = true
 
 // Define the types for our blocks
 type Block = 
