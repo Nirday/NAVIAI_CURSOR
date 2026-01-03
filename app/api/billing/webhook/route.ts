@@ -7,9 +7,18 @@ import { sendTrialEndingEmail, sendPaymentFailedEmail } from '@/libs/communicati
 
 export const dynamic = 'force-dynamic'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-10-29.clover'
-})
+// Lazy initialization to avoid errors when API key is not set
+let stripe: Stripe | null = null
+function getStripe(): Stripe {
+  if (!stripe) {
+    const apiKey = process.env.STRIPE_SECRET_KEY
+    if (!apiKey) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+    }
+    stripe = new Stripe(apiKey, { apiVersion: '2025-10-29.clover' })
+  }
+  return stripe
+}
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || ''
 
@@ -31,7 +40,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, WEBHOOK_SECRET)
+    event = getStripe().webhooks.constructEvent(body, signature, WEBHOOK_SECRET)
   } catch (error: any) {
     console.error('Webhook signature verification failed:', error.message)
     return NextResponse.json(
@@ -107,7 +116,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       return
     }
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    const subscription = await getStripe().subscriptions.retrieve(subscriptionId)
     await saveSubscription(userId, subscription)
     
     // Get or create contact and update tags
@@ -122,7 +131,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       return
     }
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId)
     await saveOneTimePayment(userId, session.customer as string, paymentIntent)
   }
 }
@@ -172,7 +181,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string
   if (!subscriptionId) return // Not a subscription invoice
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+  const subscription = await getStripe().subscriptions.retrieve(subscriptionId)
   const customerId = subscription.customer as string
   const userId = await getUserIdFromCustomer(customerId)
   if (!userId) return
@@ -189,7 +198,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string
   if (!subscriptionId) return // Not a subscription invoice
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+  const subscription = await getStripe().subscriptions.retrieve(subscriptionId)
   const customerId = subscription.customer as string
   const userId = await getUserIdFromCustomer(customerId)
   if (!userId) return
@@ -266,7 +275,7 @@ async function saveOneTimePayment(
   // @ts-expect-error - Property 'invoice' does exist on webhook payment_intent objects
   if (!productId && paymentIntent.invoice) {
     // @ts-expect-error - Property 'invoice' does exist on webhook payment_intent objects
-    const invoice = await stripe.invoices.retrieve(paymentIntent.invoice as string)
+    const invoice = await getStripe().invoices.retrieve(paymentIntent.invoice as string)
     if (invoice.lines.data.length > 0) {
       const lineItem = invoice.lines.data[0]
       // @ts-expect-error - Property 'price' does exist on webhook line_item objects
@@ -321,7 +330,7 @@ async function getUserIdFromCustomer(customerId: string): Promise<string | null>
 
   // Try to get from Stripe customer metadata
   try {
-    const customer = await stripe.customers.retrieve(customerId)
+    const customer = await getStripe().customers.retrieve(customerId)
     if (!customer.deleted && customer.metadata?.userId) {
       return customer.metadata.userId
     }
@@ -339,7 +348,7 @@ async function getOrCreateContact(userId: string, customerId: string): Promise<v
   // Get customer from Stripe
   let customer: Stripe.Customer | Stripe.DeletedCustomer
   try {
-    customer = await stripe.customers.retrieve(customerId)
+    customer = await getStripe().customers.retrieve(customerId)
     if (customer.deleted) {
       return
     }

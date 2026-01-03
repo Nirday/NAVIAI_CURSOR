@@ -1,56 +1,22 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
+/**
+ * Middleware - MOCK MODE
+ * Just sets x-pathname header, no auth checks
+ * TODO: Re-enable auth when Supabase is configured
+ */
 export async function middleware(request: NextRequest) {
   // Set a header with the pathname so layouts can detect the current route
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', request.nextUrl.pathname)
   
-  // Create a response object
-  let response = NextResponse.next({
+  // MOCK MODE: Just pass through, no auth checks
+  return NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   })
-
-  // TEMPORARY: Force mock mode ON until Supabase is properly configured
-  // TODO: Remove this hardcode when ready to use real Supabase
-  const isMockMode = true
-
-  // In mock mode, skip Supabase auth check (sessions are client-side only)
-  if (isMockMode) {
-    return response
-  }
-
-  // Create Supabase client for session refresh (only in real mode)
-  try {
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value)
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-
-    // Refresh session if expired - this ensures cookies are synced
-    await supabase.auth.getUser()
-  } catch (error) {
-    // If Supabase client creation fails, continue anyway
-    console.warn('Middleware: Supabase client error (might be in mock mode):', error)
-  }
-
-  return response
 }
 
 export const config = {

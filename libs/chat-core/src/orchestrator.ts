@@ -13,12 +13,20 @@ import { createPageDraft, renamePageDraft, deletePageDraft, addEmbedToPage } fro
 import { getSuggestedPrompts } from './suggestion_engine'
 import { PageGenerationOptions } from '../../website-builder/src/generator'
 import { addLegalPagesToWebsite } from '../../website-builder/src/legal_pages'
-import { getAnalyticsSummary } from '../../website-builder/src/analytics'
+import { getAnalyticsSummary } from '../../website-builder/src/analytics-utils'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization to avoid build errors when API key is not set
+let openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openai = new OpenAI({ apiKey })
+  }
+  return openai
+}
 
 // Action Queue Interface (placeholder for V1)
 interface ActionCommand {
@@ -132,7 +140,7 @@ Analyze the user's message and respond with a JSON object containing:
 
 Be specific about what information you extracted in the entities object. If the intent is unclear, set needsClarification to true and ask a helpful clarifying question.`
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
         {
@@ -658,7 +666,7 @@ ${summary.topReferrers.slice(0, 5).map((r: any) => `  - ${r.source}: ${r.visitor
 
 Provide a clear, concise, and friendly answer to the user's question based on this data. Be conversational and highlight key insights.`
 
-    const aiResponse = await openai.chat.completions.create({
+    const aiResponse = await getOpenAI().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
         {

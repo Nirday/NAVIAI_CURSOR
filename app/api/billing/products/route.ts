@@ -4,9 +4,19 @@ import Stripe from 'stripe'
 
 
 export const dynamic = 'force-dynamic'
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-10-29.clover'
-})
+
+// Lazy initialization to avoid errors when API key is not set
+let stripe: Stripe | null = null
+function getStripe(): Stripe {
+  if (!stripe) {
+    const apiKey = process.env.STRIPE_SECRET_KEY
+    if (!apiKey) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+    }
+    stripe = new Stripe(apiKey, { apiVersion: '2025-10-29.clover' })
+  }
+  return stripe
+}
 
 /**
  * GET /api/billing/products?type=subscription|one_time
@@ -29,7 +39,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch all products from Stripe
-    const products = await stripe.products.list({
+    const products = await getStripe().products.list({
       limit: 100,
       expand: ['data.default_price']
     })
@@ -39,7 +49,7 @@ export async function GET(req: NextRequest) {
       products.data
         .map(async (product: any) => {
           // Fetch all prices for this product
-          const prices = await stripe.prices.list({
+          const prices = await getStripe().prices.list({
             product: product.id,
             limit: 100
           })

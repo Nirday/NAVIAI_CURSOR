@@ -7,10 +7,18 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { BusinessProfile, ProfileEmbedding } from './types'
 import OpenAI from 'openai'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization to avoid build errors when API key is not set
+let openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openai = new OpenAI({ apiKey })
+  }
+  return openai
+}
 
 // Custom error classes
 export class EmbeddingError extends Error {
@@ -104,7 +112,7 @@ function createProfileContent(profile: BusinessProfile): string {
  */
 async function generateEmbedding(content: string): Promise<number[]> {
   try {
-    const response = await openai.embeddings.create({
+    const response = await getOpenAI().embeddings.create({
       model: 'text-embedding-3-small',
       input: content
     })

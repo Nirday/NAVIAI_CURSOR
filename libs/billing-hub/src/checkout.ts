@@ -6,9 +6,18 @@
 import Stripe from 'stripe'
 import { supabaseAdmin } from '@/lib/supabase'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-10-29.clover'
-})
+// Lazy initialization to avoid errors when API key is not set
+let stripe: Stripe | null = null
+function getStripe(): Stripe {
+  if (!stripe) {
+    const apiKey = process.env.STRIPE_SECRET_KEY
+    if (!apiKey) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+    }
+    stripe = new Stripe(apiKey, { apiVersion: '2025-10-29.clover' })
+  }
+  return stripe
+}
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -30,7 +39,7 @@ async function getOrCreateCustomer(userId: string, userEmail: string): Promise<s
   }
 
   // Check if customer exists in Stripe by email (in case it was created but not saved to DB)
-  const existingCustomers = await stripe.customers.list({
+  const existingCustomers = await getStripe().customers.list({
     email: userEmail,
     limit: 1
   })
@@ -46,7 +55,7 @@ async function getOrCreateCustomer(userId: string, userEmail: string): Promise<s
   }
 
   // No existing customer - create one in Stripe
-  const customer = await stripe.customers.create({
+  const customer = await getStripe().customers.create({
     email: userEmail,
     metadata: {
       userId: userId
@@ -89,12 +98,12 @@ async function isEligibleForTrial(userId: string, userEmail: string): Promise<bo
   }
 
   // Check if customer exists in Stripe by email
-  const existingCustomers = await stripe.customers.list({
+  const existingCustomers2 = await getStripe().customers.list({
     email: userEmail,
     limit: 1
   })
 
-  if (existingCustomers.data.length > 0) {
+  if (existingCustomers2.data.length > 0) {
     // Customer exists in Stripe, not eligible for trial
     return false
   }
@@ -143,7 +152,7 @@ export async function createCheckoutSession(
       : undefined
 
   // Create checkout session
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: mode,
     line_items: [

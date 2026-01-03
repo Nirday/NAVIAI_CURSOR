@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getAnalyticsSummary } from '../../../../libs/website-builder/src/analytics'
+import { getAnalyticsSummary } from '../../../../libs/website-builder/src/analytics-utils'
 
 
 export const dynamic = 'force-dynamic'

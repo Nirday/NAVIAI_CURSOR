@@ -5,9 +5,19 @@ import { getSubscription } from '@/libs/billing-hub/src/data'
 
 
 export const dynamic = 'force-dynamic'
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-10-29.clover'
-})
+
+// Lazy initialization to avoid errors when API key is not set
+let stripe: Stripe | null = null
+function getStripe(): Stripe {
+  if (!stripe) {
+    const apiKey = process.env.STRIPE_SECRET_KEY
+    if (!apiKey) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+    }
+    stripe = new Stripe(apiKey, { apiVersion: '2025-10-29.clover' })
+  }
+  return stripe
+}
 
 /**
  * GET /api/billing/portal
@@ -33,7 +43,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Create portal session
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripe().billingPortal.sessions.create({
       customer: subscription.stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/billing`
     })
