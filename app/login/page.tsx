@@ -5,6 +5,25 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { supabase } from '@/lib/supabase'
 
+// Check if we're in mock mode - do this outside component to avoid re-evaluation
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
+                   !supabaseUrl || 
+                   !supabaseAnonKey || 
+                   supabaseUrl === 'http://localhost:54321' || 
+                   supabaseAnonKey === 'mock-key'
+
+// Create browser client ONCE outside component (singleton pattern)
+// This prevents "Multiple GoTrueClient instances" warning
+let browserClient: ReturnType<typeof createBrowserClient> | null = null
+function getBrowserClient() {
+  if (!browserClient && !isMockMode) {
+    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+  }
+  return browserClient
+}
+
 /**
  * Login Page - Clean Implementation
  * Supports both real Supabase and mock mode
@@ -19,24 +38,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
-  // Check if we're in mock mode
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
-                     !supabaseUrl || 
-                     !supabaseAnonKey || 
-                     supabaseUrl === 'http://localhost:54321' || 
-                     supabaseAnonKey === 'mock-key'
-  
-  // Use mock client in mock mode, otherwise use browser client with cookie support
-  // In mock mode, the supabase export from lib is already the mock client
-  // In real mode, we need createBrowserClient for cookie support
-  const supabaseClient = isMockMode 
-    ? supabase  // This is already the mock client when in mock mode
-    : createBrowserClient(
-        supabaseUrl,
-        supabaseAnonKey
-      )
+  // Use singleton client to prevent multiple instances
+  const supabaseClient = isMockMode ? supabase : getBrowserClient()!
 
   // Demo credentials - always available for testing
   const DEMO_CREDENTIALS = [
