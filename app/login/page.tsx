@@ -49,6 +49,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true)
+    // In mock mode, don't auto-redirect - user must explicitly click login
+    // This prevents the redirect loop
+    if (isMockMode) {
+      return
+    }
     // Only check auth once on mount, don't run repeatedly
     let isMounted = true
     const checkAuthOnce = async () => {
@@ -125,25 +130,11 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // If in mock mode, use mock credentials directly
+      // In mock mode, skip all auth and just go straight to dashboard
       if (isMockMode) {
-        const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-          email: demoEmail,
-          password: demoPassword
-        })
-
-        if (signInError) {
-          throw signInError
-        }
-
-        if (data.session) {
-          // Wait a moment for session to sync, then redirect with full page reload
-          await new Promise(resolve => setTimeout(resolve, 200))
-          window.location.href = '/dashboard'
-        } else {
-          setError('Demo login failed: No session created')
-          setLoading(false)
-        }
+        // Just redirect - dashboard will handle mock user
+        window.location.href = '/dashboard'
+        return
       } else {
         // For real Supabase, first ensure the demo user exists and is confirmed
         try {

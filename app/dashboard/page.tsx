@@ -6,6 +6,11 @@ import ChatInterface from '@/apps/dashboard/components/ChatInterface'
 import OnboardingChatInterface from '@/apps/dashboard/components/OnboardingChatInterface'
 import { supabase } from '@/lib/supabase'
 
+// Check mock mode ONCE at module level (evaluated at build time)
+const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' ||
+                   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+                   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 /**
  * Dashboard Home Page
  * Shows onboarding chat for first-time users, regular chat for existing users
@@ -19,6 +24,16 @@ export default function DashboardPage() {
   useEffect(() => {
     const checkAuthAndProfile = async () => {
       try {
+        // In mock mode, use a stable mock user ID to avoid auth issues
+        if (isMockMode) {
+          const mockUserId = 'mock-user-123'
+          setUserId(mockUserId)
+          // In mock mode, always show onboarding (no profile check)
+          setHasProfile(false)
+          setLoading(false)
+          return
+        }
+
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
           router.push('/login')
