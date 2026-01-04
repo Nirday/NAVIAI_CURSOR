@@ -117,36 +117,78 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
  * SIMPLE DIRECT EXTRACTION - No complex nesting, flat JSON structure
  */
 async function extractProfileWithAI(content: string, websiteUrl: string) {
-  // SIMPLIFIED prompt - flat structure with service descriptions
-  const SYSTEM_PROMPT = `You are extracting business information from a website. Return a FLAT JSON object with these exact keys:
+  // Comprehensive extraction with SEPARATE profile and analysis
+  const SYSTEM_PROMPT = `You are a business intelligence analyst extracting information from a website.
+
+Return JSON with TWO separate sections: "profile" (business facts) and "analysis" (website assessment).
 
 {
-  "businessName": "The company name",
-  "tagline": "Their slogan if any",
-  "industry": "e.g. Limousine Service, Chiropractic, Restaurant",
-  "phone": "Phone number found",
-  "email": "Email found", 
-  "city": "City name",
-  "state": "State abbreviation",
-  "address": "Street address if found",
-  "services": [
-    {"name": "Service Name", "description": "Brief 10-15 word summary of what this service offers"},
-    {"name": "Service Name 2", "description": "Brief summary"}
-  ],
-  "fleet": [
-    {"name": "Asset Type", "description": "Brief description of this asset/equipment"},
-    {"name": "Asset Type 2", "description": "Brief description"}
-  ],
-  "credentials": ["Certification 1", "Award 1"],
-  "hasOnlineBooking": true or false,
-  "hasBlog": true or false,
-  "bookingFriction": "Low/Medium/High",
-  "websiteQuality": "Modern/Professional or Dated or Basic",
-  "killShot": "Their most impressive differentiator"
+  "profile": {
+    "businessName": "Exact company name",
+    "tagline": "Their slogan/motto",
+    "industry": "Specific industry (Limousine Service, Chiropractic, Restaurant)",
+    "phone": "Phone number",
+    "email": "Email address", 
+    "city": "City",
+    "state": "State abbreviation",
+    "address": "Street address",
+    "yearsInBusiness": "e.g. 25 years, Est. 2010",
+    "ownerName": "Owner/founder name if mentioned",
+    
+    "services": [
+      {
+        "name": "Service Name",
+        "description": "What this service offers in plain English",
+        "idealFor": "Who should use this (e.g. 'Business travelers', 'Wedding parties')",
+        "priceRange": "Price if mentioned"
+      }
+    ],
+    
+    "assets": [
+      {
+        "name": "Asset name (e.g. Cadillac Escalade, Cold Laser Machine)",
+        "type": "Category (e.g. SUV, Sedan, Equipment)",
+        "description": "What it is and what makes it special",
+        "capacity": "Number of people/size if applicable",
+        "bestFor": ["Service 1 this asset is ideal for", "Service 2"]
+      }
+    ],
+    
+    "credentials": [
+      {
+        "name": "Certification or Award name",
+        "description": "What this means for customers"
+      }
+    ],
+    
+    "serviceArea": "Geographic coverage",
+    "uniqueValue": "The ONE thing that makes them special (their 'kill shot')"
+  },
+  
+  "analysis": {
+    "websiteGrade": "A/B/C/D/F",
+    "websiteGradeExplain": "Plain English: 'Your website looks professional and loads fast' or 'Your website looks outdated and may be losing customers'",
+    
+    "onlineBooking": true/false,
+    "onlineBookingExplain": "Plain English: 'Customers can book online instantly' or 'Customers must call to book - you may be losing busy customers who prefer clicking over calling'",
+    
+    "hasBlog": true/false,
+    "blogExplain": "Plain English: 'You have a blog helping you show up on Google' or 'No blog found - you're missing free traffic from people searching for your services'",
+    
+    "socialPresence": "Strong/Weak/None",
+    "socialExplain": "Plain English explanation of their social media situation",
+    
+    "bookingFriction": "Low/Medium/High",
+    "bookingFrictionExplain": "Plain English: 'It's easy for customers to hire you' or 'Too many steps to book - customers might give up'",
+    
+    "topStrength": "Their biggest advantage in plain English",
+    "topWeakness": "Their biggest gap/opportunity in plain English",
+    "recommendedAction": "One clear next step they should take"
+  }
 }
 
-IMPORTANT: For services and fleet, include a brief description explaining what each one offers.
-Extract EVERYTHING you can find. If a field is not found, use empty string "" or empty array [].`
+Be THOROUGH with the profile - extract every vehicle type, equipment piece, and service detail.
+Make the analysis UNDERSTANDABLE to a non-technical business owner.`
 
   try {
     console.log('[AI] Starting extraction, content length:', content.length)
@@ -166,156 +208,145 @@ Extract EVERYTHING you can find. If a field is not found, use empty string "" or
     console.log('[AI] GPT Response:', rawResponse)
     
     const parsed = JSON.parse(rawResponse)
-    console.log('[AI] Extracted businessName:', parsed.businessName)
-    console.log('[AI] Extracted phone:', parsed.phone)
-    console.log('[AI] Extracted services:', parsed.services)
+    const profile = parsed.profile || parsed // fallback if not nested
+    const analysis = parsed.analysis || {}
     
-    // Build profile from FLAT extracted data
-    // Map services - could be strings or objects with descriptions
-    const servicesArray = Array.isArray(parsed.services) 
-      ? parsed.services.map((s: any) => {
-          if (typeof s === 'string') return { name: s, description: '' }
-          return { name: s.name || s, description: s.description || '' }
+    console.log('[AI] Extracted businessName:', profile.businessName)
+    console.log('[AI] Extracted services:', profile.services?.length || 0)
+    console.log('[AI] Analysis grade:', analysis.websiteGrade)
+    
+    // Map services with full details
+    const servicesArray = Array.isArray(profile.services) 
+      ? profile.services.map((s: any) => {
+          if (typeof s === 'string') return { name: s, description: '', idealFor: '', priceRange: '' }
+          return { 
+            name: s.name || s, 
+            description: s.description || '',
+            idealFor: s.idealFor || '',
+            priceRange: s.priceRange || s.price || ''
+          }
         })
       : []
     
-    // Map fleet/assets - could be strings or objects with descriptions
-    const assetsArray = Array.isArray(parsed.fleet) 
-      ? parsed.fleet.map((a: any) => {
-          if (typeof a === 'string') return { name: a, description: '' }
-          return { name: a.name || a, description: a.description || '' }
+    // Map assets with full details (vehicles, equipment, etc.)
+    const assetsArray = Array.isArray(profile.assets) 
+      ? profile.assets.map((a: any) => {
+          if (typeof a === 'string') return { name: a, type: '', description: '', capacity: '', bestFor: [] }
+          return { 
+            name: a.name || a, 
+            type: a.type || '',
+            description: a.description || '',
+            capacity: a.capacity || '',
+            bestFor: Array.isArray(a.bestFor) ? a.bestFor : []
+          }
         })
-      : Array.isArray(parsed.hardAssets) 
-        ? parsed.hardAssets.map((a: any) => {
-            if (typeof a === 'string') return { name: a, description: '' }
-            return { name: a.name || a, description: a.description || '' }
-          })
-        : []
+      : []
+    
+    // Map credentials with explanations
+    const credentialsArray = Array.isArray(profile.credentials)
+      ? profile.credentials.map((c: any) => {
+          if (typeof c === 'string') return { name: c, description: '' }
+          return { name: c.name || c, description: c.description || '' }
+        })
+      : []
     
     return {
-      // Core Identity
-      businessName: parsed.businessName || parsed.business_name || parsed.name || '',
-      tagline: parsed.tagline || parsed.slogan || '',
-      industry: parsed.industry || parsed.type || '',
-      ownerName: parsed.ownerName || parsed.owner || '',
-      ownerCredentials: parsed.ownerCredentials || '',
-      yearsInBusiness: parsed.yearsInBusiness || parsed.experience || '',
+      // ============ BUSINESS PROFILE (for use by all components) ============
+      businessName: profile.businessName || '',
+      tagline: profile.tagline || '',
+      industry: profile.industry || '',
+      ownerName: profile.ownerName || '',
+      yearsInBusiness: profile.yearsInBusiness || '',
       
-      // Location - FLAT structure
       location: {
-        address: parsed.address || '',
-        city: parsed.city || '',
-        state: parsed.state || '',
-        zipCode: parsed.zipCode || parsed.zip || '',
+        address: profile.address || '',
+        city: profile.city || '',
+        state: profile.state || '',
+        zipCode: '',
         country: 'US',
-        neighborhood: parsed.neighborhood || ''
+        neighborhood: ''
       },
       
-      // Contact - FLAT structure
       contactInfo: {
-        phone: parsed.phone || parsed.telephone || '',
-        email: parsed.email || '',
+        phone: profile.phone || '',
+        email: profile.email || '',
         website: websiteUrl
       },
-      hours: parsed.hours || '',
-      bookingMethod: parsed.bookingMethod || (parsed.hasOnlineBooking ? 'Online Booking' : 'Phone Only'),
-      emergencyAvailability: '',
       
-      // Services - from flat array
+      // Detailed services with who they're for
       services: servicesArray,
-      hardAssets: assetsArray,
-      specializations: Array.isArray(parsed.specializations) ? parsed.specializations : [],
-      productLines: [],
       
-      // Authority
-      credentials: Array.isArray(parsed.credentials) ? parsed.credentials : [],
-      awards: [],
-      affiliations: [],
-      insuranceAccepted: [],
-      killShot: parsed.killShot || '',
+      // Detailed assets (vehicles, equipment) with capacity and best uses
+      assets: assetsArray,
       
-      // Digital Maturity
-      websiteQuality: parsed.websiteQuality || 'Unknown',
-      hasOnlineBooking: parsed.hasOnlineBooking === true,
-      hasBlog: parsed.hasBlog === true,
-      blogPostCount: 0,
-      socialProfiles: {},
-      hasReviews: false,
-      reviewPlatforms: [],
+      // Credentials with plain-English explanations
+      credentials: credentialsArray,
       
-      // Gap Analysis
-      bookingFriction: parsed.bookingFriction || 'Unknown',
-      contentGap: parsed.hasBlog ? 'None' : 'Needs Blog',
-      seoOpportunity: '',
-      competitiveAdvantage: parsed.killShot || '',
-      improvementAreas: [],
+      serviceArea: profile.serviceArea || '',
+      uniqueValue: profile.uniqueValue || '',
       
-      // Brand
-      brandVoice: 'professional',
-      visualStyle: parsed.websiteQuality || '',
-      uniqueSellingProposition: parsed.killShot || parsed.tagline || '',
+      // ============ WEBSITE ANALYSIS (stored separately) ============
+      websiteAnalysis: {
+        grade: analysis.websiteGrade || 'C',
+        gradeExplain: analysis.websiteGradeExplain || '',
+        
+        onlineBooking: analysis.onlineBooking === true,
+        onlineBookingExplain: analysis.onlineBookingExplain || '',
+        
+        hasBlog: analysis.hasBlog === true,
+        blogExplain: analysis.blogExplain || '',
+        
+        socialPresence: analysis.socialPresence || 'Unknown',
+        socialExplain: analysis.socialExplain || '',
+        
+        bookingFriction: analysis.bookingFriction || 'Unknown',
+        bookingFrictionExplain: analysis.bookingFrictionExplain || '',
+        
+        topStrength: analysis.topStrength || '',
+        topWeakness: analysis.topWeakness || '',
+        recommendedAction: analysis.recommendedAction || ''
+      },
       
       // Meta
-      customAttributes: [],
-      confidence: 0.9,
-      extractionMethod: 'simple-flat-ai' as const,
+      extractionMethod: 'structured-ai' as const,
       scrapedAt: new Date().toISOString()
     }
     
   } catch (error: any) {
-    console.error('[AI] Deep Dive extraction error:', error?.message || error)
+    console.error('[AI] Extraction error:', error?.message || error)
     
-    // Return partial data with raw content so user sees something
+    // Return structured error with raw content preview
     return {
-      businessName: 'AI Extraction Failed',
-      tagline: `Error: ${error?.message || 'Unknown'}. Raw content was ${content.length} chars.`,
-      industry: 'Unknown',
+      businessName: 'Could not extract - please enter manually',
+      tagline: '',
+      industry: '',
       ownerName: '',
-      ownerCredentials: '',
       yearsInBusiness: '',
-      location: { address: '', city: '', state: '', zipCode: '', country: '', neighborhood: '' },
-      phone: '',
-      email: '',
-      hours: '',
-      bookingMethod: 'Unknown',
-      emergencyAvailability: '',
-      coreServices: [],
-      hardAssets: [],
-      specializations: [],
-      productLines: [],
+      location: { address: '', city: '', state: '', zipCode: '', country: 'US', neighborhood: '' },
+      contactInfo: { phone: '', email: '', website: websiteUrl },
+      services: [],
+      assets: [],
       credentials: [],
-      awards: [],
-      affiliations: [],
-      insuranceAccepted: [],
-      killShot: '',
-      websiteQuality: 'Unknown',
-      hasOnlineBooking: false,
-      hasBlog: false,
-      blogPostCount: 0,
-      socialProfiles: {},
-      hasReviews: false,
-      reviewPlatforms: [],
-      targetAudience: '',
       serviceArea: '',
-      languages: [],
-      accessibilityFeatures: [],
-      pricingModel: 'Unknown',
-      pricePoints: [],
-      paymentMethods: [],
-      financingOptions: [],
-      bookingFriction: 'Unknown',
-      contentGap: 'Unknown',
-      seoOpportunity: '',
-      competitiveAdvantage: '',
-      improvementAreas: [],
-      brandVoice: 'professional',
-      visualStyle: '',
-      uniqueSellingProposition: '',
-      customAttributes: [],
-      confidence: 0,
+      uniqueValue: '',
+      websiteAnalysis: {
+        grade: 'C',
+        gradeExplain: `We couldn't fully analyze your website (${error?.message || 'Unknown error'}). Let's build your profile together.`,
+        onlineBooking: false,
+        onlineBookingExplain: '',
+        hasBlog: false,
+        blogExplain: '',
+        socialPresence: 'Unknown',
+        socialExplain: '',
+        bookingFriction: 'Unknown',
+        bookingFrictionExplain: '',
+        topStrength: '',
+        topWeakness: '',
+        recommendedAction: "Let's manually set up your profile so I can give you better recommendations."
+      },
       extractionMethod: 'failed' as const,
       scrapedAt: new Date().toISOString(),
-      rawContentPreview: content.substring(0, 2000) // Include raw content preview
+      rawContentPreview: content.substring(0, 2000)
     }
   }
 }

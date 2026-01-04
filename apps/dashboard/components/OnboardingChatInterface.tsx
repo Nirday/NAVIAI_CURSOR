@@ -235,123 +235,133 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     return { isValid: true }
   }
 
-  // Format DEEP DIVE Calibration Report (for website scraping)
+  // Format Calibration Report with LAYMAN-FRIENDLY language
   const formatCalibrationReport = (scrapedData: any): string => {
-    let report = "## 🟢 NAVI CALIBRATION REPORT\n\n"
+    const analysis = scrapedData.websiteAnalysis || {}
     
-    // 1. Operational Baseline
-    report += "### 🏢 Operational Baseline\n"
-    report += `• **Business:** ${scrapedData.businessName || 'Not found'}\n`
-    if (scrapedData.tagline) report += `• **Tagline:** "${scrapedData.tagline}"\n`
-    report += `• **Industry:** ${scrapedData.industry || 'Not specified'}\n`
+    let report = "## 🟢 YOUR BUSINESS SNAPSHOT\n\n"
     
-    const location = [
-      scrapedData.location?.address,
-      scrapedData.location?.city,
-      scrapedData.location?.state,
-      scrapedData.location?.zipCode
-    ].filter(Boolean).join(', ')
-    if (location) report += `• **Headquarters:** ${location}\n`
+    // ============ PART 1: YOUR BUSINESS PROFILE ============
+    report += "### 🏢 About Your Business\n"
+    report += `• **Business Name:** ${scrapedData.businessName || 'Not found'}\n`
+    if (scrapedData.tagline) report += `• **Your Motto:** "${scrapedData.tagline}"\n`
+    report += `• **What You Do:** ${scrapedData.industry || 'Not specified'}\n`
     
-    if (scrapedData.ownerName) {
-      report += `• **Command:** ${scrapedData.ownerName}`
-      if (scrapedData.ownerCredentials) report += ` | ${scrapedData.ownerCredentials}`
-      report += "\n"
-    }
+    const location = [scrapedData.location?.city, scrapedData.location?.state].filter(Boolean).join(', ')
+    if (location) report += `• **Location:** ${location}\n`
     
     if (scrapedData.contactInfo?.phone || scrapedData.contactInfo?.email) {
-      report += `• **Contact:** ${scrapedData.contactInfo?.phone || ''} | ${scrapedData.contactInfo?.email || ''}\n`
+      report += `• **Contact:** ${scrapedData.contactInfo?.phone || ''}`
+      if (scrapedData.contactInfo?.email) report += ` | ${scrapedData.contactInfo.email}`
+      report += "\n"
     }
-    if (scrapedData.hours) report += `• **Hours:** ${scrapedData.hours}\n`
     if (scrapedData.yearsInBusiness) report += `• **Experience:** ${scrapedData.yearsInBusiness}\n`
+    if (scrapedData.serviceArea) report += `• **You Serve:** ${scrapedData.serviceArea}\n`
     
-    // 2. Service & Asset Inventory
-    report += "\n### 🛠️ Service & Asset Inventory\n"
+    // ============ SERVICES WITH DETAILS ============
+    report += "\n### 🛠️ What You Offer\n"
     if (scrapedData.services && scrapedData.services.length > 0) {
-      report += "• **Core Services:**\n"
-      scrapedData.services.slice(0, 7).forEach((s: any) => {
-        const svc = typeof s === 'string' ? s : s.name
-        const desc = typeof s === 'object' && s.description ? ` — ${s.description}` : ''
-        const price = typeof s === 'object' && s.price ? ` (${s.price})` : ''
-        report += `  - **${svc}**${desc}${price}\n`
+      scrapedData.services.slice(0, 8).forEach((s: any) => {
+        const name = typeof s === 'string' ? s : s.name
+        const desc = s.description ? `\n    *${s.description}*` : ''
+        const idealFor = s.idealFor ? `\n    👥 Best for: ${s.idealFor}` : ''
+        const price = s.priceRange ? ` — ${s.priceRange}` : ''
+        report += `• **${name}**${price}${desc}${idealFor}\n`
       })
-    }
-    if (scrapedData.hardAssets && scrapedData.hardAssets.length > 0) {
-      report += "• **Hard Assets:**\n"
-      scrapedData.hardAssets.slice(0, 5).forEach((a: any) => {
-        if (typeof a === 'string') {
-          report += `  - ${a}\n`
-        } else {
-          const desc = a.description ? ` — ${a.description}` : ''
-          report += `  - **${a.name}**${desc}\n`
-        }
-      })
-    }
-    if (scrapedData.specializations && scrapedData.specializations.length > 0) {
-      report += `• **Specializations:** ${scrapedData.specializations.join(', ')}\n`
-    }
-    
-    // 3. Authority & Differentiation
-    report += "\n### 🛡️ Authority & Trust Signals\n"
-    if (scrapedData.credentials && scrapedData.credentials.length > 0) {
-      report += `• **Credentials:** ${scrapedData.credentials.join(', ')}\n`
-    }
-    if (scrapedData.awards && scrapedData.awards.length > 0) {
-      report += `• **Awards:** ${scrapedData.awards.join(', ')}\n`
-    }
-    if (scrapedData.killShot) {
-      report += `• **The "Kill Shot":** ${scrapedData.killShot}\n`
-    }
-    
-    // 4. Digital Maturity
-    report += "\n### 📊 Digital Maturity\n"
-    report += `• **Website Quality:** ${scrapedData.websiteQuality || 'Unknown'}\n`
-    report += `• **Online Booking:** ${scrapedData.hasOnlineBooking ? '✅ Yes' : '❌ No'}\n`
-    report += `• **Blog:** ${scrapedData.hasBlog ? '✅ Active' : '❌ None found'}\n`
-    
-    const socials = scrapedData.socialProfiles || {}
-    const activeSocials = Object.entries(socials).filter(([k, v]) => v).map(([k]) => k)
-    report += `• **Social Presence:** ${activeSocials.length > 0 ? activeSocials.join(', ') : 'None found'}\n`
-    
-    // 5. Target Market
-    report += "\n### 🎯 Target Market\n"
-    if (scrapedData.targetAudience) report += `• **Audience:** ${scrapedData.targetAudience}\n`
-    if (scrapedData.serviceArea) report += `• **Service Area:** ${scrapedData.serviceArea}\n`
-    
-    // 6. Pricing
-    report += "\n### 💰 Pricing Intelligence\n"
-    report += `• **Model:** ${scrapedData.pricingModel || 'Not Listed'}\n`
-    if (scrapedData.pricePoints && scrapedData.pricePoints.length > 0) {
-      report += `• **Price Points:** ${scrapedData.pricePoints.slice(0, 5).join(', ')}\n`
-    }
-    
-    // 7. Gap Analysis
-    report += "\n### ⚠️ Gap Analysis\n"
-    report += `• **Booking Friction:** ${scrapedData.bookingFriction || 'Unknown'}\n`
-    if (scrapedData.contentGap) report += `• **Content Gap:** ${scrapedData.contentGap}\n`
-    if (scrapedData.seoOpportunity) report += `• **SEO Opportunity:** ${scrapedData.seoOpportunity}\n`
-    if (scrapedData.improvementAreas && scrapedData.improvementAreas.length > 0) {
-      report += `• **Top Improvements:**\n`
-      scrapedData.improvementAreas.slice(0, 3).forEach((area: string) => {
-        report += `  - ${area}\n`
-      })
-    }
-    
-    // 8. Recommendation
-    report += "\n---\n\n"
-    
-    // Determine recommendation based on gaps
-    if (scrapedData.websiteQuality === 'Dated/Needs Update' || scrapedData.websiteQuality === 'Basic/Template') {
-      report += "**🚀 RECOMMENDED ACTION:** Your website could use a modern refresh. I recommend starting with the **Website Builder Module** - I've already drafted a high-conversion design based on your services.\n"
-    } else if (!scrapedData.hasBlog && scrapedData.contentGap) {
-      report += "**🚀 RECOMMENDED ACTION:** Your services are clear but your content footprint is small. I recommend the **Content & Blog Module** - I can draft SEO-optimized articles about your services.\n"
-    } else if (scrapedData.bookingFriction === 'High' || !scrapedData.hasOnlineBooking) {
-      report += "**🚀 RECOMMENDED ACTION:** I detected friction in your booking process. I recommend the **CRM & Booking Module** - let me set up 24/7 automated booking.\n"
     } else {
-      report += "**🚀 STATUS:** Your digital presence looks solid! Let's fine-tune your profile and get you set up.\n"
+      report += "• *No services detected - we'll add these together*\n"
     }
     
-    report += "\n---\n\n*Does this look accurate? Reply **\"looks good\"** to see website design options, or tell me what needs correcting.*"
+    // ============ ASSETS/FLEET WITH DETAILS ============
+    if (scrapedData.assets && scrapedData.assets.length > 0) {
+      report += "\n### 🚗 Your Fleet & Equipment\n"
+      scrapedData.assets.slice(0, 6).forEach((a: any) => {
+        const name = typeof a === 'string' ? a : a.name
+        const type = a.type ? ` (${a.type})` : ''
+        const desc = a.description ? `\n    *${a.description}*` : ''
+        const capacity = a.capacity ? `\n    👥 Capacity: ${a.capacity}` : ''
+        const bestFor = a.bestFor?.length ? `\n    ✨ Perfect for: ${a.bestFor.join(', ')}` : ''
+        report += `• **${name}**${type}${desc}${capacity}${bestFor}\n`
+      })
+    }
+    
+    // ============ CREDENTIALS ============
+    if (scrapedData.credentials && scrapedData.credentials.length > 0) {
+      report += "\n### 🏆 What Sets You Apart\n"
+      scrapedData.credentials.slice(0, 5).forEach((c: any) => {
+        const name = typeof c === 'string' ? c : c.name
+        const desc = c.description ? `\n    *${c.description}*` : ''
+        report += `• **${name}**${desc}\n`
+      })
+    }
+    if (scrapedData.uniqueValue) {
+      report += `\n💎 **Your Biggest Advantage:** ${scrapedData.uniqueValue}\n`
+    }
+    
+    // ============ PART 2: WEBSITE ANALYSIS (Plain English) ============
+    report += "\n---\n\n## 📊 YOUR WEBSITE REPORT CARD\n\n"
+    report += "*Here's how your online presence stacks up — explained simply:*\n\n"
+    
+    // Website Grade
+    const grade = analysis.grade || 'B'
+    const gradeEmoji = grade === 'A' ? '🌟' : grade === 'B' ? '👍' : grade === 'C' ? '😐' : '⚠️'
+    report += `### ${gradeEmoji} Overall Grade: ${grade}\n`
+    if (analysis.gradeExplain) {
+      report += `${analysis.gradeExplain}\n\n`
+    }
+    
+    // Online Booking
+    report += `**Can customers book online?** ${analysis.onlineBooking ? '✅ Yes' : '❌ No'}\n`
+    if (analysis.onlineBookingExplain) {
+      report += `↳ *${analysis.onlineBookingExplain}*\n\n`
+    } else if (!analysis.onlineBooking) {
+      report += `↳ *Customers have to call you to book. Busy people often prefer clicking over calling — you might be losing some business.*\n\n`
+    } else {
+      report += `↳ *Great! Customers can schedule with you anytime, even at midnight.*\n\n`
+    }
+    
+    // Blog/Content
+    report += `**Do you have a blog?** ${analysis.hasBlog ? '✅ Yes' : '❌ No'}\n`
+    if (analysis.blogExplain) {
+      report += `↳ *${analysis.blogExplain}*\n\n`
+    } else if (!analysis.hasBlog) {
+      report += `↳ *No blog means you're missing free traffic from Google. People searching for "${scrapedData.industry || 'your services'}" can't find you through helpful articles.*\n\n`
+    } else {
+      report += `↳ *Nice! Your blog helps Google send you free visitors.*\n\n`
+    }
+    
+    // Booking Friction
+    const friction = analysis.bookingFriction || 'Unknown'
+    const frictionEmoji = friction === 'Low' ? '✅' : friction === 'Medium' ? '😐' : '⚠️'
+    report += `**How easy is it to hire you?** ${frictionEmoji} ${friction} friction\n`
+    if (analysis.bookingFrictionExplain) {
+      report += `↳ *${analysis.bookingFrictionExplain}*\n\n`
+    }
+    
+    // Strengths & Weaknesses
+    if (analysis.topStrength) {
+      report += `\n🌟 **Your Biggest Strength:** ${analysis.topStrength}\n`
+    }
+    if (analysis.topWeakness) {
+      report += `\n⚠️ **Your Biggest Opportunity:** ${analysis.topWeakness}\n`
+    }
+    
+    // ============ RECOMMENDATION ============
+    report += "\n---\n\n### 🚀 MY RECOMMENDATION\n\n"
+    
+    if (analysis.recommendedAction) {
+      report += `${analysis.recommendedAction}\n`
+    } else if (analysis.grade === 'D' || analysis.grade === 'F') {
+      report += "Your website needs a refresh to match the quality of your services. I recommend starting with the **Website Builder** — I'll create a modern, professional design that converts visitors into customers.\n"
+    } else if (!analysis.hasBlog) {
+      report += "Your services are solid, but you're invisible on Google. I recommend the **Content & Blog Module** — I'll write articles that bring free traffic from people searching for what you offer.\n"
+    } else if (!analysis.onlineBooking || analysis.bookingFriction === 'High') {
+      report += "You're making it hard for customers to give you money! I recommend the **Booking Module** — let me set up instant online booking so you never miss a lead.\n"
+    } else {
+      report += "Your digital presence is looking good! Let's fine-tune your profile and explore ways to grow.\n"
+    }
+    
+    report += "\n---\n\n*Does this look right? Reply **\"looks good\"** to see website design options, or tell me what needs correcting.*"
     
     return report
   }
