@@ -80,47 +80,173 @@ async function attemptBrowserFetch(url: string): Promise<string | null> {
 }
 
 /**
- * Attempt 2: Jina Reader API - AGGRESSIVE MULTI-PAGE CRAWL
- * Always tries common business pages - no fancy link detection
+ * Attempt 2: Jina Reader API - SITEMAP-BASED INTELLIGENT CRAWL
+ * 1. First tries to fetch sitemap.xml to discover all pages
+ * 2. Falls back to robots.txt for sitemap location
+ * 3. Falls back to parsing homepage navigation
+ * 4. Last resort: common path guessing
  */
 async function attemptJinaFetch(url: string): Promise<string | null> {
   try {
-    console.log('[Scraper] Attempt 2: Jina Reader (AGGRESSIVE MULTI-PAGE)...')
+    console.log('[Scraper] Starting intelligent multi-page crawl...')
     
     const urlObj = new URL(url)
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`
     
-    // ALWAYS try these common paths - covers most business types
-    const pagesToTry = [
-      url,                              // Homepage
-      `${baseUrl}/about-us`,            // About
-      `${baseUrl}/about`,
-      `${baseUrl}/services`,            // Services
-      `${baseUrl}/our-services`,
-      `${baseUrl}/fleet`,               // Fleet/Vehicles (limo, car rental)
-      `${baseUrl}/fleet-standard`,
-      `${baseUrl}/vehicles`,
-      `${baseUrl}/pricing`,             // Pricing
-      `${baseUrl}/rates`,
-      `${baseUrl}/menu`,                // Menu (restaurants)
-      `${baseUrl}/our-menu`,
-      `${baseUrl}/team`,                // Team
-      `${baseUrl}/our-team`,
-      `${baseUrl}/staff`,
-      `${baseUrl}/doctors`,             // Medical
-      `${baseUrl}/providers`,
-      `${baseUrl}/attorneys`,           // Legal
-      `${baseUrl}/practice-areas`,
-      `${baseUrl}/treatments`,          // Medical/Spa
-      `${baseUrl}/gallery`,             // Portfolio
-      `${baseUrl}/portfolio`,
-      `${baseUrl}/contact`,             // Contact
+    let discoveredPages: string[] = [url] // Always include homepage
+    
+    // ============ STEP 1: Try to get sitemap.xml ============
+    console.log('[Scraper] Step 1: Looking for sitemap.xml...')
+    try {
+      const sitemapUrls = [
+        `${baseUrl}/sitemap.xml`,
+        `${baseUrl}/sitemap_index.xml`,
+        `${baseUrl}/sitemap-index.xml`,
+      ]
+      
+      for (const sitemapUrl of sitemapUrls) {
+        try {
+          const response = await fetch(sitemapUrl, { 
+            signal: AbortSignal.timeout(5000),
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NaviBot/1.0)' }
+          })
+          
+          if (response.ok) {
+            const xml = await response.text()
+            // Extract URLs from sitemap XML
+            const urlMatches = xml.match(/<loc>([^<]+)<\/loc>/g) || []
+            const sitemapPages = urlMatches
+              .map(match => match.replace(/<\/?loc>/g, ''))
+              .filter(u => u.startsWith(baseUrl))
+              .slice(0, 20) // Max 20 pages from sitemap
+            
+            if (sitemapPages.length > 0) {
+              console.log(`[Scraper] ✓ Found sitemap with ${sitemapPages.length} pages`)
+              discoveredPages = [...new Set([...discoveredPages, ...sitemapPages])]
+              break
+            }
+          }
+        } catch {
+          // Continue to next sitemap URL
+        }
+      }
+    } catch (e) {
+      console.log('[Scraper] No sitemap found, continuing...')
+    }
+    
+    // ============ STEP 2: If no sitemap, check robots.txt ============
+    if (discoveredPages.length <= 1) {
+      console.log('[Scraper] Step 2: Checking robots.txt for sitemap...')
+      try {
+        const robotsResponse = await fetch(`${baseUrl}/robots.txt`, {
+          signal: AbortSignal.timeout(5000)
+        })
+        if (robotsResponse.ok) {
+          const robotsTxt = await robotsResponse.text()
+          const sitemapMatch = robotsTxt.match(/Sitemap:\s*(\S+)/i)
+          if (sitemapMatch) {
+            const sitemapUrl = sitemapMatch[1]
+            const sitemapResponse = await fetch(sitemapUrl, { signal: AbortSignal.timeout(5000) })
+            if (sitemapResponse.ok) {
+              const xml = await sitemapResponse.text()
+              const urlMatches = xml.match(/<loc>([^<]+)<\/loc>/g) || []
+              const sitemapPages = urlMatches
+                .map(match => match.replace(/<\/?loc>/g, ''))
+                .filter(u => u.startsWith(baseUrl))
+                .slice(0, 20)
+              
+              if (sitemapPages.length > 0) {
+                console.log(`[Scraper] ✓ Found sitemap via robots.txt: ${sitemapPages.length} pages`)
+                discoveredPages = [...new Set([...discoveredPages, ...sitemapPages])]
+              }
+            }
+          }
+        }
+      } catch {
+        console.log('[Scraper] No robots.txt sitemap')
+      }
+    }
+    
+    // ============ STEP 3: Parse homepage for navigation links ============
+    if (discoveredPages.length <= 1) {
+      console.log('[Scraper] Step 3: Parsing homepage for navigation links...')
+      try {
+        const homepageResponse = await fetch(`https://r.jina.ai/${url}`, {
+          headers: { 'Accept': 'text/plain' },
+          signal: AbortSignal.timeout(15000)
+        })
+        
+        if (homepageResponse.ok) {
+          const homepageContent = await homepageResponse.text()
+          
+          // Look for internal links in markdown format
+          const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g
+          let match
+          while ((match = linkRegex.exec(homepageContent)) !== null) {
+            const linkUrl = match[2]
+            if (linkUrl.startsWith('/') && !linkUrl.startsWith('//')) {
+              discoveredPages.push(`${baseUrl}${linkUrl}`)
+            } else if (linkUrl.startsWith(baseUrl)) {
+              discoveredPages.push(linkUrl)
+            }
+          }
+          
+          // Also look for href patterns
+          const hrefRegex = /href=["']([^"']+)["']/g
+          while ((match = hrefRegex.exec(homepageContent)) !== null) {
+            const linkUrl = match[1]
+            if (linkUrl.startsWith('/') && !linkUrl.startsWith('//') && !linkUrl.includes('#')) {
+              discoveredPages.push(`${baseUrl}${linkUrl}`)
+            }
+          }
+          
+          discoveredPages = [...new Set(discoveredPages)]
+          console.log(`[Scraper] Found ${discoveredPages.length} links from homepage navigation`)
+        }
+      } catch {
+        console.log('[Scraper] Could not parse homepage')
+      }
+    }
+    
+    // ============ STEP 4: Fallback to common paths ============
+    if (discoveredPages.length <= 3) {
+      console.log('[Scraper] Step 4: Adding common fallback paths...')
+      const commonPaths = [
+        '/about', '/about-us', '/services', '/our-services',
+        '/fleet', '/fleet-standard', '/vehicles', '/cars',
+        '/menu', '/our-menu', '/food',
+        '/pricing', '/prices', '/rates',
+        '/team', '/our-team', '/staff', '/doctors', '/attorneys',
+        '/treatments', '/procedures',
+        '/gallery', '/portfolio', '/work',
+        '/contact', '/contact-us', '/location'
+      ]
+      for (const path of commonPaths) {
+        discoveredPages.push(`${baseUrl}${path}`)
+      }
+      discoveredPages = [...new Set(discoveredPages)]
+    }
+    
+    // ============ STEP 5: Filter for relevant business pages ============
+    const relevantKeywords = [
+      'about', 'service', 'fleet', 'vehicle', 'car', 'menu', 'food',
+      'price', 'rate', 'team', 'staff', 'doctor', 'attorney',
+      'treatment', 'gallery', 'portfolio', 'contact', 'location'
     ]
     
-    console.log(`[Scraper] Trying ${pagesToTry.length} potential pages...`)
+    const pagesToScrape = discoveredPages
+      .filter(pageUrl => {
+        const path = pageUrl.toLowerCase()
+        // Include homepage OR pages with relevant keywords
+        return pageUrl === url || relevantKeywords.some(kw => path.includes(kw))
+      })
+      .slice(0, 12) // Max 12 pages to scrape
     
-    // Fetch ALL pages in parallel (Jina handles 404s gracefully)
-    const fetchPromises = pagesToTry.map(async (pageUrl) => {
+    console.log(`[Scraper] Will scrape ${pagesToScrape.length} relevant pages:`, 
+      pagesToScrape.map(p => p.replace(baseUrl, '') || '/'))
+    
+    // ============ STEP 6: Fetch all pages via Jina ============
+    const fetchPromises = pagesToScrape.map(async (pageUrl) => {
       try {
         const jinaUrl = `https://r.jina.ai/${pageUrl}`
         const response = await fetch(jinaUrl, {
@@ -130,10 +256,12 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
         
         if (response.ok) {
           const text = await response.text()
-          // Only accept if it has real content (not 404 pages)
-          if (text && text.length > 500 && !text.includes('404') && !text.includes('Page Not Found')) {
-            const pageName = pageUrl.replace(baseUrl, '') || '/homepage'
-            console.log(`[Scraper] ✓ Found: ${pageName} (${text.length} chars)`)
+          if (text && text.length > 500 && 
+              !text.toLowerCase().includes('404') && 
+              !text.toLowerCase().includes('page not found') &&
+              !text.toLowerCase().includes('not found')) {
+            const pageName = pageUrl.replace(baseUrl, '') || '/'
+            console.log(`[Scraper] ✓ Got: ${pageName} (${text.length} chars)`)
             return { url: pageUrl, content: text, path: pageName }
           }
         }
@@ -147,27 +275,26 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
     const successfulPages = results.filter(r => r !== null)
     
     if (successfulPages.length === 0) {
-      console.log('[Scraper] No pages found')
+      console.log('[Scraper] No pages could be fetched')
       return null
     }
     
-    // Combine all successful pages
+    // Combine content with priority for detail pages
     let combinedContent = ''
     for (const page of successfulPages) {
       if (page) {
-        // Give more space to fleet/menu/services pages (they have the detailed info)
-        const isDetailPage = page.path.includes('fleet') || page.path.includes('menu') || 
-                            page.path.includes('service') || page.path.includes('vehicle')
+        const isDetailPage = ['fleet', 'vehicle', 'menu', 'service', 'team', 'doctor', 'attorney']
+          .some(kw => page.path.toLowerCase().includes(kw))
         const maxChars = isDetailPage ? 15000 : 8000
         combinedContent += `\n\n========== PAGE: ${page.path} ==========\n${page.content.substring(0, maxChars)}`
       }
     }
     
-    console.log(`[Scraper] ✓ SUCCESS: ${successfulPages.length} pages found, ${combinedContent.length} total chars`)
-    return combinedContent.substring(0, 60000) // More room for detailed content
+    console.log(`[Scraper] ✓ SUCCESS: ${successfulPages.length} pages scraped, ${combinedContent.length} total chars`)
+    return combinedContent.substring(0, 60000)
     
   } catch (error) {
-    console.log(`[Scraper] Jina error:`, error)
+    console.log(`[Scraper] Error:`, error)
     return null
   }
 }
