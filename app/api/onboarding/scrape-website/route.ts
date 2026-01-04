@@ -10,8 +10,9 @@ let openai: OpenAI | null = null
 function getOpenAI(): OpenAI {
   if (!openai) {
     const apiKey = process.env.OPENAI_API_KEY
+    console.log('[OpenAI] API Key present:', !!apiKey, 'Length:', apiKey?.length || 0)
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY not set')
+      throw new Error('OPENAI_API_KEY not set - please add it to Vercel Environment Variables')
     }
     openai = new OpenAI({ apiKey })
   }
@@ -187,6 +188,9 @@ EXTRACTION REQUIREMENTS:
 Return ONLY valid JSON with ALL these fields. Use empty strings/arrays for missing data. Be thorough - extract EVERYTHING.`
 
   try {
+    console.log('[AI] Starting GPT-4o extraction, content length:', content.length)
+    console.log('[AI] Content preview:', content.substring(0, 500))
+    
     const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -198,7 +202,12 @@ Return ONLY valid JSON with ALL these fields. Use empty strings/arrays for missi
       response_format: { type: 'json_object' }
     })
 
-    const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}')
+    const rawResponse = completion.choices[0]?.message?.content || '{}'
+    console.log('[AI] Raw GPT response:', rawResponse.substring(0, 1000))
+    
+    const parsed = JSON.parse(rawResponse)
+    console.log('[AI] Parsed business name:', parsed.businessName)
+    console.log('[AI] Parsed services count:', parsed.coreServices?.length || 0)
     
     // Build comprehensive profile
     return {
@@ -342,9 +351,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 2: Extract profile with AI
+    console.log('[Scrape API] Content captured, sending to AI...')
     const scrapedData = await extractProfileWithAI(content, normalizedUrl)
 
-    console.log(`[Scrape API] ✓ Success: ${scrapedData.businessName}`)
+    console.log(`[Scrape API] ✓ Success!`)
+    console.log(`[Scrape API] Business: ${scrapedData.businessName}`)
+    console.log(`[Scrape API] Industry: ${scrapedData.industry}`)
+    console.log(`[Scrape API] Services:`, scrapedData.coreServices?.length || 0)
 
     return NextResponse.json({
       success: true,
