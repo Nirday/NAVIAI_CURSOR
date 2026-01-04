@@ -5,113 +5,122 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * DEBUG ENDPOINT - Tests the full scraping pipeline and returns detailed diagnostics
+ * DEBUG ENDPOINT - Tests MULTI-PAGE scraping to diagnose why fleet isn't being extracted
  * GET /api/debug-scrape?url=angellimo.com
  */
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url') || 'angellimo.com'
+  const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
+  const urlObj = new URL(normalizedUrl)
+  const baseUrl = `${urlObj.protocol}//${urlObj.host}`
+  
   const results: any = {
     timestamp: new Date().toISOString(),
-    url: url,
-    steps: {}
+    url: normalizedUrl,
+    baseUrl: baseUrl,
+    pagesAttempted: [],
+    pagesFound: [],
+    totalContent: 0,
+    aiExtraction: null
   }
 
-  // Step 1: Check Environment Variables
-  results.steps.envCheck = {
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? `Present (${process.env.OPENAI_API_KEY.substring(0, 7)}...${process.env.OPENAI_API_KEY.slice(-4)})` : 'MISSING!',
-    NODE_ENV: process.env.NODE_ENV
-  }
+  // Test multiple pages
+  const pagesToTest = [
+    normalizedUrl,
+    `${baseUrl}/about-us`,
+    `${baseUrl}/about`,
+    `${baseUrl}/services`,
+    `${baseUrl}/fleet`,
+    `${baseUrl}/fleet-standard`,
+    `${baseUrl}/vehicles`,
+    `${baseUrl}/pricing`,
+  ]
 
-  // Step 2: Test Jina Scraping
-  try {
-    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
-    const jinaUrl = `https://r.jina.ai/${normalizedUrl}`
-    
-    const jinaResponse = await fetch(jinaUrl, {
-      headers: { 'Accept': 'text/plain' },
-      signal: AbortSignal.timeout(30000)
-    })
+  let combinedContent = ''
 
-    if (jinaResponse.ok) {
-      const content = await jinaResponse.text()
-      results.steps.jinaScrape = {
-        status: 'SUCCESS',
-        contentLength: content.length,
-        preview: content.substring(0, 1500)
+  for (const pageUrl of pagesToTest) {
+    try {
+      const jinaUrl = `https://r.jina.ai/${pageUrl}`
+      const response = await fetch(jinaUrl, {
+        headers: { 'Accept': 'text/plain' },
+        signal: AbortSignal.timeout(10000)
+      })
+      
+      const pageResult: any = {
+        url: pageUrl.replace(baseUrl, '') || '/',
+        status: response.status,
+        found: false
       }
       
-      // Step 3: Test OpenAI Extraction (only if scraping worked)
-      if (process.env.OPENAI_API_KEY) {
-        try {
-          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+      if (response.ok) {
+        const text = await response.text()
+        // Check if it's a real page (not 404)
+        if (text && text.length > 500 && !text.toLowerCase().includes('page not found') && !text.toLowerCase().includes('404')) {
+          pageResult.found = true
+          pageResult.contentLength = text.length
+          pageResult.preview = text.substring(0, 500)
           
-          const SIMPLE_PROMPT = `You are extracting business information from a website. Return a FLAT JSON object with these exact keys:
-
-{
-  "businessName": "The company name",
-  "tagline": "Their slogan if any",
-  "industry": "e.g. Limousine Service, Chiropractic, Restaurant",
-  "phone": "Phone number found",
-  "email": "Email found", 
-  "city": "City name",
-  "state": "State abbreviation",
-  "address": "Street address if found",
-  "services": ["Service 1", "Service 2", "Service 3"],
-  "fleet": ["Vehicle type 1", "Vehicle type 2"],
-  "credentials": ["Certification 1", "Award 1"],
-  "hasOnlineBooking": true or false,
-  "hasBlog": true or false,
-  "bookingFriction": "Low/Medium/High",
-  "websiteQuality": "Modern/Professional or Dated or Basic",
-  "killShot": "Their most impressive differentiator"
-}
-
-Extract EVERYTHING you can find. If a field is not found, use empty string "" or empty array [].
-DO NOT nest objects. Keep it flat.`
-
-          const completion = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-              { role: 'system', content: SIMPLE_PROMPT },
-              { role: 'user', content: `Extract business info from this website:\n\nURL: ${normalizedUrl}\n\nCONTENT:\n${content.substring(0, 15000)}` }
-            ],
-            temperature: 0.1,
-            max_tokens: 2000,
-            response_format: { type: 'json_object' }
-          })
-
-          const rawResponse = completion.choices[0]?.message?.content || '{}'
+          // Check for specific content
+          if (pageUrl.includes('fleet')) {
+            pageResult.hasVehicles = text.includes('Mercedes') || text.includes('Cadillac') || text.includes('Pax')
+            pageResult.vehicleMatches = (text.match(/\d+\s*Pax/gi) || []).slice(0, 5)
+          }
+          if (pageUrl.includes('about')) {
+            pageResult.hasYears = text.includes('25 year') || text.includes('years')
+            pageResult.yearsMatch = text.match(/(\d+)\s*years?/i)?.[0] || null
+          }
           
-          results.steps.openaiExtraction = {
-            status: 'SUCCESS',
-            model: 'gpt-4o',
-            rawResponse: rawResponse,
-            parsed: JSON.parse(rawResponse)
-          }
-        } catch (aiError: any) {
-          results.steps.openaiExtraction = {
-            status: 'FAILED',
-            error: aiError.message,
-            code: aiError.code,
-            type: aiError.type
-          }
-        }
-      } else {
-        results.steps.openaiExtraction = {
-          status: 'SKIPPED',
-          reason: 'OPENAI_API_KEY not set'
+          combinedContent += `\n\n=== ${pageResult.url} ===\n${text.substring(0, 8000)}`
+          results.pagesFound.push(pageResult.url)
         }
       }
-    } else {
-      results.steps.jinaScrape = {
-        status: 'FAILED',
-        httpStatus: jinaResponse.status
-      }
+      
+      results.pagesAttempted.push(pageResult)
+    } catch (e: any) {
+      results.pagesAttempted.push({
+        url: pageUrl.replace(baseUrl, '') || '/',
+        error: e.message
+      })
     }
-  } catch (scrapeError: any) {
-    results.steps.jinaScrape = {
-      status: 'ERROR',
-      error: scrapeError.message
+  }
+
+  results.totalContent = combinedContent.length
+  results.summary = {
+    pagesAttempted: pagesToTest.length,
+    pagesFound: results.pagesFound.length,
+    fleetPageFound: results.pagesFound.some((p: string) => p.includes('fleet')),
+    aboutPageFound: results.pagesFound.some((p: string) => p.includes('about')),
+  }
+
+  // Test AI extraction on combined content
+  if (process.env.OPENAI_API_KEY && combinedContent.length > 1000) {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+      
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { 
+            role: 'system', 
+            content: `Extract from this multi-page website content. Return JSON:
+{
+  "businessName": "",
+  "yearsInBusiness": "Look for 'X years' or 'since XXXX'",
+  "vehicles": ["EXACT names like 'Mercedes-S580', '32 Pax Party Bus'"],
+  "services": ["service names"],
+  "credentials": ["awards/certs"]
+}` 
+          },
+          { role: 'user', content: combinedContent.substring(0, 30000) }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' }
+      })
+
+      results.aiExtraction = JSON.parse(completion.choices[0]?.message?.content || '{}')
+    } catch (e: any) {
+      results.aiExtraction = { error: e.message }
     }
   }
 
