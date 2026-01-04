@@ -117,7 +117,7 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
  * SIMPLE DIRECT EXTRACTION - No complex nesting, flat JSON structure
  */
 async function extractProfileWithAI(content: string, websiteUrl: string) {
-  // SIMPLIFIED prompt - flat structure, explicit example
+  // SIMPLIFIED prompt - flat structure with service descriptions
   const SYSTEM_PROMPT = `You are extracting business information from a website. Return a FLAT JSON object with these exact keys:
 
 {
@@ -129,8 +129,14 @@ async function extractProfileWithAI(content: string, websiteUrl: string) {
   "city": "City name",
   "state": "State abbreviation",
   "address": "Street address if found",
-  "services": ["Service 1", "Service 2", "Service 3"],
-  "fleet": ["Vehicle type 1", "Vehicle type 2"],
+  "services": [
+    {"name": "Service Name", "description": "Brief 10-15 word summary of what this service offers"},
+    {"name": "Service Name 2", "description": "Brief summary"}
+  ],
+  "fleet": [
+    {"name": "Asset Type", "description": "Brief description of this asset/equipment"},
+    {"name": "Asset Type 2", "description": "Brief description"}
+  ],
   "credentials": ["Certification 1", "Award 1"],
   "hasOnlineBooking": true or false,
   "hasBlog": true or false,
@@ -139,8 +145,8 @@ async function extractProfileWithAI(content: string, websiteUrl: string) {
   "killShot": "Their most impressive differentiator"
 }
 
-Extract EVERYTHING you can find. If a field is not found, use empty string "" or empty array [].
-DO NOT nest objects. Keep it flat.`
+IMPORTANT: For services and fleet, include a brief description explaining what each one offers.
+Extract EVERYTHING you can find. If a field is not found, use empty string "" or empty array [].`
 
   try {
     console.log('[AI] Starting extraction, content length:', content.length)
@@ -165,14 +171,26 @@ DO NOT nest objects. Keep it flat.`
     console.log('[AI] Extracted services:', parsed.services)
     
     // Build profile from FLAT extracted data
-    // Map services - could be strings or objects
+    // Map services - could be strings or objects with descriptions
     const servicesArray = Array.isArray(parsed.services) 
-      ? parsed.services.map((s: any) => typeof s === 'string' ? { name: s } : s)
+      ? parsed.services.map((s: any) => {
+          if (typeof s === 'string') return { name: s, description: '' }
+          return { name: s.name || s, description: s.description || '' }
+        })
       : []
     
-    // Map fleet/assets
-    const assetsArray = Array.isArray(parsed.fleet) ? parsed.fleet : 
-                        Array.isArray(parsed.hardAssets) ? parsed.hardAssets : []
+    // Map fleet/assets - could be strings or objects with descriptions
+    const assetsArray = Array.isArray(parsed.fleet) 
+      ? parsed.fleet.map((a: any) => {
+          if (typeof a === 'string') return { name: a, description: '' }
+          return { name: a.name || a, description: a.description || '' }
+        })
+      : Array.isArray(parsed.hardAssets) 
+        ? parsed.hardAssets.map((a: any) => {
+            if (typeof a === 'string') return { name: a, description: '' }
+            return { name: a.name || a, description: a.description || '' }
+          })
+        : []
     
     return {
       // Core Identity

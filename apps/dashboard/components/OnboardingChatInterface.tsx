@@ -271,12 +271,21 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       report += "• **Core Services:**\n"
       scrapedData.services.slice(0, 7).forEach((s: any) => {
         const svc = typeof s === 'string' ? s : s.name
+        const desc = typeof s === 'object' && s.description ? ` — ${s.description}` : ''
         const price = typeof s === 'object' && s.price ? ` (${s.price})` : ''
-        report += `  - ${svc}${price}\n`
+        report += `  - **${svc}**${desc}${price}\n`
       })
     }
     if (scrapedData.hardAssets && scrapedData.hardAssets.length > 0) {
-      report += `• **Hard Assets:** ${scrapedData.hardAssets.slice(0, 5).join(', ')}\n`
+      report += "• **Hard Assets:**\n"
+      scrapedData.hardAssets.slice(0, 5).forEach((a: any) => {
+        if (typeof a === 'string') {
+          report += `  - ${a}\n`
+        } else {
+          const desc = a.description ? ` — ${a.description}` : ''
+          report += `  - **${a.name}**${desc}\n`
+        }
+      })
     }
     if (scrapedData.specializations && scrapedData.specializations.length > 0) {
       report += `• **Specializations:** ${scrapedData.specializations.join(', ')}\n`
