@@ -409,7 +409,7 @@ export async function POST(req: NextRequest) {
     console.log(`[Scrape API] ✓ Success!`)
     console.log(`[Scrape API] Business: ${scrapedData.businessName}`)
     console.log(`[Scrape API] Industry: ${scrapedData.industry}`)
-    console.log(`[Scrape API] Services:`, scrapedData.coreServices?.length || 0)
+    console.log(`[Scrape API] Services:`, (scrapedData as any).coreServices?.length || 0)
 
     return NextResponse.json({
       success: true,
