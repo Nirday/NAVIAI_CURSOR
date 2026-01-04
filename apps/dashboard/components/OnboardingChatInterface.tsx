@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import BusinessProfileCard from './BusinessProfileCard'
 
 interface OnboardingChatInterfaceProps {
   userId: string
@@ -84,6 +85,8 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     fromWebsite: false
   })
   const [isComplete, setIsComplete] = useState(false)
+  const [showProfileCard, setShowProfileCard] = useState(false)
+  const [profileCardData, setProfileCardData] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Initialize with website check message
@@ -883,15 +886,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               scrapedData: scrapedData // Store for later use
             })
             
-            // Show the FULL Deep Dive Calibration Report
-            const calibrationReport = formatCalibrationReport(scrapedData)
-            const reviewMsg: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: calibrationReport,
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, reviewMsg])
+            // Show the visual Profile Card instead of markdown
+            setProfileCardData(scrapedData)
+            setShowProfileCard(true)
             setIsLoading(false)
             return
           } catch (error: any) {
@@ -2240,6 +2237,47 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     handleSend(inputValue)
   }
 
+  // Handler for profile card actions
+  const handleProfileContinue = () => {
+    setShowProfileCard(false)
+    // Transition to website models
+    setOnboardingState(prev => ({
+      ...prev,
+      phase: 'website_models'
+    }))
+    const modelsMsg: Message = {
+      id: `assistant_${Date.now()}`,
+      role: 'assistant',
+      content: generateWebsiteModelsShowcase(profileCardData, onboardingState.data),
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, modelsMsg])
+  }
+  
+  const handleProfileEdit = () => {
+    setShowProfileCard(false)
+    const editMsg: Message = {
+      id: `assistant_${Date.now()}`,
+      role: 'assistant',
+      content: "No problem! What would you like to update? You can tell me things like:\n\n• \"Add a service: Wedding Photography\"\n• \"Change phone to 555-1234\"\n• \"We also serve Oakland and Fremont\"",
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, editMsg])
+  }
+  
+  // If showing profile card, render it full screen
+  if (showProfileCard && profileCardData) {
+    return (
+      <div className={`onboarding-chat h-full bg-gradient-to-br from-slate-50 to-blue-50 overflow-auto ${className}`}>
+        <BusinessProfileCard 
+          data={profileCardData}
+          onContinue={handleProfileContinue}
+          onEdit={handleProfileEdit}
+        />
+      </div>
+    )
+  }
+  
   return (
     <div className={`onboarding-chat flex flex-col h-full bg-gray-50 ${className}`}>
       {/* Messages Container */}
