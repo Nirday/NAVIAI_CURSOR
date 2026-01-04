@@ -245,13 +245,11 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     // ============ CORE BUSINESS INFO ============
     const location = [scrapedData.location?.city, scrapedData.location?.state].filter(Boolean).join(', ')
     
-    // One-liner summary
     let summary = scrapedData.industry || ''
     if (location) summary += summary ? ` • ${location}` : location
     if (scrapedData.yearsInBusiness) summary += ` • ${scrapedData.yearsInBusiness}`
     if (summary) report += `${summary}\n\n`
     
-    // Contact
     if (scrapedData.contactInfo?.phone || scrapedData.contactInfo?.email) {
       report += `📞 ${scrapedData.contactInfo?.phone || ''}`
       if (scrapedData.contactInfo?.email) report += ` • ${scrapedData.contactInfo.email}`
@@ -275,11 +273,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     // ============ FLEET/EQUIPMENT ============
     if (scrapedData.assets && scrapedData.assets.length > 0) {
       report += "### Fleet & Equipment\n\n"
-      scrapedData.assets.slice(0, 6).forEach((a: any) => {
+      scrapedData.assets.slice(0, 8).forEach((a: any) => {
         const name = typeof a === 'string' ? a : a.name
         const capacity = a.capacity ? ` — ${a.capacity}` : ''
-        const type = a.type ? ` (${a.type})` : ''
-        report += `• **${name}**${type}${capacity}\n`
+        report += `• **${name}**${capacity}\n`
       })
       report += "\n"
     }
@@ -294,39 +291,192 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       report += "\n"
     }
     
-    // Key differentiator
     if (scrapedData.uniqueValue) {
       report += `**Key Differentiator:** ${scrapedData.uniqueValue}\n\n`
     }
     
-    // ============ WEBSITE ASSESSMENT ============
-    report += "---\n\n### Website Assessment\n\n"
+    // ============ COMPREHENSIVE WEBSITE ANALYSIS ============
+    report += "---\n\n"
+    report += `## 📊 Website & Digital Presence Analysis\n\n`
     
-    // Online Booking
-    if (analysis.onlineBooking) {
-      report += `✓ **Online booking available**\n`
-    } else {
-      report += `✗ **No online booking** — customers must call. Worth adding.\n`
+    // Overall Grade
+    const grade = analysis.grade || 'Not Rated'
+    const gradeEmoji = grade === 'A' ? '🟢' : grade === 'B' ? '🟡' : grade === 'C' ? '🟠' : '🔴'
+    report += `**Overall Grade: ${gradeEmoji} ${grade}**\n`
+    if (analysis.gradeExplain) {
+      report += `${analysis.gradeExplain}\n\n`
     }
     
-    // Blog
-    if (analysis.hasBlog) {
-      report += `✓ **Blog active** — helps with Google visibility\n`
-    } else {
-      report += `✗ **No blog** — missing organic search traffic\n`
+    // ============ LOCAL SEO (Most important for SMBs) ============
+    const seo = analysis.localSeo || {}
+    report += `### 🔍 Local SEO (How Google Finds You)\n\n`
+    report += `**Rating:** ${seo.rating || 'Not Analyzed'}\n\n`
+    
+    if (seo.napConsistent !== undefined) {
+      report += seo.napConsistent 
+        ? `✅ **NAP Consistent** — Your business name, address, and phone are clearly displayed\n`
+        : `❌ **NAP Missing** — Make sure your Name, Address, Phone appear on every page footer\n`
+    }
+    if (seo.localKeywords !== undefined) {
+      report += seo.localKeywords
+        ? `✅ **Local Keywords** — You mention your service area in content\n`
+        : `❌ **Missing Local Keywords** — Add city names to page titles (e.g., "Limo Service in Hayward, CA")\n`
+    }
+    if (seo.serviceAreaPages !== undefined) {
+      report += seo.serviceAreaPages
+        ? `✅ **Service Area Pages** — You have pages for areas you serve\n`
+        : `❌ **No Area Pages** — Create separate pages for each city you serve (helps Google rankings)\n`
     }
     
-    // Overall
-    if (analysis.topStrength) {
-      report += `\n**Strength:** ${analysis.topStrength}\n`
+    if (seo.issues?.length > 0) {
+      report += `\n**Issues Found:**\n`
+      seo.issues.forEach((issue: string) => report += `• ${issue}\n`)
     }
-    if (analysis.topWeakness) {
-      report += `**Opportunity:** ${analysis.topWeakness}\n`
+    if (seo.fixes?.length > 0) {
+      report += `\n**Quick Fixes:**\n`
+      seo.fixes.forEach((fix: string) => report += `• ${fix}\n`)
+    }
+    report += "\n"
+    
+    // ============ CONVERSION (Getting Customers to Act) ============
+    const conv = analysis.conversionOptimization || {}
+    report += `### 💰 Conversion (Turning Visitors into Customers)\n\n`
+    report += `**Rating:** ${conv.rating || 'Not Analyzed'}\n\n`
+    
+    if (conv.bookingType) {
+      const bookingEmoji = conv.bookingType === 'Instant Book' ? '✅' : conv.bookingType === 'Request Form' ? '🟡' : '❌'
+      report += `${bookingEmoji} **Booking:** ${conv.bookingType}\n`
+      if (conv.bookingFriction === 'High') {
+        report += `  → *High friction — customers may abandon before completing*\n`
+      }
+    }
+    if (conv.hasPricing !== undefined) {
+      report += conv.hasPricing
+        ? `✅ **Pricing Visible** — Builds trust with customers\n`
+        : `❌ **No Pricing** — Customers prefer knowing costs upfront\n`
+    }
+    if (conv.hasPhoneClickable !== undefined) {
+      report += conv.hasPhoneClickable
+        ? `✅ **Clickable Phone** — Mobile users can call with one tap\n`
+        : `❌ **Phone Not Clickable** — Mobile users can't tap to call\n`
+    }
+    
+    if (conv.issues?.length > 0) {
+      report += `\n**Issues Found:**\n`
+      conv.issues.forEach((issue: string) => report += `• ${issue}\n`)
+    }
+    if (conv.fixes?.length > 0) {
+      report += `\n**Quick Fixes:**\n`
+      conv.fixes.forEach((fix: string) => report += `• ${fix}\n`)
+    }
+    report += "\n"
+    
+    // ============ CONTENT (Organic Growth) ============
+    const content = analysis.contentMarketing || {}
+    report += `### 📝 Content (Growing Organic Traffic)\n\n`
+    report += `**Rating:** ${content.rating || 'Not Analyzed'}\n\n`
+    
+    if (content.hasBlog !== undefined) {
+      report += content.hasBlog
+        ? `✅ **Blog:** ${content.blogFrequency || 'Active'}\n`
+        : `❌ **No Blog** — Missing free traffic from Google searches like "${scrapedData.services?.[0]?.name || 'your service'} near me"\n`
+    }
+    if (content.hasTestimonials !== undefined) {
+      report += content.hasTestimonials
+        ? `✅ **Testimonials:** Social proof visible\n`
+        : `❌ **No Testimonials** — Add customer reviews to build trust\n`
+    }
+    if (content.hasFaq !== undefined) {
+      report += content.hasFaq
+        ? `✅ **FAQ Section:** Answers common questions\n`
+        : `❌ **No FAQ** — Missing chance to rank for question-based searches\n`
+    }
+    
+    if (content.issues?.length > 0) {
+      report += `\n**Issues Found:**\n`
+      content.issues.forEach((issue: string) => report += `• ${issue}\n`)
+    }
+    if (content.fixes?.length > 0) {
+      report += `\n**Quick Fixes:**\n`
+      content.fixes.forEach((fix: string) => report += `• ${fix}\n`)
+    }
+    report += "\n"
+    
+    // ============ TRUST SIGNALS ============
+    const trust = analysis.trustSignals || {}
+    report += `### 🛡️ Trust Signals\n\n`
+    report += `**Rating:** ${trust.rating || 'Not Analyzed'}\n\n`
+    
+    if (trust.hasReviews !== undefined) {
+      report += trust.hasReviews
+        ? `✅ **Reviews Displayed** (${trust.reviewPlatforms?.join(', ') || 'visible'})\n`
+        : `❌ **No Reviews Visible** — Embed Google reviews on your homepage\n`
+    }
+    if (trust.hasCredentials !== undefined) {
+      report += trust.hasCredentials
+        ? `✅ **Credentials Highlighted**\n`
+        : `❌ **Credentials Hidden** — Show licenses, certifications, awards prominently\n`
+    }
+    if (trust.hasInsurance !== undefined) {
+      report += trust.hasInsurance
+        ? `✅ **Insurance/Bonding Mentioned**\n`
+        : `⚠️ **Insurance Not Mentioned** — If licensed/bonded/insured, say so!\n`
+    }
+    report += "\n"
+    
+    // ============ USER EXPERIENCE ============
+    const ux = analysis.userExperience || {}
+    report += `### 📱 User Experience\n\n`
+    report += `**Rating:** ${ux.rating || 'Not Analyzed'}\n\n`
+    
+    if (ux.mobileReady !== undefined) {
+      report += ux.mobileReady
+        ? `✅ **Mobile Ready**\n`
+        : `❌ **Not Mobile Friendly** — Over 60% of searches are on mobile!\n`
+    }
+    if (ux.navigation) {
+      report += `📋 **Navigation:** ${ux.navigation}\n`
+    }
+    if (ux.ctaClarity) {
+      report += `🎯 **Call-to-Action:** ${ux.ctaClarity}\n`
+    }
+    report += "\n"
+    
+    // ============ SWOT ============
+    const swot = analysis.competitiveEdge || {}
+    if (swot.strengths?.length > 0 || swot.opportunities?.length > 0) {
+      report += `### 💪 Your Competitive Edge\n\n`
+      
+      if (swot.strengths?.length > 0) {
+        report += `**Strengths:**\n`
+        swot.strengths.forEach((s: string) => report += `• ${s}\n`)
+      }
+      if (swot.opportunities?.length > 0) {
+        report += `\n**Opportunities:**\n`
+        swot.opportunities.forEach((o: string) => report += `• ${o}\n`)
+      }
+      report += "\n"
+    }
+    
+    // ============ PRIORITY ACTIONS ============
+    const actions = analysis.priorityActions || []
+    if (actions.length > 0) {
+      report += `### 🚀 Top 3 Priority Actions\n\n`
+      report += `*These changes will have the biggest impact on getting more customers:*\n\n`
+      
+      actions.slice(0, 3).forEach((a: any, i: number) => {
+        const impactEmoji = a.impact === 'High' ? '🔴' : '🟡'
+        const effortEmoji = a.effort === 'Easy' ? '✅' : a.effort === 'Medium' ? '🟡' : '🔴'
+        report += `**${i + 1}. ${a.action}**\n`
+        report += `   Impact: ${impactEmoji} ${a.impact} | Effort: ${effortEmoji} ${a.effort}\n`
+        if (a.why) report += `   *${a.why}*\n`
+        report += "\n"
+      })
     }
     
     // ============ NEXT STEP ============
-    report += "\n---\n\n"
-    report += "*Does this look accurate? Say **\"looks good\"** to continue, or let me know what to fix.*"
+    report += "---\n\n"
+    report += "*Does this business profile look accurate? Say **\"looks good\"** to see website design options, or let me know what to fix.*"
     
     return report
   }

@@ -300,69 +300,144 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
 }
 
 /**
- * SIMPLE FLAT EXTRACTION - Uses the exact prompt proven to work in debug endpoint
+ * COMPREHENSIVE EXTRACTION with Local SEO Analysis for SMB owners
  */
 async function extractProfileWithAI(content: string, websiteUrl: string) {
-  const SYSTEM_PROMPT = `Extract business information from this multi-page website content.
+  const SYSTEM_PROMPT = `You are a LOCAL SEO & Digital Marketing Expert analyzing a small business website.
 
-Return a FLAT JSON object with these fields:
+Extract business info AND provide actionable website analysis for a local business owner.
+
+Return JSON with TWO sections:
 
 {
-  "businessName": "Company name",
-  "tagline": "Slogan if any",
-  "industry": "e.g. Limousine Service, Chiropractic, Restaurant",
-  "phone": "Phone number",
-  "email": "Email address",
-  "city": "City",
-  "state": "State",
-  "yearsInBusiness": "e.g. 'over 25 years' or 'Since 1998'",
-  "serviceArea": "Geographic coverage",
-  "services": [
-    {"name": "Service Name", "description": "What it offers", "idealFor": "Target audience"}
-  ],
-  "vehicles": ["Mercedes-S580", "32 Pax Party Bus", "Tesla Model Y", "56 Pax Motorcoach"],
-  "credentials": ["NFL Official Supplier", "Award Name"],
-  "uniqueValue": "Their main differentiator",
-  "hasOnlineBooking": true,
-  "hasBlog": false
+  "business": {
+    "businessName": "Company name",
+    "tagline": "Slogan",
+    "industry": "e.g. Limousine Service, Chiropractic, Restaurant",
+    "phone": "Phone number",
+    "email": "Email",
+    "city": "City",
+    "state": "State",
+    "yearsInBusiness": "e.g. 'over 25 years'",
+    "serviceArea": "Geographic coverage (cities/regions served)",
+    "services": [{"name": "Name", "description": "What it does", "idealFor": "Target customer"}],
+    "vehicles": ["Mercedes-S580", "32 Pax Party Bus"],
+    "credentials": ["NFL Official Supplier"],
+    "uniqueValue": "Main differentiator"
+  },
+  
+  "siteAnalysis": {
+    "overallGrade": "A/B/C/D/F",
+    "gradeSummary": "One sentence: 'Professional site that converts well' or 'Outdated site losing customers'",
+    
+    "userExperience": {
+      "rating": "Good/Fair/Poor",
+      "mobileReady": true/false,
+      "loadSpeed": "Fast/Average/Slow (based on page complexity)",
+      "navigation": "Clear/Confusing",
+      "ctaClarity": "Strong/Weak/Missing",
+      "issues": ["Issue 1", "Issue 2"],
+      "fixes": ["How to fix issue 1", "How to fix issue 2"]
+    },
+    
+    "localSeo": {
+      "rating": "Good/Fair/Poor",
+      "napConsistent": true/false,
+      "napExplain": "NAP = Name, Address, Phone. Is it displayed clearly and consistently?",
+      "localKeywords": true/false,
+      "localKeywordsExplain": "Do they mention city names, neighborhoods, 'near me' type content?",
+      "serviceAreaPages": true/false,
+      "googleBusinessMention": true/false,
+      "issues": ["No city mentioned in titles", "Missing service area pages"],
+      "fixes": ["Add 'Hayward, CA' to page titles", "Create pages for each city you serve"]
+    },
+    
+    "contentMarketing": {
+      "rating": "Good/Fair/Poor",
+      "hasBlog": true/false,
+      "blogFrequency": "Active/Stale/None",
+      "hasTestimonials": true/false,
+      "hasFaq": true/false,
+      "hasAboutStory": true/false,
+      "issues": ["No blog = missing organic traffic", "No FAQs = missing voice search"],
+      "fixes": ["Start blog with '5 tips for...' articles", "Add FAQ section with common questions"]
+    },
+    
+    "conversionOptimization": {
+      "rating": "Good/Fair/Poor",
+      "hasOnlineBooking": true/false,
+      "bookingType": "Instant Book/Request Form/Phone Only/None",
+      "bookingFriction": "Low/Medium/High",
+      "hasLivechat": true/false,
+      "hasPricing": true/false,
+      "hasPhoneClickable": true/false,
+      "issues": ["Phone-only booking loses busy customers", "No pricing = customer hesitation"],
+      "fixes": ["Add online booking widget", "Show starting prices to build trust"]
+    },
+    
+    "trustSignals": {
+      "rating": "Good/Fair/Poor",
+      "hasReviews": true/false,
+      "reviewPlatforms": ["Google", "Yelp"],
+      "hasCredentials": true/false,
+      "hasCertifications": true/false,
+      "hasInsurance": true/false,
+      "issues": ["No visible reviews", "Credentials not highlighted"],
+      "fixes": ["Embed Google reviews on homepage", "Add certification badges"]
+    },
+    
+    "competitiveEdge": {
+      "strengths": ["What they do better than competitors"],
+      "weaknesses": ["What competitors likely do better"],
+      "opportunities": ["Quick wins they can implement"],
+      "threats": ["Risks if they don't improve"]
+    },
+    
+    "priorityActions": [
+      {"action": "Most important thing to fix", "impact": "High/Medium", "effort": "Easy/Medium/Hard", "why": "Explanation"},
+      {"action": "Second priority", "impact": "High/Medium", "effort": "Easy/Medium/Hard", "why": "Explanation"},
+      {"action": "Third priority", "impact": "High/Medium", "effort": "Easy/Medium/Hard", "why": "Explanation"}
+    ]
+  }
 }
 
-CRITICAL INSTRUCTIONS:
-1. For VEHICLES: Extract EXACT model names with capacities
-   - "Mercedes-S580" not "Mercedes"
-   - "32 Pax Party Bus" not "Party Bus"
-   - "56 Pax Motorcoach" not "Motorcoach"
-   
-2. For YEARS IN BUSINESS: Look for phrases like "over 25 years", "since 1998"
+CRITICAL FOR BUSINESS EXTRACTION:
+- VEHICLES: Extract EXACT names with capacities ("32 Pax Party Bus" not "Party Bus")
+- YEARS: Look for "over 25 years", "since 1998", "Est. 2005"
+- Search ALL pages (look for "========== PAGE:" markers)
 
-3. Search ALL pages - look for "========== PAGE:" markers
-
-4. Keep structure FLAT - no nested objects`
+CRITICAL FOR SITE ANALYSIS:
+- Think like a LOCAL customer searching Google for this service
+- What would make them click? What would make them leave?
+- Be SPECIFIC with issues and fixes - no generic advice
+- Focus on what a LOCAL business needs to rank and convert`
 
   try {
-    console.log('[AI] Starting extraction, content length:', content.length)
+    console.log('[AI] Starting comprehensive extraction, content length:', content.length)
     
     const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Extract business info:\n\nURL: ${websiteUrl}\n\n${content.substring(0, 40000)}` }
+        { role: 'user', content: `Analyze this local business website for an SMB owner:\n\nURL: ${websiteUrl}\n\n${content.substring(0, 45000)}` }
       ],
-      temperature: 0.1,
-      max_tokens: 3000,
+      temperature: 0.2,
+      max_tokens: 4000,
       response_format: { type: 'json_object' }
     })
 
     const rawResponse = completion.choices[0]?.message?.content || '{}'
-    console.log('[AI] GPT Response:', rawResponse.substring(0, 500))
+    console.log('[AI] GPT Response length:', rawResponse.length)
     
     const parsed = JSON.parse(rawResponse)
+    const biz = parsed.business || parsed // fallback for flat structure
+    const analysis = parsed.siteAnalysis || {}
     
-    console.log('[AI] Extracted:', parsed.businessName, '| Vehicles:', parsed.vehicles?.length || 0)
+    console.log('[AI] Extracted:', biz.businessName, '| Analysis grade:', analysis.overallGrade)
     
     // Map services
-    const servicesArray = Array.isArray(parsed.services) 
-      ? parsed.services.map((s: any) => ({
+    const servicesArray = Array.isArray(biz.services) 
+      ? biz.services.map((s: any) => ({
           name: typeof s === 'string' ? s : (s.name || ''),
           description: s.description || '',
           idealFor: s.idealFor || ''
@@ -370,8 +445,8 @@ CRITICAL INSTRUCTIONS:
       : []
     
     // Map vehicles to assets format
-    const assetsArray = Array.isArray(parsed.vehicles)
-      ? parsed.vehicles.map((v: any) => ({
+    const assetsArray = Array.isArray(biz.vehicles)
+      ? biz.vehicles.map((v: any) => ({
           name: typeof v === 'string' ? v : (v.name || v),
           type: '',
           description: '',
@@ -381,31 +456,31 @@ CRITICAL INSTRUCTIONS:
       : []
     
     // Map credentials
-    const credentialsArray = Array.isArray(parsed.credentials)
-      ? parsed.credentials.map((c: any) => ({
+    const credentialsArray = Array.isArray(biz.credentials)
+      ? biz.credentials.map((c: any) => ({
           name: typeof c === 'string' ? c : (c.name || c),
           description: ''
         }))
       : []
     
     return {
-      businessName: parsed.businessName || '',
-      tagline: parsed.tagline || '',
-      industry: parsed.industry || '',
-      yearsInBusiness: parsed.yearsInBusiness || '',
+      businessName: biz.businessName || '',
+      tagline: biz.tagline || '',
+      industry: biz.industry || '',
+      yearsInBusiness: biz.yearsInBusiness || '',
       
       location: {
-        address: parsed.address || '',
-        city: parsed.city || '',
-        state: parsed.state || '',
+        address: biz.address || '',
+        city: biz.city || '',
+        state: biz.state || '',
         zipCode: '',
         country: 'US',
         neighborhood: ''
       },
       
       contactInfo: {
-        phone: parsed.phone || '',
-        email: parsed.email || '',
+        phone: biz.phone || '',
+        email: biz.email || '',
         website: websiteUrl
       },
       
@@ -413,24 +488,86 @@ CRITICAL INSTRUCTIONS:
       assets: assetsArray,
       credentials: credentialsArray,
       
-      serviceArea: parsed.serviceArea || '',
-      uniqueValue: parsed.uniqueValue || '',
+      serviceArea: biz.serviceArea || '',
+      uniqueValue: biz.uniqueValue || '',
       
-      // Simple website analysis from flat extraction
+      // COMPREHENSIVE Website Analysis for SMB owners
       websiteAnalysis: {
-        grade: 'C',
-        gradeExplain: '',
-        onlineBooking: parsed.hasOnlineBooking === true,
-        onlineBookingExplain: parsed.hasOnlineBooking ? 'Customers can book online' : 'Customers must call to book',
-        hasBlog: parsed.hasBlog === true,
-        blogExplain: parsed.hasBlog ? 'Active blog found' : 'No blog found',
-        socialPresence: 'Unknown',
-        socialExplain: '',
-        bookingFriction: parsed.hasOnlineBooking ? 'Low' : 'High',
-        bookingFrictionExplain: parsed.hasOnlineBooking ? 'Easy to book online' : 'Phone-only booking',
-        topStrength: parsed.uniqueValue || '',
-        topWeakness: parsed.hasOnlineBooking ? '' : 'No online booking',
-        recommendedAction: ''
+        // Overall
+        grade: analysis.overallGrade || 'C',
+        gradeExplain: analysis.gradeSummary || '',
+        
+        // User Experience
+        userExperience: analysis.userExperience || {
+          rating: 'Unknown',
+          mobileReady: false,
+          loadSpeed: 'Unknown',
+          navigation: 'Unknown',
+          ctaClarity: 'Unknown',
+          issues: [],
+          fixes: []
+        },
+        
+        // Local SEO (CRITICAL for SMBs)
+        localSeo: analysis.localSeo || {
+          rating: 'Unknown',
+          napConsistent: false,
+          napExplain: '',
+          localKeywords: false,
+          localKeywordsExplain: '',
+          serviceAreaPages: false,
+          googleBusinessMention: false,
+          issues: [],
+          fixes: []
+        },
+        
+        // Content Marketing
+        contentMarketing: analysis.contentMarketing || {
+          rating: 'Unknown',
+          hasBlog: false,
+          blogFrequency: 'None',
+          hasTestimonials: false,
+          hasFaq: false,
+          hasAboutStory: false,
+          issues: [],
+          fixes: []
+        },
+        
+        // Conversion Optimization
+        conversionOptimization: analysis.conversionOptimization || {
+          rating: 'Unknown',
+          hasOnlineBooking: false,
+          bookingType: 'Unknown',
+          bookingFriction: 'Unknown',
+          hasLivechat: false,
+          hasPricing: false,
+          hasPhoneClickable: false,
+          issues: [],
+          fixes: []
+        },
+        
+        // Trust Signals
+        trustSignals: analysis.trustSignals || {
+          rating: 'Unknown',
+          hasReviews: false,
+          reviewPlatforms: [],
+          hasCredentials: false,
+          hasCertifications: false,
+          hasInsurance: false,
+          issues: [],
+          fixes: []
+        },
+        
+        // Competitive Analysis (SWOT)
+        competitiveEdge: analysis.competitiveEdge || {
+          strengths: [],
+          weaknesses: [],
+          opportunities: [],
+          threats: []
+        },
+        
+        // Priority Actions (the actionable takeaways)
+        priorityActions: analysis.priorityActions || []
       },
       
       // Meta
