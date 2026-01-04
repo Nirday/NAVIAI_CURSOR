@@ -296,9 +296,61 @@ Return ONLY valid JSON with ALL these fields. Use empty strings/arrays for missi
       scrapedAt: new Date().toISOString()
     }
     
-  } catch (error) {
-    console.error('[AI] Deep Dive extraction error:', error)
-    throw error
+  } catch (error: any) {
+    console.error('[AI] Deep Dive extraction error:', error?.message || error)
+    
+    // Return partial data with raw content so user sees something
+    return {
+      businessName: 'AI Extraction Failed',
+      tagline: `Error: ${error?.message || 'Unknown'}. Raw content was ${content.length} chars.`,
+      industry: 'Unknown',
+      ownerName: '',
+      ownerCredentials: '',
+      yearsInBusiness: '',
+      location: { address: '', city: '', state: '', zipCode: '', country: '', neighborhood: '' },
+      phone: '',
+      email: '',
+      hours: '',
+      bookingMethod: 'Unknown',
+      emergencyAvailability: '',
+      coreServices: [],
+      hardAssets: [],
+      specializations: [],
+      productLines: [],
+      credentials: [],
+      awards: [],
+      affiliations: [],
+      insuranceAccepted: [],
+      killShot: '',
+      websiteQuality: 'Unknown',
+      hasOnlineBooking: false,
+      hasBlog: false,
+      blogPostCount: 0,
+      socialProfiles: {},
+      hasReviews: false,
+      reviewPlatforms: [],
+      targetAudience: '',
+      serviceArea: '',
+      languages: [],
+      accessibilityFeatures: [],
+      pricingModel: 'Unknown',
+      pricePoints: [],
+      paymentMethods: [],
+      financingOptions: [],
+      bookingFriction: 'Unknown',
+      contentGap: 'Unknown',
+      seoOpportunity: '',
+      competitiveAdvantage: '',
+      improvementAreas: [],
+      brandVoice: 'professional',
+      visualStyle: '',
+      uniqueSellingProposition: '',
+      customAttributes: [],
+      confidence: 0,
+      extractionMethod: 'failed' as const,
+      scrapedAt: new Date().toISOString(),
+      rawContentPreview: content.substring(0, 2000) // Include raw content preview
+    }
   }
 }
 
