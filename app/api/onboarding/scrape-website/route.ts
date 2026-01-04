@@ -300,129 +300,208 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
 }
 
 /**
- * COMPREHENSIVE EXTRACTION with Local SEO Analysis for SMB owners
+ * MAXIMUM EXTRACTION - Extract EVERYTHING available from the website
  */
 async function extractProfileWithAI(content: string, websiteUrl: string) {
-  const SYSTEM_PROMPT = `You are a LOCAL SEO & Digital Marketing Expert analyzing a small business website.
+  const SYSTEM_PROMPT = `You are extracting EVERY piece of business information from a website.
+Your goal is to create the most COMPLETE business profile possible.
 
-Extract business info AND provide actionable website analysis for a local business owner.
+SEARCH ALL PAGES in the content (look for "========== PAGE:" markers).
 
-Return JSON with TWO sections:
+Return this comprehensive JSON structure:
 
 {
   "business": {
-    "businessName": "Company name",
-    "tagline": "Slogan",
-    "industry": "e.g. Limousine Service, Chiropractic, Restaurant",
-    "phone": "Phone number",
-    "email": "Email",
-    "city": "City",
-    "state": "State",
-    "yearsInBusiness": "e.g. 'over 25 years'",
-    "serviceArea": "Geographic coverage (cities/regions served)",
-    "services": [{"name": "Name", "description": "What it does", "idealFor": "Target customer"}],
-    "vehicles": ["Mercedes-S580", "32 Pax Party Bus"],
-    "credentials": ["NFL Official Supplier"],
-    "uniqueValue": "Main differentiator"
+    "businessName": "Exact legal/brand name",
+    "tagline": "Slogan or motto",
+    "industry": "Specific industry",
+    "description": "Full business description from About page",
+    
+    "contact": {
+      "phone": "Primary phone",
+      "tollFree": "Toll-free if different",
+      "email": "Email address",
+      "address": "Street address",
+      "city": "City",
+      "state": "State",
+      "zipCode": "Zip if found",
+      "country": "Country"
+    },
+    
+    "hours": {
+      "regular": "e.g. Mon-Fri 9am-5pm",
+      "weekends": "e.g. Sat 10am-2pm",
+      "is24x7": false,
+      "byAppointment": false,
+      "holidayNote": "Any holiday info"
+    },
+    
+    "history": {
+      "yearsInBusiness": "e.g. 'over 25 years'",
+      "foundedYear": "e.g. 1998",
+      "founderName": "Founder/owner name",
+      "founderStory": "Their story/background",
+      "milestones": ["Key achievements over the years"]
+    },
+    
+    "team": {
+      "ownerName": "Owner/principal name",
+      "ownerTitle": "e.g. CEO, Founder, Dr.",
+      "ownerCredentials": "Degrees, certifications",
+      "ownerBio": "Bio paragraph",
+      "teamSize": "e.g. '15+ chauffeurs'",
+      "teamHighlights": ["e.g. 'Elite class chauffeurs', 'Background checked'"]
+    },
+    
+    "services": [
+      {
+        "name": "Service name",
+        "description": "Full description",
+        "idealFor": "Target customer",
+        "priceRange": "Price if shown",
+        "duration": "How long",
+        "includes": ["What's included"],
+        "popularFor": ["Events/occasions this is popular for"]
+      }
+    ],
+    
+    "fleet": [
+      {
+        "name": "EXACT vehicle model (e.g. 'Mercedes-S580')",
+        "category": "Sedan/SUV/Van/Bus/Limo/Motorcoach",
+        "capacity": "Exact passenger count (e.g. '32 Pax')",
+        "amenities": ["WiFi", "Audio system", "Champagne", "TV"],
+        "bestFor": ["Weddings", "Corporate", "Airport"]
+      }
+    ],
+    
+    "serviceAreas": {
+      "primary": "Main city/region",
+      "cities": ["List every city mentioned"],
+      "regions": ["e.g. 'San Francisco Bay Area'"],
+      "airports": ["SFO", "OAK", "SJC"],
+      "landmarks": ["Levi's Stadium", "Napa Valley"]
+    },
+    
+    "credentials": [
+      {
+        "name": "Credential name",
+        "type": "Award/Certification/License/Partnership",
+        "issuer": "Who granted it",
+        "year": "When received"
+      }
+    ],
+    
+    "policies": {
+      "paymentMethods": ["Credit Card", "Cash", "Invoice"],
+      "cancellation": "Cancellation policy",
+      "booking": "How to book",
+      "deposit": "Deposit requirements",
+      "insurance": "Insurance info",
+      "licensing": "License info"
+    },
+    
+    "socialMedia": {
+      "facebook": "URL",
+      "instagram": "URL",
+      "twitter": "URL",
+      "linkedin": "URL",
+      "youtube": "URL",
+      "yelp": "URL",
+      "googleBusiness": "URL"
+    },
+    
+    "specializations": {
+      "eventTypes": ["Weddings", "Proms", "Quinceañeras", "Corporate", "Wine Tours"],
+      "clientTypes": ["Corporate", "Individuals", "Groups", "VIP"],
+      "uniqueOfferings": ["Wheelchair accessible", "Pet friendly", "24/7 service"]
+    },
+    
+    "faqTopics": ["Common questions found on site"],
+    "blogTopics": ["Topics they blog about"],
+    
+    "uniqueValue": "The ONE thing that makes them stand out",
+    "brandVoice": "Professional/Casual/Luxury/Friendly"
   },
   
   "siteAnalysis": {
     "overallGrade": "A/B/C/D/F",
-    "gradeSummary": "One sentence: 'Professional site that converts well' or 'Outdated site losing customers'",
+    "gradeSummary": "One sentence assessment",
     
-    "userExperience": {
-      "rating": "Good/Fair/Poor",
-      "mobileReady": true/false,
-      "loadSpeed": "Fast/Average/Slow (based on page complexity)",
-      "navigation": "Clear/Confusing",
-      "ctaClarity": "Strong/Weak/Missing",
-      "issues": ["Issue 1", "Issue 2"],
-      "fixes": ["How to fix issue 1", "How to fix issue 2"]
-    },
+    "pagesFound": ["List of pages discovered"],
     
     "localSeo": {
       "rating": "Good/Fair/Poor",
-      "napConsistent": true/false,
-      "napExplain": "NAP = Name, Address, Phone. Is it displayed clearly and consistently?",
-      "localKeywords": true/false,
-      "localKeywordsExplain": "Do they mention city names, neighborhoods, 'near me' type content?",
-      "serviceAreaPages": true/false,
-      "googleBusinessMention": true/false,
-      "issues": ["No city mentioned in titles", "Missing service area pages"],
-      "fixes": ["Add 'Hayward, CA' to page titles", "Create pages for each city you serve"]
+      "napConsistent": true,
+      "hasLocalKeywords": true,
+      "hasServiceAreaPages": true,
+      "hasGoogleBusiness": false,
+      "issues": ["Specific issues"],
+      "fixes": ["Specific fixes"]
     },
     
-    "contentMarketing": {
+    "conversion": {
       "rating": "Good/Fair/Poor",
-      "hasBlog": true/false,
-      "blogFrequency": "Active/Stale/None",
-      "hasTestimonials": true/false,
-      "hasFaq": true/false,
-      "hasAboutStory": true/false,
-      "issues": ["No blog = missing organic traffic", "No FAQs = missing voice search"],
-      "fixes": ["Start blog with '5 tips for...' articles", "Add FAQ section with common questions"]
-    },
-    
-    "conversionOptimization": {
-      "rating": "Good/Fair/Poor",
-      "hasOnlineBooking": true/false,
-      "bookingType": "Instant Book/Request Form/Phone Only/None",
+      "bookingType": "Instant/Form/Phone/None",
       "bookingFriction": "Low/Medium/High",
-      "hasLivechat": true/false,
-      "hasPricing": true/false,
-      "hasPhoneClickable": true/false,
-      "issues": ["Phone-only booking loses busy customers", "No pricing = customer hesitation"],
-      "fixes": ["Add online booking widget", "Show starting prices to build trust"]
+      "hasPricing": false,
+      "hasClickablePhone": true,
+      "hasLiveChat": false,
+      "issues": ["Specific issues"],
+      "fixes": ["Specific fixes"]
     },
     
-    "trustSignals": {
+    "content": {
       "rating": "Good/Fair/Poor",
-      "hasReviews": true/false,
-      "reviewPlatforms": ["Google", "Yelp"],
-      "hasCredentials": true/false,
-      "hasCertifications": true/false,
-      "hasInsurance": true/false,
-      "issues": ["No visible reviews", "Credentials not highlighted"],
-      "fixes": ["Embed Google reviews on homepage", "Add certification badges"]
+      "hasBlog": true,
+      "blogFrequency": "Active/Stale/None",
+      "hasFaq": true,
+      "hasTestimonials": false,
+      "hasVideo": false,
+      "issues": ["Specific issues"],
+      "fixes": ["Specific fixes"]
     },
     
-    "competitiveEdge": {
-      "strengths": ["What they do better than competitors"],
-      "weaknesses": ["What competitors likely do better"],
-      "opportunities": ["Quick wins they can implement"],
-      "threats": ["Risks if they don't improve"]
+    "trust": {
+      "rating": "Good/Fair/Poor",
+      "hasReviews": false,
+      "reviewScore": "4.8/5",
+      "reviewCount": "150+",
+      "hasCredentialBadges": true,
+      "hasInsuranceMention": false,
+      "issues": ["Specific issues"],
+      "fixes": ["Specific fixes"]
     },
     
     "priorityActions": [
-      {"action": "Most important thing to fix", "impact": "High/Medium", "effort": "Easy/Medium/Hard", "why": "Explanation"},
-      {"action": "Second priority", "impact": "High/Medium", "effort": "Easy/Medium/Hard", "why": "Explanation"},
-      {"action": "Third priority", "impact": "High/Medium", "effort": "Easy/Medium/Hard", "why": "Explanation"}
+      {"action": "What to do", "impact": "High", "effort": "Easy", "why": "Reason"}
     ]
   }
 }
 
-CRITICAL FOR BUSINESS EXTRACTION:
-- VEHICLES: Extract EXACT names with capacities ("32 Pax Party Bus" not "Party Bus")
-- YEARS: Look for "over 25 years", "since 1998", "Est. 2005"
-- Search ALL pages (look for "========== PAGE:" markers)
-
-CRITICAL FOR SITE ANALYSIS:
-- Think like a LOCAL customer searching Google for this service
-- What would make them click? What would make them leave?
-- Be SPECIFIC with issues and fixes - no generic advice
-- Focus on what a LOCAL business needs to rank and convert`
+EXTRACTION RULES:
+1. Extract EVERY vehicle/service/city mentioned - don't summarize
+2. Look for exact model names: "Mercedes-S580" not "Mercedes"
+3. Look for exact capacities: "32 Pax" not "large"
+4. Extract full descriptions, not summaries
+5. Find ALL cities in "Locations Served" or similar pages
+6. Extract amenities (WiFi, champagne, TV screens, etc.)
+7. Find team/staff mentions (chauffeurs, drivers, staff)
+8. Extract any FAQ questions
+9. Find blog topics if blog exists
+10. Look for event types (Prom, Wedding, Quinceañera, NBA games, etc.)`
 
   try {
-    console.log('[AI] Starting comprehensive extraction, content length:', content.length)
+    console.log('[AI] Starting MAXIMUM extraction, content length:', content.length)
     
     const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Analyze this local business website for an SMB owner:\n\nURL: ${websiteUrl}\n\n${content.substring(0, 45000)}` }
+        { role: 'user', content: `Extract EVERYTHING from this website:\n\nURL: ${websiteUrl}\n\n${content.substring(0, 50000)}` }
       ],
-      temperature: 0.2,
-      max_tokens: 4000,
+      temperature: 0.1,
+      max_tokens: 6000, // Increased for comprehensive output
       response_format: { type: 'json_object' }
     })
 
@@ -430,124 +509,200 @@ CRITICAL FOR SITE ANALYSIS:
     console.log('[AI] GPT Response length:', rawResponse.length)
     
     const parsed = JSON.parse(rawResponse)
-    const biz = parsed.business || parsed // fallback for flat structure
+    const biz = parsed.business || parsed
     const analysis = parsed.siteAnalysis || {}
     
-    console.log('[AI] Extracted:', biz.businessName, '| Analysis grade:', analysis.overallGrade)
+    console.log('[AI] Extracted:', biz.businessName)
+    console.log('[AI] Fleet items:', biz.fleet?.length || 0)
+    console.log('[AI] Services:', biz.services?.length || 0)
+    console.log('[AI] Cities:', biz.serviceAreas?.cities?.length || 0)
     
-    // Map services
+    // Map services with FULL details
     const servicesArray = Array.isArray(biz.services) 
       ? biz.services.map((s: any) => ({
           name: typeof s === 'string' ? s : (s.name || ''),
           description: s.description || '',
-          idealFor: s.idealFor || ''
+          idealFor: s.idealFor || '',
+          priceRange: s.priceRange || '',
+          duration: s.duration || '',
+          includes: s.includes || [],
+          popularFor: s.popularFor || []
         }))
       : []
     
-    // Map vehicles to assets format
-    const assetsArray = Array.isArray(biz.vehicles)
-      ? biz.vehicles.map((v: any) => ({
-          name: typeof v === 'string' ? v : (v.name || v),
-          type: '',
-          description: '',
-          capacity: typeof v === 'string' && v.match(/\d+\s*Pax/i) ? v.match(/\d+\s*Pax/i)?.[0] || '' : '',
-          bestFor: []
+    // Map fleet with FULL details (vehicles, equipment, etc.)
+    const fleetArray = Array.isArray(biz.fleet)
+      ? biz.fleet.map((v: any) => ({
+          name: typeof v === 'string' ? v : (v.name || ''),
+          category: v.category || '',
+          capacity: v.capacity || '',
+          amenities: v.amenities || [],
+          bestFor: v.bestFor || []
         }))
       : []
     
-    // Map credentials
+    // Map credentials with FULL details
     const credentialsArray = Array.isArray(biz.credentials)
       ? biz.credentials.map((c: any) => ({
           name: typeof c === 'string' ? c : (c.name || c),
-          description: ''
+          type: c.type || '',
+          issuer: c.issuer || '',
+          year: c.year || ''
         }))
       : []
     
+    // Build the COMPLETE profile
     return {
+      // ===== BASIC INFO =====
       businessName: biz.businessName || '',
       tagline: biz.tagline || '',
       industry: biz.industry || '',
-      yearsInBusiness: biz.yearsInBusiness || '',
+      description: biz.description || '',
+      brandVoice: biz.brandVoice || '',
       
+      // ===== CONTACT =====
+      contact: {
+        phone: biz.contact?.phone || '',
+        tollFree: biz.contact?.tollFree || '',
+        email: biz.contact?.email || '',
+        address: biz.contact?.address || '',
+        city: biz.contact?.city || '',
+        state: biz.contact?.state || '',
+        zipCode: biz.contact?.zipCode || '',
+        country: biz.contact?.country || 'US'
+      },
+      
+      // Legacy location format for backwards compatibility
       location: {
-        address: biz.address || '',
-        city: biz.city || '',
-        state: biz.state || '',
-        zipCode: '',
-        country: 'US',
+        address: biz.contact?.address || '',
+        city: biz.contact?.city || '',
+        state: biz.contact?.state || '',
+        zipCode: biz.contact?.zipCode || '',
+        country: biz.contact?.country || 'US',
         neighborhood: ''
       },
       
       contactInfo: {
-        phone: biz.phone || '',
-        email: biz.email || '',
+        phone: biz.contact?.phone || '',
+        email: biz.contact?.email || '',
         website: websiteUrl
       },
       
+      // ===== HOURS =====
+      hours: biz.hours || {
+        regular: '',
+        weekends: '',
+        is24x7: false,
+        byAppointment: false,
+        holidayNote: ''
+      },
+      
+      // ===== HISTORY =====
+      history: {
+        yearsInBusiness: biz.history?.yearsInBusiness || '',
+        foundedYear: biz.history?.foundedYear || '',
+        founderName: biz.history?.founderName || '',
+        founderStory: biz.history?.founderStory || '',
+        milestones: biz.history?.milestones || []
+      },
+      yearsInBusiness: biz.history?.yearsInBusiness || '', // Legacy
+      
+      // ===== TEAM =====
+      team: {
+        ownerName: biz.team?.ownerName || '',
+        ownerTitle: biz.team?.ownerTitle || '',
+        ownerCredentials: biz.team?.ownerCredentials || '',
+        ownerBio: biz.team?.ownerBio || '',
+        teamSize: biz.team?.teamSize || '',
+        teamHighlights: biz.team?.teamHighlights || []
+      },
+      
+      // ===== SERVICES (Full detail) =====
       services: servicesArray,
-      assets: assetsArray,
+      
+      // ===== FLEET/ASSETS (Full detail) =====
+      fleet: fleetArray,
+      assets: fleetArray, // Legacy compatibility
+      
+      // ===== SERVICE AREAS =====
+      serviceAreas: {
+        primary: biz.serviceAreas?.primary || '',
+        cities: biz.serviceAreas?.cities || [],
+        regions: biz.serviceAreas?.regions || [],
+        airports: biz.serviceAreas?.airports || [],
+        landmarks: biz.serviceAreas?.landmarks || []
+      },
+      serviceArea: biz.serviceAreas?.primary || '', // Legacy
+      
+      // ===== CREDENTIALS =====
       credentials: credentialsArray,
       
-      serviceArea: biz.serviceArea || '',
+      // ===== POLICIES =====
+      policies: biz.policies || {
+        paymentMethods: [],
+        cancellation: '',
+        booking: '',
+        deposit: '',
+        insurance: '',
+        licensing: ''
+      },
+      
+      // ===== SOCIAL MEDIA =====
+      socialMedia: biz.socialMedia || {},
+      
+      // ===== SPECIALIZATIONS =====
+      specializations: {
+        eventTypes: biz.specializations?.eventTypes || [],
+        clientTypes: biz.specializations?.clientTypes || [],
+        uniqueOfferings: biz.specializations?.uniqueOfferings || []
+      },
+      
+      // ===== CONTENT =====
+      faqTopics: biz.faqTopics || [],
+      blogTopics: biz.blogTopics || [],
+      
+      // ===== UNIQUE VALUE =====
       uniqueValue: biz.uniqueValue || '',
       
-      // COMPREHENSIVE Website Analysis for SMB owners
+      // ===== WEBSITE ANALYSIS =====
       websiteAnalysis: {
-        // Overall
         grade: analysis.overallGrade || 'C',
         gradeExplain: analysis.gradeSummary || '',
+        pagesFound: analysis.pagesFound || [],
         
-        // User Experience
-        userExperience: analysis.userExperience || {
-          rating: 'Unknown',
-          mobileReady: false,
-          loadSpeed: 'Unknown',
-          navigation: 'Unknown',
-          ctaClarity: 'Unknown',
-          issues: [],
-          fixes: []
-        },
-        
-        // Local SEO (CRITICAL for SMBs)
         localSeo: analysis.localSeo || {
           rating: 'Unknown',
           napConsistent: false,
-          napExplain: '',
-          localKeywords: false,
-          localKeywordsExplain: '',
-          serviceAreaPages: false,
-          googleBusinessMention: false,
+          hasLocalKeywords: false,
+          hasServiceAreaPages: false,
+          hasGoogleBusiness: false,
           issues: [],
           fixes: []
         },
         
-        // Content Marketing
-        contentMarketing: analysis.contentMarketing || {
+        conversion: analysis.conversion || {
+          rating: 'Unknown',
+          bookingType: 'Unknown',
+          bookingFriction: 'Unknown',
+          hasPricing: false,
+          hasClickablePhone: false,
+          hasLiveChat: false,
+          issues: [],
+          fixes: []
+        },
+        
+        content: analysis.content || {
           rating: 'Unknown',
           hasBlog: false,
           blogFrequency: 'None',
-          hasTestimonials: false,
           hasFaq: false,
-          hasAboutStory: false,
+          hasTestimonials: false,
+          hasVideo: false,
           issues: [],
           fixes: []
         },
         
-        // Conversion Optimization
-        conversionOptimization: analysis.conversionOptimization || {
-          rating: 'Unknown',
-          hasOnlineBooking: false,
-          bookingType: 'Unknown',
-          bookingFriction: 'Unknown',
-          hasLivechat: false,
-          hasPricing: false,
-          hasPhoneClickable: false,
-          issues: [],
-          fixes: []
-        },
-        
-        // Trust Signals
-        trustSignals: analysis.trustSignals || {
+        trust: analysis.trust || {
           rating: 'Unknown',
           hasReviews: false,
           reviewPlatforms: [],
