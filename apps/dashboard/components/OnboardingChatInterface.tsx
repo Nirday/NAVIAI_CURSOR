@@ -53,8 +53,10 @@ interface BusinessProfileData {
   }
 }
 
+type WebsiteModel = 'brand_authority' | 'direct_response' | 'education_first' | 'hybrid_commerce' | 'community_pillar' | null
+
 interface OnboardingState {
-  phase: 'website_check' | 'discovery' | 'storefront' | 'menu' | 'locals' | 'counter' | 'proofread' | 'complete'
+  phase: 'website_check' | 'discovery' | 'storefront' | 'menu' | 'locals' | 'counter' | 'proofread' | 'website_models' | 'complete'
   subStep: string
   archetype: Archetype
   data: Partial<BusinessProfileData>
@@ -64,6 +66,8 @@ interface OnboardingState {
     suggestion?: string
   } | null
   fromWebsite: boolean
+  scrapedData?: any // Store full scraped data for model generation
+  selectedModel?: WebsiteModel
 }
 
 export default function OnboardingChatInterface({ userId, className = '' }: OnboardingChatInterfaceProps) {
@@ -338,9 +342,110 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       report += "**🚀 STATUS:** Your digital presence looks solid! Let's fine-tune your profile and get you set up.\n"
     }
     
-    report += "\n---\n\n*Does this look accurate? Let me know if anything needs correcting!*"
+    report += "\n---\n\n*Does this look accurate? Reply **\"looks good\"** to see website design options, or tell me what needs correcting.*"
     
     return report
+  }
+
+  // Generate the 5 Website Model Showcase
+  const generateWebsiteModelsShowcase = (scrapedData: any, businessData: Partial<BusinessProfileData>): string => {
+    const businessName = scrapedData?.businessName || businessData?.identity?.business_name || 'Your Business'
+    const city = scrapedData?.location?.city || businessData?.identity?.address_or_area?.split(',')[1]?.trim() || 'your area'
+    const industry = scrapedData?.industry || 'your industry'
+    const services = scrapedData?.services?.slice(0, 3).map((s: any) => typeof s === 'string' ? s : s.name) || businessData?.offering?.core_services?.slice(0, 3) || []
+    const ownerName = scrapedData?.ownerName || businessData?.credibility?.owner_name || 'you'
+    const killShot = scrapedData?.killShot || scrapedData?.uniqueSellingProposition || ''
+    const hasProducts = scrapedData?.productLines?.length > 0
+    const targetAudience = scrapedData?.targetAudience || businessData?.offering?.target_audience || 'your customers'
+    
+    let showcase = "## 🎨 DIGITAL HEADQUARTERS OPTIONS\n\n"
+    showcase += "*Based on my analysis of your business, I've architected 5 high-end website strategies. Each is designed to maximize a specific revenue outcome.*\n\n"
+    showcase += "---\n\n"
+    
+    // Model 1: Brand Authority
+    showcase += "### 1. 💎 THE \"BRAND AUTHORITY\" MODEL\n"
+    showcase += "*Premium Positioning - Justify Higher Fees*\n\n"
+    showcase += `**The Strategy:** This positions ${businessName} as the *most premium* option in ${city}. It uses psychology to justify higher fees and attract clients who value expertise over price.\n\n`
+    showcase += `**Best For:** ${killShot ? `Your "${killShot}" makes you a specialist. This site sells that expertise.` : `Businesses with unique credentials or years of experience that deserve premium pricing.`}\n\n`
+    showcase += "**👀 VISUAL SIMULATION:**\n"
+    showcase += `- **Hero:** Full-screen cinematic video of ${ownerName} at work, overlaid with elegant serif headline: *\"Excellence in ${industry}\"*\n`
+    showcase += "- **The Hook:** Minimal clutter. Single \"Request Concierge Appointment\" button (ghost style)\n"
+    showcase += `- **Key Feature:** A \"Philosophy\" section establishing ${ownerName} as a thought leader\n\n`
+    showcase += "---\n\n"
+    
+    // Model 2: Direct Response
+    showcase += "### 2. ⚡ THE \"DIRECT RESPONSE\" MODEL\n"
+    showcase += "*Lead Capture Machine - Fill Your Calendar*\n\n"
+    showcase += `**The Strategy:** A conversion machine designed to capture leads *now*. Assumes visitors are in need and want a solution instantly.\n\n`
+    showcase += `**Best For:** Capturing busy ${targetAudience} who don't have time to read bios - they want to book NOW.\n\n`
+    showcase += "**👀 VISUAL SIMULATION:**\n"
+    showcase += `- **Hero:** Split screen. Left: **\"${services[0] || 'Need Help'}? See Us Today.\"** Right: Sticky calendar widget\n`
+    showcase += "- **The Hook:** High-contrast CTA buttons, trust badges (5-stars, awards) above the fold\n"
+    showcase += "- **Key Feature:** AI Booking Bot integration - captures leads 24/7 without you lifting a finger\n\n"
+    showcase += "---\n\n"
+    
+    // Model 3: Education First
+    showcase += "### 3. 🎓 THE \"EDUCATION FIRST\" MODEL\n"
+    showcase += "*SEO Dominance - Own Google Rankings*\n\n"
+    showcase += `**The Strategy:** Plays the long game. Builds a content fortress around ${services.join(', ') || 'your services'} to dominate Google search results.\n\n`
+    showcase += `**Best For:** Complex services that require education to sell. Clients research before they buy.\n\n`
+    showcase += "**👀 VISUAL SIMULATION:**\n"
+    showcase += `- **Hero:** Warm, inviting photo of your space. Headline: **\"Understanding ${industry}\"**\n`
+    showcase += "- **The Hook:** Primary CTA is \"Take the Free Assessment\" (lead magnet) instead of \"Book Now\"\n"
+    showcase += `- **Key Feature:** \"Knowledge Hub\" on homepage with AI-generated articles about ${services[0] || 'your expertise'}\n\n`
+    showcase += "---\n\n"
+    
+    // Model 4: Hybrid Commerce
+    showcase += "### 4. 🛒 THE \"HYBRID COMMERCE\" MODEL\n"
+    showcase += "*Service + Product Sales - Diversify Revenue*\n\n"
+    showcase += `**The Strategy:** Treats ${businessName} as both a service provider AND a store. Sell your time AND your products.\n\n`
+    showcase += `**Best For:** ${hasProducts ? 'Perfect for you - I detected product lines you can sell online.' : 'Businesses that could add product sales (supplements, merchandise, equipment).'}\n\n`
+    showcase += "**👀 VISUAL SIMULATION:**\n"
+    showcase += `- **Hero:** Sleek Shopify-style grid. Block 1: \"Book ${services[0] || 'Service'}.\" Block 2: \"Shop Products.\"\n`
+    showcase += "- **The Hook:** Frictionless checkout with \"Add to Cart\" buttons next to services\n"
+    showcase += `- **Key Feature:** \"${ownerName}'s Picks\" carousel driving passive income while you sleep\n\n`
+    showcase += "---\n\n"
+    
+    // Model 5: Community Pillar
+    showcase += "### 5. 🏘️ THE \"COMMUNITY PILLAR\" MODEL\n"
+    showcase += "*Referral Engine - Word of Mouth on Steroids*\n\n"
+    showcase += `**The Strategy:** Creates a digital living room. Focuses on social proof, events, and community trust to drive referrals.\n\n`
+    showcase += `**Best For:** Your focus on ${targetAudience} in ${city} relies on word-of-mouth. This amplifies it.\n\n`
+    showcase += "**👀 VISUAL SIMULATION:**\n"
+    showcase += `- **Hero:** High-res collage of happy customers/results. Headline: **\"${city}'s Favorite ${industry} Team\"**\n`
+    showcase += "- **The Hook:** Live Instagram feed integration showing daily results\n"
+    showcase += "- **Key Feature:** \"Events & Workshops\" calendar for open houses and community building\n\n"
+    showcase += "---\n\n"
+    
+    // Strategic Recommendation
+    showcase += "## 🎯 MY RECOMMENDATION\n\n"
+    
+    // Determine best fit based on data
+    let recommendedModel = 2 // Default to Direct Response
+    let reason = ""
+    
+    if (scrapedData?.bookingFriction === 'High' || !scrapedData?.hasOnlineBooking) {
+      recommendedModel = 2
+      reason = "your current booking friction is HIGH - you need a lead capture machine"
+    } else if (killShot || scrapedData?.credentials?.length > 2) {
+      recommendedModel = 1
+      reason = "your credentials and expertise deserve premium positioning"
+    } else if (!scrapedData?.hasBlog && scrapedData?.services?.length > 3) {
+      recommendedModel = 3
+      reason = "your complex service offerings would benefit from educational content"
+    } else if (hasProducts) {
+      recommendedModel = 4
+      reason = "you have products to sell alongside your services"
+    } else if (targetAudience.toLowerCase().includes('famil') || targetAudience.toLowerCase().includes('local')) {
+      recommendedModel = 5
+      reason = "your local community focus makes referrals your best growth channel"
+    }
+    
+    showcase += `Based on my analysis of ${businessName}, I strongly recommend **Option ${recommendedModel}** because ${reason}.\n\n`
+    showcase += "*However, the choice is yours. Which revenue engine shall we build?*\n\n"
+    showcase += "**Reply with a number (1-5) to select your website model.**"
+    
+    return showcase
   }
 
   // Format proofread summary (for manual entry)
@@ -604,14 +709,15 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
               }
             }
             
-            // Jump straight to Phase 3: Review
+            // Jump straight to Phase 3: Review - store scrapedData for model generation
             setOnboardingState({
               phase: 'proofread',
               subStep: 'review',
               archetype: updatedData.archetype as Archetype,
               data: updatedData,
               needsVerification: null,
-              fromWebsite: true
+              fromWebsite: true,
+              scrapedData: scrapedData // Store for later use
             })
             
             // Show the FULL Deep Dive Calibration Report
@@ -1723,7 +1829,28 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
                            lowerMessage.includes('sounds good') || lowerMessage === 'ok' || lowerMessage === 'okay'
         
         if (isConfirmed) {
-          // User confirmed - continue to Menu phase
+          // If from website scraping, show the 5 website models
+          if (onboardingState.fromWebsite && onboardingState.scrapedData) {
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'website_models',
+              subStep: 'select_model'
+            })
+            
+            // Generate and show the 5 website models
+            const modelsShowcase = generateWebsiteModelsShowcase(onboardingState.scrapedData, data)
+            const modelsMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: modelsShowcase,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, modelsMsg])
+            setIsLoading(false)
+            return
+          }
+          
+          // Manual entry flow - continue to Menu phase
           setOnboardingState({
             ...onboardingState,
             phase: 'menu',
@@ -1752,6 +1879,81 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
         setIsLoading(false)
         return
+      }
+      
+      // Website Models Selection Phase
+      if (phase === 'website_models' && subStep === 'select_model') {
+        // Check for model selection (1-5)
+        const modelMatch = userMessage.match(/^[1-5]$/) || userMessage.match(/option\s*([1-5])/i) || userMessage.match(/model\s*([1-5])/i)
+        
+        if (modelMatch) {
+          const modelNumber = parseInt(modelMatch[1] || modelMatch[0])
+          const modelNames: { [key: number]: WebsiteModel } = {
+            1: 'brand_authority',
+            2: 'direct_response',
+            3: 'education_first',
+            4: 'hybrid_commerce',
+            5: 'community_pillar'
+          }
+          const modelLabels: { [key: number]: string } = {
+            1: '💎 Brand Authority',
+            2: '⚡ Direct Response',
+            3: '🎓 Education First',
+            4: '🛒 Hybrid Commerce',
+            5: '🏘️ Community Pillar'
+          }
+          
+          const selectedModel = modelNames[modelNumber]
+          
+          // Save the profile with selected model
+          try {
+            await saveProfile(data as BusinessProfileData)
+            
+            setOnboardingState({
+              ...onboardingState,
+              phase: 'complete',
+              subStep: 'done',
+              selectedModel: selectedModel
+            })
+            
+            setIsComplete(true)
+            
+            const completeMsg: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: `**Excellent choice!** You selected the **${modelLabels[modelNumber]}** model.\n\n🚀 I'm now generating your custom website based on this strategy and your business profile...\n\n*Head to the **Website** tab in the sidebar to see your new site and make any adjustments!*`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, completeMsg])
+            
+            // Redirect to website builder after a moment
+            setTimeout(() => {
+              router.push('/dashboard/website')
+            }, 2000)
+            
+          } catch (error: any) {
+            const errorMsg: Message = {
+              id: `error_${Date.now()}`,
+              role: 'assistant',
+              content: `Oops, hit a snag: ${error?.message || 'Failed to save profile'}. Let me try that again.`,
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, errorMsg])
+          }
+          setIsLoading(false)
+          return
+        } else {
+          // Invalid selection
+          const retryMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Please reply with a number **1-5** to select your website model:\n\n1 = 💎 Brand Authority\n2 = ⚡ Direct Response\n3 = 🎓 Education First\n4 = 🛒 Hybrid Commerce\n5 = 🏘️ Community Pillar",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, retryMsg])
+          setIsLoading(false)
+          return
+        }
       }
       
       // Final Proofread (after all phases)
