@@ -300,103 +300,44 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
 }
 
 /**
- * SIMPLE DIRECT EXTRACTION - No complex nesting, flat JSON structure
+ * SIMPLE FLAT EXTRACTION - Uses the exact prompt proven to work in debug endpoint
  */
 async function extractProfileWithAI(content: string, websiteUrl: string) {
-  // Comprehensive extraction with SEPARATE profile and analysis
-  const SYSTEM_PROMPT = `You are a business intelligence analyst extracting information from a website.
+  const SYSTEM_PROMPT = `Extract business information from this multi-page website content.
 
-Return JSON with TWO separate sections: "profile" (business facts) and "analysis" (website assessment).
+Return a FLAT JSON object with these fields:
 
 {
-  "profile": {
-    "businessName": "Exact company name",
-    "tagline": "Their slogan/motto",
-    "industry": "Specific industry (Limousine Service, Chiropractic, Restaurant)",
-    "phone": "Phone number",
-    "email": "Email address", 
-    "city": "City",
-    "state": "State abbreviation",
-    "address": "Street address",
-    "yearsInBusiness": "e.g. 25 years, Est. 2010",
-    "ownerName": "Owner/founder name if mentioned",
-    
-    "services": [
-      {
-        "name": "Service Name",
-        "description": "What this service offers in plain English",
-        "idealFor": "Who should use this (e.g. 'Business travelers', 'Wedding parties')",
-        "priceRange": "Price if mentioned"
-      }
-    ],
-    
-    "assets": [
-      {
-        "name": "EXACT model name (e.g. 'Mercedes-S580', '32 Pax Party Bus', 'Cadillac Escalade')",
-        "type": "Category (Sedan, SUV, Van, Bus, Motorcoach, Limo, Equipment)",
-        "description": "What makes this specific model special",
-        "capacity": "Exact passenger count if listed (e.g. '6 passengers', '32 Pax')",
-        "bestFor": ["Service 1 this is ideal for", "Service 2"]
-      }
-    ],
-    
-    IMPORTANT FOR ASSETS: Extract EVERY specific vehicle/equipment model mentioned.
-    Look for pages like /fleet, /fleet-standard, /vehicles, /equipment.
-    Include exact names like "Mercedes-S580", "Tesla Model Y", "56 Pax Motorcoach".
-    Include passenger capacities like "32 Pax", "6 passengers".
-    
-    "credentials": [
-      {
-        "name": "Certification or Award name",
-        "description": "What this means for customers"
-      }
-    ],
-    
-    "serviceArea": "Geographic coverage",
-    "uniqueValue": "The ONE thing that makes them special (their 'kill shot')"
-  },
-  
-  "analysis": {
-    "websiteGrade": "A/B/C/D/F",
-    "websiteGradeExplain": "Plain English: 'Your website looks professional and loads fast' or 'Your website looks outdated and may be losing customers'",
-    
-    "onlineBooking": true/false,
-    "onlineBookingExplain": "Plain English: 'Customers can book online instantly' or 'Customers must call to book - you may be losing busy customers who prefer clicking over calling'",
-    
-    "hasBlog": true/false,
-    "blogExplain": "Plain English: 'You have a blog helping you show up on Google' or 'No blog found - you're missing free traffic from people searching for your services'",
-    
-    "socialPresence": "Strong/Weak/None",
-    "socialExplain": "Plain English explanation of their social media situation",
-    
-    "bookingFriction": "Low/Medium/High",
-    "bookingFrictionExplain": "Plain English: 'It's easy for customers to hire you' or 'Too many steps to book - customers might give up'",
-    
-    "topStrength": "Their biggest advantage in plain English",
-    "topWeakness": "Their biggest gap/opportunity in plain English",
-    "recommendedAction": "One clear next step they should take"
-  }
+  "businessName": "Company name",
+  "tagline": "Slogan if any",
+  "industry": "e.g. Limousine Service, Chiropractic, Restaurant",
+  "phone": "Phone number",
+  "email": "Email address",
+  "city": "City",
+  "state": "State",
+  "yearsInBusiness": "e.g. 'over 25 years' or 'Since 1998'",
+  "serviceArea": "Geographic coverage",
+  "services": [
+    {"name": "Service Name", "description": "What it offers", "idealFor": "Target audience"}
+  ],
+  "vehicles": ["Mercedes-S580", "32 Pax Party Bus", "Tesla Model Y", "56 Pax Motorcoach"],
+  "credentials": ["NFL Official Supplier", "Award Name"],
+  "uniqueValue": "Their main differentiator",
+  "hasOnlineBooking": true,
+  "hasBlog": false
 }
 
 CRITICAL INSTRUCTIONS:
-- The content includes MULTIPLE PAGES from the website (look for "========== PAGE:" markers)
-- SEARCH ALL PAGES for fleet/vehicle/equipment details - especially pages marked /fleet or /fleet-standard
+1. For VEHICLES: Extract EXACT model names with capacities
+   - "Mercedes-S580" not "Mercedes"
+   - "32 Pax Party Bus" not "Party Bus"
+   - "56 Pax Motorcoach" not "Motorcoach"
+   
+2. For YEARS IN BUSINESS: Look for phrases like "over 25 years", "since 1998"
 
-FOR ASSETS/FLEET - Extract EXACT model names you find:
-- "Mercedes-S580" not just "Mercedes"
-- "32 Pax Party Bus" not just "Party Bus"  
-- "Tesla Model Y" not just "Tesla"
-- "16 PAX Hummer Limo" not just "Hummer"
-- Include the EXACT passenger capacity (32 Pax, 6 passengers, etc.)
+3. Search ALL pages - look for "========== PAGE:" markers
 
-FOR EXPERIENCE - Look for phrases like:
-- "over 25 years" → yearsInBusiness: "25+ years"
-- "Est. 1998" → yearsInBusiness: "Since 1998"
-- "serving since 2005" → yearsInBusiness: "Since 2005"
-
-FOR SERVICES - Don't say "Not mentioned" for price, just omit priceRange if not found
-
-Make the analysis UNDERSTANDABLE to a non-technical business owner.`
+4. Keep structure FLAT - no nested objects`
 
   try {
     console.log('[AI] Starting extraction, content length:', content.length)
@@ -405,114 +346,91 @@ Make the analysis UNDERSTANDABLE to a non-technical business owner.`
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Extract business info from this website:\n\nURL: ${websiteUrl}\n\nCONTENT:\n${content.substring(0, 15000)}` }
+        { role: 'user', content: `Extract business info:\n\nURL: ${websiteUrl}\n\n${content.substring(0, 40000)}` }
       ],
       temperature: 0.1,
-      max_tokens: 2000,
+      max_tokens: 3000,
       response_format: { type: 'json_object' }
     })
 
     const rawResponse = completion.choices[0]?.message?.content || '{}'
-    console.log('[AI] GPT Response:', rawResponse)
+    console.log('[AI] GPT Response:', rawResponse.substring(0, 500))
     
     const parsed = JSON.parse(rawResponse)
-    const profile = parsed.profile || parsed // fallback if not nested
-    const analysis = parsed.analysis || {}
     
-    console.log('[AI] Extracted businessName:', profile.businessName)
-    console.log('[AI] Extracted services:', profile.services?.length || 0)
-    console.log('[AI] Analysis grade:', analysis.websiteGrade)
+    console.log('[AI] Extracted:', parsed.businessName, '| Vehicles:', parsed.vehicles?.length || 0)
     
-    // Map services with full details
-    const servicesArray = Array.isArray(profile.services) 
-      ? profile.services.map((s: any) => {
-          if (typeof s === 'string') return { name: s, description: '', idealFor: '', priceRange: '' }
-          return { 
-            name: s.name || s, 
-            description: s.description || '',
-            idealFor: s.idealFor || '',
-            priceRange: s.priceRange || s.price || ''
-          }
-        })
+    // Map services
+    const servicesArray = Array.isArray(parsed.services) 
+      ? parsed.services.map((s: any) => ({
+          name: typeof s === 'string' ? s : (s.name || ''),
+          description: s.description || '',
+          idealFor: s.idealFor || ''
+        }))
       : []
     
-    // Map assets with full details (vehicles, equipment, etc.)
-    const assetsArray = Array.isArray(profile.assets) 
-      ? profile.assets.map((a: any) => {
-          if (typeof a === 'string') return { name: a, type: '', description: '', capacity: '', bestFor: [] }
-          return { 
-            name: a.name || a, 
-            type: a.type || '',
-            description: a.description || '',
-            capacity: a.capacity || '',
-            bestFor: Array.isArray(a.bestFor) ? a.bestFor : []
-          }
-        })
+    // Map vehicles to assets format
+    const assetsArray = Array.isArray(parsed.vehicles)
+      ? parsed.vehicles.map((v: any) => ({
+          name: typeof v === 'string' ? v : (v.name || v),
+          type: '',
+          description: '',
+          capacity: typeof v === 'string' && v.match(/\d+\s*Pax/i) ? v.match(/\d+\s*Pax/i)?.[0] || '' : '',
+          bestFor: []
+        }))
       : []
     
-    // Map credentials with explanations
-    const credentialsArray = Array.isArray(profile.credentials)
-      ? profile.credentials.map((c: any) => {
-          if (typeof c === 'string') return { name: c, description: '' }
-          return { name: c.name || c, description: c.description || '' }
-        })
+    // Map credentials
+    const credentialsArray = Array.isArray(parsed.credentials)
+      ? parsed.credentials.map((c: any) => ({
+          name: typeof c === 'string' ? c : (c.name || c),
+          description: ''
+        }))
       : []
     
     return {
-      // ============ BUSINESS PROFILE (for use by all components) ============
-      businessName: profile.businessName || '',
-      tagline: profile.tagline || '',
-      industry: profile.industry || '',
-      ownerName: profile.ownerName || '',
-      yearsInBusiness: profile.yearsInBusiness || '',
+      businessName: parsed.businessName || '',
+      tagline: parsed.tagline || '',
+      industry: parsed.industry || '',
+      yearsInBusiness: parsed.yearsInBusiness || '',
       
       location: {
-        address: profile.address || '',
-        city: profile.city || '',
-        state: profile.state || '',
+        address: parsed.address || '',
+        city: parsed.city || '',
+        state: parsed.state || '',
         zipCode: '',
         country: 'US',
         neighborhood: ''
       },
       
       contactInfo: {
-        phone: profile.phone || '',
-        email: profile.email || '',
+        phone: parsed.phone || '',
+        email: parsed.email || '',
         website: websiteUrl
       },
       
-      // Detailed services with who they're for
       services: servicesArray,
-      
-      // Detailed assets (vehicles, equipment) with capacity and best uses
       assets: assetsArray,
-      
-      // Credentials with plain-English explanations
       credentials: credentialsArray,
       
-      serviceArea: profile.serviceArea || '',
-      uniqueValue: profile.uniqueValue || '',
+      serviceArea: parsed.serviceArea || '',
+      uniqueValue: parsed.uniqueValue || '',
       
-      // ============ WEBSITE ANALYSIS (stored separately) ============
+      // Simple website analysis from flat extraction
       websiteAnalysis: {
-        grade: analysis.websiteGrade || 'C',
-        gradeExplain: analysis.websiteGradeExplain || '',
-        
-        onlineBooking: analysis.onlineBooking === true,
-        onlineBookingExplain: analysis.onlineBookingExplain || '',
-        
-        hasBlog: analysis.hasBlog === true,
-        blogExplain: analysis.blogExplain || '',
-        
-        socialPresence: analysis.socialPresence || 'Unknown',
-        socialExplain: analysis.socialExplain || '',
-        
-        bookingFriction: analysis.bookingFriction || 'Unknown',
-        bookingFrictionExplain: analysis.bookingFrictionExplain || '',
-        
-        topStrength: analysis.topStrength || '',
-        topWeakness: analysis.topWeakness || '',
-        recommendedAction: analysis.recommendedAction || ''
+        grade: 'C',
+        gradeExplain: '',
+        onlineBooking: parsed.hasOnlineBooking === true,
+        onlineBookingExplain: parsed.hasOnlineBooking ? 'Customers can book online' : 'Customers must call to book',
+        hasBlog: parsed.hasBlog === true,
+        blogExplain: parsed.hasBlog ? 'Active blog found' : 'No blog found',
+        socialPresence: 'Unknown',
+        socialExplain: '',
+        bookingFriction: parsed.hasOnlineBooking ? 'Low' : 'High',
+        bookingFrictionExplain: parsed.hasOnlineBooking ? 'Easy to book online' : 'Phone-only booking',
+        topStrength: parsed.uniqueValue || '',
+        topWeakness: parsed.hasOnlineBooking ? '' : 'No online booking',
+        recommendedAction: ''
       },
       
       // Meta
