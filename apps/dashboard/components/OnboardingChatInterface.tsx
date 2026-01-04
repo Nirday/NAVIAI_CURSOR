@@ -235,105 +235,98 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     return { isValid: true }
   }
 
-  // Format Calibration Report - PSYCHOLOGY-FIRST approach
-  // Lead with validation, make them feel understood, then opportunities
+  // Format Calibration Report - Professional, direct, peer-to-peer tone
   const formatCalibrationReport = (scrapedData: any): string => {
     const analysis = scrapedData.websiteAnalysis || {}
     const businessName = scrapedData.businessName || 'Your Business'
-    const industry = scrapedData.industry || 'your industry'
     
-    let report = ""
+    let report = `## ${businessName}\n\n`
     
-    // ============ OPENING: VALIDATION & EXCITEMENT ============
-    report += `## ✨ I Found Something Special\n\n`
-    
-    // Personalized opening that validates their business
-    if (scrapedData.uniqueValue || scrapedData.yearsInBusiness) {
-      report += `**${businessName}** isn't just another ${industry} — `
-      if (scrapedData.uniqueValue) {
-        report += `you're ${scrapedData.uniqueValue.toLowerCase()}. `
-      }
-      if (scrapedData.yearsInBusiness) {
-        report += `With **${scrapedData.yearsInBusiness}** of experience, you've built something most competitors only dream of.`
-      }
-      report += "\n\n"
-    } else {
-      report += `I can already tell **${businessName}** is the real deal. Let me show you what I learned about your business.\n\n`
-    }
-    
-    // ============ THE GOOD STUFF: What They Should Be Proud Of ============
-    report += "### 🌟 What You're Doing Right\n\n"
-    
-    // Credentials/Awards - lead with their achievements
-    if (scrapedData.credentials && scrapedData.credentials.length > 0) {
-      scrapedData.credentials.slice(0, 3).forEach((c: any) => {
-        const name = typeof c === 'string' ? c : c.name
-        const desc = c.description ? ` — ${c.description}` : ''
-        report += `✅ **${name}**${desc}\n`
-      })
-      report += "\n"
-    }
-    
-    // Highlight their services (what they do well)
-    if (scrapedData.services && scrapedData.services.length > 0) {
-      report += `You offer **${scrapedData.services.length} specialized services** that your customers love:\n\n`
-      scrapedData.services.slice(0, 5).forEach((s: any) => {
-        const name = typeof s === 'string' ? s : s.name
-        const idealFor = s.idealFor ? ` → *Perfect for ${s.idealFor}*` : ''
-        report += `• **${name}**${idealFor}\n`
-      })
-      report += "\n"
-    }
-    
-    // Assets/Fleet - show off their equipment
-    if (scrapedData.assets && scrapedData.assets.length > 0) {
-      report += `### 🚀 Your Impressive Fleet\n\n`
-      report += `You've invested in quality — and it shows:\n\n`
-      scrapedData.assets.slice(0, 5).forEach((a: any) => {
-        const name = typeof a === 'string' ? a : a.name
-        const capacity = a.capacity ? ` (${a.capacity})` : ''
-        const bestFor = a.bestFor?.length ? ` — ideal for ${a.bestFor[0]}` : ''
-        report += `• **${name}**${capacity}${bestFor}\n`
-      })
-      report += "\n"
-    }
-    
-    // ============ QUICK FACTS ============
-    report += "### 📋 Quick Facts\n\n"
-    
+    // ============ CORE BUSINESS INFO ============
     const location = [scrapedData.location?.city, scrapedData.location?.state].filter(Boolean).join(', ')
-    if (location) report += `📍 **Based in:** ${location}\n`
-    if (scrapedData.serviceArea) report += `🗺️ **Serving:** ${scrapedData.serviceArea}\n`
-    if (scrapedData.contactInfo?.phone) report += `📞 **Phone:** ${scrapedData.contactInfo.phone}\n`
-    if (scrapedData.contactInfo?.email) report += `✉️ **Email:** ${scrapedData.contactInfo.email}\n`
-    if (scrapedData.yearsInBusiness) report += `⏰ **Experience:** ${scrapedData.yearsInBusiness}\n`
+    
+    // One-liner summary
+    let summary = scrapedData.industry || ''
+    if (location) summary += summary ? ` • ${location}` : location
+    if (scrapedData.yearsInBusiness) summary += ` • ${scrapedData.yearsInBusiness}`
+    if (summary) report += `${summary}\n\n`
+    
+    // Contact
+    if (scrapedData.contactInfo?.phone || scrapedData.contactInfo?.email) {
+      report += `📞 ${scrapedData.contactInfo?.phone || ''}`
+      if (scrapedData.contactInfo?.email) report += ` • ${scrapedData.contactInfo.email}`
+      report += "\n"
+    }
+    if (scrapedData.serviceArea) report += `📍 Serves: ${scrapedData.serviceArea}\n`
     report += "\n"
     
-    // ============ OPPORTUNITIES (Not Problems!) ============
-    report += "---\n\n### 💡 Quick Wins I Spotted\n\n"
-    report += "*These aren't problems — they're opportunities to get even more customers:*\n\n"
-    
-    // Frame everything positively
-    if (!analysis.onlineBooking) {
-      report += `**📱 Easy Win: Online Booking**\n`
-      report += `Right now, customers have to call to book. Adding online scheduling could capture those late-night browsers who'd rather click than call. *I can set this up for you.*\n\n`
+    // ============ SERVICES ============
+    if (scrapedData.services && scrapedData.services.length > 0) {
+      report += "### Services\n\n"
+      scrapedData.services.slice(0, 6).forEach((s: any) => {
+        const name = typeof s === 'string' ? s : s.name
+        const desc = s.description ? ` — ${s.description}` : ''
+        const audience = s.idealFor ? ` *(${s.idealFor})*` : ''
+        report += `• **${name}**${desc}${audience}\n`
+      })
+      report += "\n"
     }
     
-    if (!analysis.hasBlog) {
-      report += `**📝 Easy Win: Get Found on Google**\n`
-      report += `People are searching for "${industry}" every day — but without content, Google can't send them to you. *I can write articles that bring free traffic.*\n\n`
+    // ============ FLEET/EQUIPMENT ============
+    if (scrapedData.assets && scrapedData.assets.length > 0) {
+      report += "### Fleet & Equipment\n\n"
+      scrapedData.assets.slice(0, 6).forEach((a: any) => {
+        const name = typeof a === 'string' ? a : a.name
+        const capacity = a.capacity ? ` — ${a.capacity}` : ''
+        const type = a.type ? ` (${a.type})` : ''
+        report += `• **${name}**${type}${capacity}\n`
+      })
+      report += "\n"
     }
     
+    // ============ CREDENTIALS ============
+    if (scrapedData.credentials && scrapedData.credentials.length > 0) {
+      report += "### Credentials\n\n"
+      scrapedData.credentials.slice(0, 4).forEach((c: any) => {
+        const name = typeof c === 'string' ? c : c.name
+        report += `• ${name}\n`
+      })
+      report += "\n"
+    }
+    
+    // Key differentiator
+    if (scrapedData.uniqueValue) {
+      report += `**Key Differentiator:** ${scrapedData.uniqueValue}\n\n`
+    }
+    
+    // ============ WEBSITE ASSESSMENT ============
+    report += "---\n\n### Website Assessment\n\n"
+    
+    // Online Booking
+    if (analysis.onlineBooking) {
+      report += `✓ **Online booking available**\n`
+    } else {
+      report += `✗ **No online booking** — customers must call. Worth adding.\n`
+    }
+    
+    // Blog
+    if (analysis.hasBlog) {
+      report += `✓ **Blog active** — helps with Google visibility\n`
+    } else {
+      report += `✗ **No blog** — missing organic search traffic\n`
+    }
+    
+    // Overall
     if (analysis.topStrength) {
-      report += `**Your Secret Weapon:** ${analysis.topStrength}\n\n`
+      report += `\n**Strength:** ${analysis.topStrength}\n`
+    }
+    if (analysis.topWeakness) {
+      report += `**Opportunity:** ${analysis.topWeakness}\n`
     }
     
-    // ============ CLOSING: EXCITEMENT ABOUT NEXT STEPS ============
-    report += "---\n\n### 🎯 What's Next?\n\n"
-    report += `I've got everything I need to help **${businessName}** stand out online. `
-    report += "I can build you a website that shows off what makes you special, write content that brings in new customers, and set up systems that save you time.\n\n"
-    report += "**Ready to see what I can create for you?**\n\n"
-    report += `*Reply **"looks good"** to see your custom website designs, or tell me if anything needs correcting.*`
+    // ============ NEXT STEP ============
+    report += "\n---\n\n"
+    report += "*Does this look accurate? Say **\"looks good\"** to continue, or let me know what to fix.*"
     
     return report
   }
