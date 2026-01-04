@@ -235,135 +235,105 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
     return { isValid: true }
   }
 
-  // Format Calibration Report with LAYMAN-FRIENDLY language
+  // Format Calibration Report - PSYCHOLOGY-FIRST approach
+  // Lead with validation, make them feel understood, then opportunities
   const formatCalibrationReport = (scrapedData: any): string => {
     const analysis = scrapedData.websiteAnalysis || {}
+    const businessName = scrapedData.businessName || 'Your Business'
+    const industry = scrapedData.industry || 'your industry'
     
-    let report = "## 🟢 YOUR BUSINESS SNAPSHOT\n\n"
+    let report = ""
     
-    // ============ PART 1: YOUR BUSINESS PROFILE ============
-    report += "### 🏢 About Your Business\n"
-    report += `• **Business Name:** ${scrapedData.businessName || 'Not found'}\n`
-    if (scrapedData.tagline) report += `• **Your Motto:** "${scrapedData.tagline}"\n`
-    report += `• **What You Do:** ${scrapedData.industry || 'Not specified'}\n`
+    // ============ OPENING: VALIDATION & EXCITEMENT ============
+    report += `## ✨ I Found Something Special\n\n`
     
-    const location = [scrapedData.location?.city, scrapedData.location?.state].filter(Boolean).join(', ')
-    if (location) report += `• **Location:** ${location}\n`
+    // Personalized opening that validates their business
+    if (scrapedData.uniqueValue || scrapedData.yearsInBusiness) {
+      report += `**${businessName}** isn't just another ${industry} — `
+      if (scrapedData.uniqueValue) {
+        report += `you're ${scrapedData.uniqueValue.toLowerCase()}. `
+      }
+      if (scrapedData.yearsInBusiness) {
+        report += `With **${scrapedData.yearsInBusiness}** of experience, you've built something most competitors only dream of.`
+      }
+      report += "\n\n"
+    } else {
+      report += `I can already tell **${businessName}** is the real deal. Let me show you what I learned about your business.\n\n`
+    }
     
-    if (scrapedData.contactInfo?.phone || scrapedData.contactInfo?.email) {
-      report += `• **Contact:** ${scrapedData.contactInfo?.phone || ''}`
-      if (scrapedData.contactInfo?.email) report += ` | ${scrapedData.contactInfo.email}`
+    // ============ THE GOOD STUFF: What They Should Be Proud Of ============
+    report += "### 🌟 What You're Doing Right\n\n"
+    
+    // Credentials/Awards - lead with their achievements
+    if (scrapedData.credentials && scrapedData.credentials.length > 0) {
+      scrapedData.credentials.slice(0, 3).forEach((c: any) => {
+        const name = typeof c === 'string' ? c : c.name
+        const desc = c.description ? ` — ${c.description}` : ''
+        report += `✅ **${name}**${desc}\n`
+      })
       report += "\n"
     }
-    if (scrapedData.yearsInBusiness) report += `• **Experience:** ${scrapedData.yearsInBusiness}\n`
-    if (scrapedData.serviceArea) report += `• **You Serve:** ${scrapedData.serviceArea}\n`
     
-    // ============ SERVICES WITH DETAILS ============
-    report += "\n### 🛠️ What You Offer\n"
+    // Highlight their services (what they do well)
     if (scrapedData.services && scrapedData.services.length > 0) {
-      scrapedData.services.slice(0, 8).forEach((s: any) => {
+      report += `You offer **${scrapedData.services.length} specialized services** that your customers love:\n\n`
+      scrapedData.services.slice(0, 5).forEach((s: any) => {
         const name = typeof s === 'string' ? s : s.name
-        const desc = s.description ? `\n    *${s.description}*` : ''
-        const idealFor = s.idealFor ? `\n    👥 Best for: ${s.idealFor}` : ''
-        // Only show price if it's a real value, not "Not mentioned" or empty
-        const hasPrice = s.priceRange && s.priceRange !== 'Not mentioned' && s.priceRange !== 'Not specified'
-        const price = hasPrice ? ` — ${s.priceRange}` : ''
-        report += `• **${name}**${price}${desc}${idealFor}\n`
+        const idealFor = s.idealFor ? ` → *Perfect for ${s.idealFor}*` : ''
+        report += `• **${name}**${idealFor}\n`
       })
-    } else {
-      report += "• *No services detected - we'll add these together*\n"
+      report += "\n"
     }
     
-    // ============ ASSETS/FLEET WITH DETAILS ============
+    // Assets/Fleet - show off their equipment
     if (scrapedData.assets && scrapedData.assets.length > 0) {
-      report += "\n### 🚗 Your Fleet & Equipment\n"
-      scrapedData.assets.slice(0, 6).forEach((a: any) => {
+      report += `### 🚀 Your Impressive Fleet\n\n`
+      report += `You've invested in quality — and it shows:\n\n`
+      scrapedData.assets.slice(0, 5).forEach((a: any) => {
         const name = typeof a === 'string' ? a : a.name
-        const type = a.type ? ` (${a.type})` : ''
-        const desc = a.description ? `\n    *${a.description}*` : ''
-        const capacity = a.capacity ? `\n    👥 Capacity: ${a.capacity}` : ''
-        const bestFor = a.bestFor?.length ? `\n    ✨ Perfect for: ${a.bestFor.join(', ')}` : ''
-        report += `• **${name}**${type}${desc}${capacity}${bestFor}\n`
+        const capacity = a.capacity ? ` (${a.capacity})` : ''
+        const bestFor = a.bestFor?.length ? ` — ideal for ${a.bestFor[0]}` : ''
+        report += `• **${name}**${capacity}${bestFor}\n`
       })
+      report += "\n"
     }
     
-    // ============ CREDENTIALS ============
-    if (scrapedData.credentials && scrapedData.credentials.length > 0) {
-      report += "\n### 🏆 What Sets You Apart\n"
-      scrapedData.credentials.slice(0, 5).forEach((c: any) => {
-        const name = typeof c === 'string' ? c : c.name
-        const desc = c.description ? `\n    *${c.description}*` : ''
-        report += `• **${name}**${desc}\n`
-      })
-    }
-    if (scrapedData.uniqueValue) {
-      report += `\n💎 **Your Biggest Advantage:** ${scrapedData.uniqueValue}\n`
-    }
+    // ============ QUICK FACTS ============
+    report += "### 📋 Quick Facts\n\n"
     
-    // ============ PART 2: WEBSITE ANALYSIS (Plain English) ============
-    report += "\n---\n\n## 📊 YOUR WEBSITE REPORT CARD\n\n"
-    report += "*Here's how your online presence stacks up — explained simply:*\n\n"
+    const location = [scrapedData.location?.city, scrapedData.location?.state].filter(Boolean).join(', ')
+    if (location) report += `📍 **Based in:** ${location}\n`
+    if (scrapedData.serviceArea) report += `🗺️ **Serving:** ${scrapedData.serviceArea}\n`
+    if (scrapedData.contactInfo?.phone) report += `📞 **Phone:** ${scrapedData.contactInfo.phone}\n`
+    if (scrapedData.contactInfo?.email) report += `✉️ **Email:** ${scrapedData.contactInfo.email}\n`
+    if (scrapedData.yearsInBusiness) report += `⏰ **Experience:** ${scrapedData.yearsInBusiness}\n`
+    report += "\n"
     
-    // Website Grade
-    const grade = analysis.grade || 'B'
-    const gradeEmoji = grade === 'A' ? '🌟' : grade === 'B' ? '👍' : grade === 'C' ? '😐' : '⚠️'
-    report += `### ${gradeEmoji} Overall Grade: ${grade}\n`
-    if (analysis.gradeExplain) {
-      report += `${analysis.gradeExplain}\n\n`
+    // ============ OPPORTUNITIES (Not Problems!) ============
+    report += "---\n\n### 💡 Quick Wins I Spotted\n\n"
+    report += "*These aren't problems — they're opportunities to get even more customers:*\n\n"
+    
+    // Frame everything positively
+    if (!analysis.onlineBooking) {
+      report += `**📱 Easy Win: Online Booking**\n`
+      report += `Right now, customers have to call to book. Adding online scheduling could capture those late-night browsers who'd rather click than call. *I can set this up for you.*\n\n`
     }
     
-    // Online Booking
-    report += `**Can customers book online?** ${analysis.onlineBooking ? '✅ Yes' : '❌ No'}\n`
-    if (analysis.onlineBookingExplain) {
-      report += `↳ *${analysis.onlineBookingExplain}*\n\n`
-    } else if (!analysis.onlineBooking) {
-      report += `↳ *Customers have to call you to book. Busy people often prefer clicking over calling — you might be losing some business.*\n\n`
-    } else {
-      report += `↳ *Great! Customers can schedule with you anytime, even at midnight.*\n\n`
+    if (!analysis.hasBlog) {
+      report += `**📝 Easy Win: Get Found on Google**\n`
+      report += `People are searching for "${industry}" every day — but without content, Google can't send them to you. *I can write articles that bring free traffic.*\n\n`
     }
     
-    // Blog/Content
-    report += `**Do you have a blog?** ${analysis.hasBlog ? '✅ Yes' : '❌ No'}\n`
-    if (analysis.blogExplain) {
-      report += `↳ *${analysis.blogExplain}*\n\n`
-    } else if (!analysis.hasBlog) {
-      report += `↳ *No blog means you're missing free traffic from Google. People searching for "${scrapedData.industry || 'your services'}" can't find you through helpful articles.*\n\n`
-    } else {
-      report += `↳ *Nice! Your blog helps Google send you free visitors.*\n\n`
-    }
-    
-    // Booking Friction
-    const friction = analysis.bookingFriction || 'Unknown'
-    const frictionEmoji = friction === 'Low' ? '✅' : friction === 'Medium' ? '😐' : '⚠️'
-    report += `**How easy is it to hire you?** ${frictionEmoji} ${friction} friction\n`
-    if (analysis.bookingFrictionExplain) {
-      report += `↳ *${analysis.bookingFrictionExplain}*\n\n`
-    }
-    
-    // Strengths & Weaknesses
     if (analysis.topStrength) {
-      report += `\n🌟 **Your Biggest Strength:** ${analysis.topStrength}\n`
-    }
-    if (analysis.topWeakness) {
-      report += `\n⚠️ **Your Biggest Opportunity:** ${analysis.topWeakness}\n`
+      report += `**Your Secret Weapon:** ${analysis.topStrength}\n\n`
     }
     
-    // ============ RECOMMENDATION ============
-    report += "\n---\n\n### 🚀 MY RECOMMENDATION\n\n"
-    
-    if (analysis.recommendedAction) {
-      report += `${analysis.recommendedAction}\n`
-    } else if (analysis.grade === 'D' || analysis.grade === 'F') {
-      report += "Your website needs a refresh to match the quality of your services. I recommend starting with the **Website Builder** — I'll create a modern, professional design that converts visitors into customers.\n"
-    } else if (!analysis.hasBlog) {
-      report += "Your services are solid, but you're invisible on Google. I recommend the **Content & Blog Module** — I'll write articles that bring free traffic from people searching for what you offer.\n"
-    } else if (!analysis.onlineBooking || analysis.bookingFriction === 'High') {
-      report += "You're making it hard for customers to give you money! I recommend the **Booking Module** — let me set up instant online booking so you never miss a lead.\n"
-    } else {
-      report += "Your digital presence is looking good! Let's fine-tune your profile and explore ways to grow.\n"
-    }
-    
-    report += "\n---\n\n*Does this look right? Reply **\"looks good\"** to see website design options, or tell me what needs correcting.*"
+    // ============ CLOSING: EXCITEMENT ABOUT NEXT STEPS ============
+    report += "---\n\n### 🎯 What's Next?\n\n"
+    report += `I've got everything I need to help **${businessName}** stand out online. `
+    report += "I can build you a website that shows off what makes you special, write content that brings in new customers, and set up systems that save you time.\n\n"
+    report += "**Ready to see what I can create for you?**\n\n"
+    report += `*Reply **"looks good"** to see your custom website designs, or tell me if anything needs correcting.*`
     
     return report
   }
