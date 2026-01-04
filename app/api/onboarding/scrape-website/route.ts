@@ -80,49 +80,107 @@ async function attemptBrowserFetch(url: string): Promise<string | null> {
 }
 
 /**
- * Attempt 2: Jina Reader API - Scrapes MULTIPLE PAGES for comprehensive data
- * Fetches: homepage, about, services, fleet, pricing, contact
+ * Attempt 2: Jina Reader API - SMART MULTI-PAGE CRAWL
+ * 1. First scrapes homepage
+ * 2. Extracts all internal links from navigation
+ * 3. Scrapes the most relevant pages (about, services, products, team, etc.)
  */
 async function attemptJinaFetch(url: string): Promise<string | null> {
   try {
-    console.log('[Scraper] Attempt 2: Jina Reader (MULTI-PAGE CRAWL)...')
+    console.log('[Scraper] Attempt 2: Jina Reader (SMART MULTI-PAGE CRAWL)...')
     
-    // Parse the base URL
     const urlObj = new URL(url)
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`
     
-    // Key pages that typically contain important business info
-    const pagesToScrape = [
-      url,                          // Homepage
-      `${baseUrl}/about-us`,        // About Us
-      `${baseUrl}/about`,           // About variant
-      `${baseUrl}/services`,        // Services
-      `${baseUrl}/fleet`,           // Fleet (limo/transport)
-      `${baseUrl}/fleet-standard`,  // Fleet variant
-      `${baseUrl}/pricing`,         // Pricing
-      `${baseUrl}/menu`,            // Menu (restaurants)
-      `${baseUrl}/our-team`,        // Team
-      `${baseUrl}/contact`,         // Contact info
+    // Step 1: Fetch homepage first to discover navigation links
+    console.log('[Scraper] Step 1: Fetching homepage to discover pages...')
+    const homepageResponse = await fetch(`https://r.jina.ai/${url}`, {
+      headers: { 'Accept': 'text/plain' },
+      signal: AbortSignal.timeout(15000)
+    })
+    
+    if (!homepageResponse.ok) {
+      console.log('[Scraper] Homepage fetch failed')
+      return null
+    }
+    
+    const homepageContent = await homepageResponse.text()
+    if (!homepageContent || homepageContent.length < 200) {
+      return null
+    }
+    
+    // Step 2: Extract internal links from homepage content
+    // Look for markdown links like [About Us](/about-us) or URLs
+    const linkPatterns = [
+      /\[([^\]]+)\]\(([^)]+)\)/g,  // Markdown links
+      /href="([^"]+)"/g,           // HTML href
     ]
     
-    let combinedContent = ''
-    let successCount = 0
+    const discoveredPaths = new Set<string>()
+    discoveredPaths.add(url) // Always include homepage
     
-    // Fetch pages in parallel
-    console.log(`[Scraper] Fetching ${pagesToScrape.length} pages...`)
+    for (const pattern of linkPatterns) {
+      let match
+      while ((match = pattern.exec(homepageContent)) !== null) {
+        const linkUrl = match[2] || match[1]
+        if (linkUrl && !linkUrl.startsWith('http') && !linkUrl.startsWith('#') && !linkUrl.startsWith('mailto:') && !linkUrl.startsWith('tel:')) {
+          // Internal link - clean it up
+          const cleanPath = linkUrl.split('?')[0].split('#')[0]
+          if (cleanPath && cleanPath.length > 1 && cleanPath.length < 50) {
+            discoveredPaths.add(`${baseUrl}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`)
+          }
+        }
+      }
+    }
     
-    const fetchPromises = pagesToScrape.map(async (pageUrl) => {
+    // Step 3: Filter for relevant business pages using keywords
+    const relevantKeywords = [
+      'about', 'service', 'product', 'pricing', 'price', 'rate', 'cost',
+      'team', 'staff', 'doctor', 'provider', 'attorney', 'lawyer',
+      'fleet', 'vehicle', 'car', 'menu', 'food', 'dish',
+      'treatment', 'procedure', 'solution', 'offering', 'specialty',
+      'portfolio', 'work', 'project', 'case', 'gallery',
+      'location', 'contact', 'hour', 'faq', 'testimonial', 'review'
+    ]
+    
+    const relevantPages = Array.from(discoveredPaths).filter(pageUrl => {
+      const path = pageUrl.toLowerCase()
+      return relevantKeywords.some(keyword => path.includes(keyword)) || pageUrl === url
+    }).slice(0, 8) // Max 8 pages to avoid timeout
+    
+    // If no relevant pages found, try common fallbacks
+    if (relevantPages.length <= 1) {
+      console.log('[Scraper] No nav links found, trying common paths...')
+      const fallbackPaths = [
+        '/about', '/about-us', '/services', '/our-services',
+        '/pricing', '/rates', '/menu', '/products', '/team', '/contact'
+      ]
+      for (const path of fallbackPaths) {
+        relevantPages.push(`${baseUrl}${path}`)
+      }
+    }
+    
+    console.log(`[Scraper] Step 2: Found ${relevantPages.length} relevant pages to scrape`)
+    
+    // Step 4: Fetch all relevant pages in parallel
+    let combinedContent = `\n\n========== PAGE: /homepage ==========\n${homepageContent.substring(0, 12000)}`
+    let successCount = 1
+    
+    const otherPages = relevantPages.filter(p => p !== url).slice(0, 7)
+    
+    const fetchPromises = otherPages.map(async (pageUrl) => {
       try {
         const jinaUrl = `https://r.jina.ai/${pageUrl}`
         const response = await fetch(jinaUrl, {
           headers: { 'Accept': 'text/plain' },
-          signal: AbortSignal.timeout(12000) // 12s timeout per page
+          signal: AbortSignal.timeout(10000)
         })
         
         if (response.ok) {
           const text = await response.text()
           if (text && text.length > 300) {
-            console.log(`[Scraper] ✓ Got ${pageUrl.replace(baseUrl, '')} (${text.length} chars)`)
+            const pageName = pageUrl.replace(baseUrl, '') || '/page'
+            console.log(`[Scraper] ✓ Got ${pageName} (${text.length} chars)`)
             return { url: pageUrl, content: text }
           }
         }
@@ -134,22 +192,16 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
     
     const results = await Promise.all(fetchPromises)
     
-    // Combine all successful page contents with clear separators
     for (const result of results) {
       if (result) {
         successCount++
-        const pageName = result.url.replace(baseUrl, '') || '/homepage'
-        combinedContent += `\n\n========== PAGE: ${pageName} ==========\n${result.content.substring(0, 10000)}`
+        const pageName = result.url.replace(baseUrl, '') || '/page'
+        combinedContent += `\n\n========== PAGE: ${pageName} ==========\n${result.content.substring(0, 8000)}`
       }
     }
     
-    if (combinedContent.length < 500) {
-      console.log('[Scraper] Jina: Not enough content from any page')
-      return null
-    }
-    
     console.log(`[Scraper] ✓ SUCCESS: ${successCount} pages scraped, ${combinedContent.length} total chars`)
-    return combinedContent.substring(0, 50000) // More content for comprehensive extraction
+    return combinedContent.substring(0, 50000)
     
   } catch (error) {
     console.log(`[Scraper] Jina error:`, error)
