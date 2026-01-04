@@ -80,32 +80,76 @@ async function attemptBrowserFetch(url: string): Promise<string | null> {
 }
 
 /**
- * Attempt 2: Jina Reader API (Anti-Block Fallback) - CRITICAL
+ * Attempt 2: Jina Reader API - Scrapes MULTIPLE PAGES for comprehensive data
+ * Fetches: homepage, about, services, fleet, pricing, contact
  */
 async function attemptJinaFetch(url: string): Promise<string | null> {
   try {
-    console.log('[Scraper] Attempt 2: Jina Reader fallback...')
+    console.log('[Scraper] Attempt 2: Jina Reader (MULTI-PAGE CRAWL)...')
     
-    const jinaUrl = `https://r.jina.ai/${url}`
+    // Parse the base URL
+    const urlObj = new URL(url)
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}`
     
-    const response = await fetch(jinaUrl, {
-      headers: { 'Accept': 'text/plain' },
-      signal: AbortSignal.timeout(30000)
+    // Key pages that typically contain important business info
+    const pagesToScrape = [
+      url,                          // Homepage
+      `${baseUrl}/about-us`,        // About Us
+      `${baseUrl}/about`,           // About variant
+      `${baseUrl}/services`,        // Services
+      `${baseUrl}/fleet`,           // Fleet (limo/transport)
+      `${baseUrl}/fleet-standard`,  // Fleet variant
+      `${baseUrl}/pricing`,         // Pricing
+      `${baseUrl}/menu`,            // Menu (restaurants)
+      `${baseUrl}/our-team`,        // Team
+      `${baseUrl}/contact`,         // Contact info
+    ]
+    
+    let combinedContent = ''
+    let successCount = 0
+    
+    // Fetch pages in parallel
+    console.log(`[Scraper] Fetching ${pagesToScrape.length} pages...`)
+    
+    const fetchPromises = pagesToScrape.map(async (pageUrl) => {
+      try {
+        const jinaUrl = `https://r.jina.ai/${pageUrl}`
+        const response = await fetch(jinaUrl, {
+          headers: { 'Accept': 'text/plain' },
+          signal: AbortSignal.timeout(12000) // 12s timeout per page
+        })
+        
+        if (response.ok) {
+          const text = await response.text()
+          if (text && text.length > 300) {
+            console.log(`[Scraper] ✓ Got ${pageUrl.replace(baseUrl, '')} (${text.length} chars)`)
+            return { url: pageUrl, content: text }
+          }
+        }
+        return null
+      } catch {
+        return null
+      }
     })
-
-    if (!response.ok) {
-      console.log(`[Scraper] Jina failed with status ${response.status}`)
+    
+    const results = await Promise.all(fetchPromises)
+    
+    // Combine all successful page contents with clear separators
+    for (const result of results) {
+      if (result) {
+        successCount++
+        const pageName = result.url.replace(baseUrl, '') || '/homepage'
+        combinedContent += `\n\n========== PAGE: ${pageName} ==========\n${result.content.substring(0, 10000)}`
+      }
+    }
+    
+    if (combinedContent.length < 500) {
+      console.log('[Scraper] Jina: Not enough content from any page')
       return null
     }
-
-    const text = await response.text()
     
-    if (!text || text.length < 200) {
-      return null
-    }
-    
-    console.log(`[Scraper] ✓ Jina success: ${text.length} chars`)
-    return text.substring(0, 25000)
+    console.log(`[Scraper] ✓ SUCCESS: ${successCount} pages scraped, ${combinedContent.length} total chars`)
+    return combinedContent.substring(0, 50000) // More content for comprehensive extraction
     
   } catch (error) {
     console.log(`[Scraper] Jina error:`, error)
@@ -146,13 +190,18 @@ Return JSON with TWO separate sections: "profile" (business facts) and "analysis
     
     "assets": [
       {
-        "name": "Asset name (e.g. Cadillac Escalade, Cold Laser Machine)",
-        "type": "Category (e.g. SUV, Sedan, Equipment)",
-        "description": "What it is and what makes it special",
-        "capacity": "Number of people/size if applicable",
-        "bestFor": ["Service 1 this asset is ideal for", "Service 2"]
+        "name": "EXACT model name (e.g. 'Mercedes-S580', '32 Pax Party Bus', 'Cadillac Escalade')",
+        "type": "Category (Sedan, SUV, Van, Bus, Motorcoach, Limo, Equipment)",
+        "description": "What makes this specific model special",
+        "capacity": "Exact passenger count if listed (e.g. '6 passengers', '32 Pax')",
+        "bestFor": ["Service 1 this is ideal for", "Service 2"]
       }
     ],
+    
+    IMPORTANT FOR ASSETS: Extract EVERY specific vehicle/equipment model mentioned.
+    Look for pages like /fleet, /fleet-standard, /vehicles, /equipment.
+    Include exact names like "Mercedes-S580", "Tesla Model Y", "56 Pax Motorcoach".
+    Include passenger capacities like "32 Pax", "6 passengers".
     
     "credentials": [
       {
@@ -187,8 +236,13 @@ Return JSON with TWO separate sections: "profile" (business facts) and "analysis
   }
 }
 
-Be THOROUGH with the profile - extract every vehicle type, equipment piece, and service detail.
-Make the analysis UNDERSTANDABLE to a non-technical business owner.`
+CRITICAL INSTRUCTIONS:
+- The content includes MULTIPLE PAGES from the website (homepage, about, services, fleet, etc.)
+- Extract EVERY specific vehicle model, equipment piece, and service mentioned across ALL pages
+- Look for exact names like "Mercedes-S580", "Tesla Model Y", "56 Pax Motorcoach", "16 PAX Hummer Limo"
+- Extract exact passenger capacities (32 Pax, 6 passengers, etc.)
+- Look for years in business (e.g., "25 years experience", "Est. 1998")
+- Make the analysis UNDERSTANDABLE to a non-technical business owner.`
 
   try {
     console.log('[AI] Starting extraction, content length:', content.length)
