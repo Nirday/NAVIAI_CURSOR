@@ -239,303 +239,267 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const formatCalibrationReport = (scrapedData: any): string => {
     const analysis = scrapedData.websiteAnalysis || {}
     const businessName = scrapedData.businessName || 'Your Business'
-    
-    let report = `## ${businessName}\n\n`
-    
-    // ============ CORE BUSINESS INFO ============
     const city = scrapedData.contact?.city || scrapedData.location?.city || ''
     const state = scrapedData.contact?.state || scrapedData.location?.state || ''
     const location = [city, state].filter(Boolean).join(', ')
     const years = scrapedData.history?.yearsInBusiness || scrapedData.yearsInBusiness || ''
-    
-    let summary = scrapedData.industry || ''
-    if (location) summary += summary ? ` • ${location}` : location
-    if (years) summary += ` • ${years}`
-    if (summary) report += `${summary}\n\n`
-    
-    // Description
-    if (scrapedData.description) {
-      report += `*${scrapedData.description.substring(0, 200)}${scrapedData.description.length > 200 ? '...' : ''}*\n\n`
-    }
-    
-    // Contact
     const phone = scrapedData.contact?.phone || scrapedData.contactInfo?.phone || ''
     const email = scrapedData.contact?.email || scrapedData.contactInfo?.email || ''
-    if (phone || email) {
-      report += `📞 ${phone}`
-      if (email) report += ` • ${email}`
-      report += "\n"
-    }
-    
-    // Service Areas
     const areas = scrapedData.serviceAreas || {}
-    if (areas.cities?.length > 0) {
-      report += `📍 Serves: ${areas.cities.slice(0, 6).join(', ')}${areas.cities.length > 6 ? ` +${areas.cities.length - 6} more` : ''}\n`
-    } else if (areas.primary || scrapedData.serviceArea) {
-      report += `📍 Serves: ${areas.primary || scrapedData.serviceArea}\n`
-    }
-    
-    // Hours
-    if (scrapedData.hours?.regular || scrapedData.hours?.is24x7) {
-      report += `🕐 ${scrapedData.hours.is24x7 ? '24/7 Service' : scrapedData.hours.regular}\n`
-    }
-    report += "\n"
-    
-    // ============ TEAM ============
     const team = scrapedData.team || {}
-    if (team.ownerName || team.teamHighlights?.length > 0) {
-      report += "### Team\n\n"
-      if (team.ownerName) {
-        report += `👤 **${team.ownerName}**`
-        if (team.ownerTitle) report += `, ${team.ownerTitle}`
-        if (team.ownerCredentials) report += ` (${team.ownerCredentials})`
-        report += "\n"
-      }
-      if (team.teamSize) report += `👥 ${team.teamSize}\n`
-      if (team.teamHighlights?.length > 0) {
-        team.teamHighlights.forEach((h: string) => report += `• ${h}\n`)
-      }
-      report += "\n"
+    const fleet = scrapedData.fleet || scrapedData.assets || []
+    const specs = scrapedData.specializations || {}
+    
+    let report = ''
+    
+    // ═══════════════════════════════════════════════════════════
+    // HERO SECTION - The Big Picture
+    // ═══════════════════════════════════════════════════════════
+    report += `# 🏢 ${businessName}\n\n`
+    
+    // Badge row
+    let badges = []
+    if (years) badges.push(`🏆 ${years}`)
+    if (location) badges.push(`📍 ${location}`)
+    if (scrapedData.hours?.is24x7) badges.push(`⏰ 24/7`)
+    if (badges.length > 0) report += `${badges.join('  •  ')}\n\n`
+    
+    // The Story (if we have a description)
+    if (scrapedData.description) {
+      report += `> *"${scrapedData.description.substring(0, 180)}${scrapedData.description.length > 180 ? '...' : ''}"*\n\n`
     }
     
-    // ============ SERVICES ============
+    // Quick Contact Card
+    report += `**📞 ${phone || 'Not listed'}**`
+    if (email) report += `  •  **✉️ ${email}**`
+    report += "\n\n"
+    
+    // ═══════════════════════════════════════════════════════════
+    // COVERAGE MAP
+    // ═══════════════════════════════════════════════════════════
+    if (areas.cities?.length > 0 || areas.airports?.length > 0 || areas.landmarks?.length > 0) {
+      report += `---\n\n`
+      report += `## 🗺️ Where You Operate\n\n`
+      
+      if (areas.cities?.length > 0) {
+        report += `**Cities Served:** ${areas.cities.slice(0, 8).join(', ')}${areas.cities.length > 8 ? ` +${areas.cities.length - 8} more` : ''}\n\n`
+      }
+      if (areas.airports?.length > 0) {
+        report += `**Airports:** ${areas.airports.join(', ')}\n\n`
+      }
+      if (areas.landmarks?.length > 0) {
+        report += `**Key Destinations:** ${areas.landmarks.join(', ')}\n\n`
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // WHAT YOU OFFER - Service Cards
+    // ═══════════════════════════════════════════════════════════
     if (scrapedData.services && scrapedData.services.length > 0) {
-      report += "### Services\n\n"
-      scrapedData.services.slice(0, 8).forEach((s: any) => {
+      report += `---\n\n`
+      report += `## 💼 Your Services\n\n`
+      
+      scrapedData.services.slice(0, 6).forEach((s: any, i: number) => {
         const name = typeof s === 'string' ? s : s.name
         if (!name) return
-        report += `• **${name}**`
-        if (s.description) report += ` — ${s.description}`
-        if (s.idealFor) report += ` *(${s.idealFor})*`
-        if (s.priceRange) report += ` — ${s.priceRange}`
-        report += "\n"
+        
+        report += `### ${name}\n`
+        if (s.description) report += `${s.description}\n`
+        if (s.idealFor) report += `*Best for: ${s.idealFor}*\n`
         if (s.popularFor?.length > 0) {
-          report += `  Popular for: ${s.popularFor.join(', ')}\n`
+          report += `📌 Popular for: ${s.popularFor.slice(0, 4).join(', ')}\n`
         }
-      })
-      report += "\n"
-    }
-    
-    // ============ FLEET/EQUIPMENT ============
-    const fleet = scrapedData.fleet || scrapedData.assets || []
-    if (fleet.length > 0) {
-      report += "### Fleet & Equipment\n\n"
-      fleet.slice(0, 10).forEach((v: any) => {
-        const name = typeof v === 'string' ? v : v.name
-        if (!name) return
-        report += `• **${name}**`
-        if (v.category) report += ` (${v.category})`
-        if (v.capacity) report += ` — ${v.capacity}`
         report += "\n"
-        if (v.amenities?.length > 0) {
-          report += `  Amenities: ${v.amenities.join(', ')}\n`
-        }
       })
-      report += "\n"
     }
     
-    // ============ SPECIALIZATIONS ============
-    const specs = scrapedData.specializations || {}
+    // ═══════════════════════════════════════════════════════════
+    // YOUR FLEET - Visual Grid
+    // ═══════════════════════════════════════════════════════════
+    if (fleet.length > 0) {
+      report += `---\n\n`
+      report += `## 🚗 Your Fleet\n\n`
+      
+      // Group by category if possible
+      const categories: { [key: string]: any[] } = {}
+      fleet.forEach((v: any) => {
+        const cat = v.category || 'Other'
+        if (!categories[cat]) categories[cat] = []
+        categories[cat].push(v)
+      })
+      
+      Object.entries(categories).forEach(([category, vehicles]) => {
+        if (category !== 'Other') report += `**${category}s:**\n`
+        vehicles.slice(0, 4).forEach((v: any) => {
+          const name = typeof v === 'string' ? v : v.name
+          if (!name) return
+          report += `• **${name}**`
+          if (v.capacity) report += ` — ${v.capacity}`
+          report += "\n"
+          if (v.amenities?.length > 0) {
+            report += `  ✨ ${v.amenities.slice(0, 4).join(' • ')}\n`
+          }
+        })
+        report += "\n"
+      })
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // YOUR EVENTS - What occasions you specialize in
+    // ═══════════════════════════════════════════════════════════
     if (specs.eventTypes?.length > 0) {
-      report += "### Event Types\n\n"
-      report += specs.eventTypes.join(' • ') + "\n\n"
+      report += `---\n\n`
+      report += `## 🎉 Events You Specialize In\n\n`
+      report += `${specs.eventTypes.map((e: string) => `**${e}**`).join('  •  ')}\n\n`
     }
     
-    // ============ CREDENTIALS ============
+    // ═══════════════════════════════════════════════════════════
+    // YOUR TEAM
+    // ═══════════════════════════════════════════════════════════
+    if (team.ownerName || team.teamHighlights?.length > 0 || team.teamSize) {
+      report += `---\n\n`
+      report += `## 👥 Your Team\n\n`
+      
+      if (team.ownerName) {
+        report += `**${team.ownerName}**`
+        if (team.ownerTitle) report += ` — ${team.ownerTitle}`
+        report += "\n"
+        if (team.ownerBio) report += `*${team.ownerBio.substring(0, 150)}*\n`
+        report += "\n"
+      }
+      
+      if (team.teamHighlights?.length > 0) {
+        report += `**What sets your team apart:**\n`
+        team.teamHighlights.slice(0, 3).forEach((h: string) => report += `✓ ${h}\n`)
+        report += "\n"
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // TRUST BADGES
+    // ═══════════════════════════════════════════════════════════
     if (scrapedData.credentials && scrapedData.credentials.length > 0) {
-      report += "### Credentials & Awards\n\n"
-      scrapedData.credentials.slice(0, 6).forEach((c: any) => {
+      report += `---\n\n`
+      report += `## 🏅 Credentials & Trust\n\n`
+      
+      scrapedData.credentials.slice(0, 4).forEach((c: any) => {
         const name = typeof c === 'string' ? c : c.name
         report += `🏆 **${name}**`
-        if (c.type) report += ` (${c.type})`
         if (c.issuer) report += ` — ${c.issuer}`
-        if (c.year) report += ` (${c.year})`
         report += "\n"
       })
       report += "\n"
     }
     
-    // ============ POLICIES ============
-    const policies = scrapedData.policies || {}
-    if (policies.paymentMethods?.length > 0 || policies.insurance || policies.booking) {
-      report += "### Policies\n\n"
-      if (policies.paymentMethods?.length > 0) {
-        report += `💳 **Payment:** ${policies.paymentMethods.join(', ')}\n`
-      }
-      if (policies.insurance) report += `🛡️ **Insurance:** ${policies.insurance}\n`
-      if (policies.booking) report += `📅 **Booking:** ${policies.booking}\n`
-      if (policies.cancellation) report += `❌ **Cancellation:** ${policies.cancellation}\n`
-      report += "\n"
-    }
-    
-    // ============ SOCIAL MEDIA ============
-    const social = scrapedData.socialMedia || {}
-    const socialLinks = Object.entries(social).filter(([_, v]) => v)
-    if (socialLinks.length > 0) {
-      report += "### Social Media\n\n"
-      socialLinks.forEach(([platform, url]) => {
-        const icon = platform === 'facebook' ? '📘' : platform === 'instagram' ? '📸' : platform === 'twitter' ? '🐦' : platform === 'linkedin' ? '💼' : platform === 'youtube' ? '📺' : '🔗'
-        report += `${icon} ${platform.charAt(0).toUpperCase() + platform.slice(1)}\n`
-      })
-      report += "\n"
-    }
-    
-    // ============ KEY DIFFERENTIATOR ============
+    // The "Why You" statement
     if (scrapedData.uniqueValue) {
-      report += `**✨ Key Differentiator:** ${scrapedData.uniqueValue}\n\n`
+      report += `> **What Makes You Different:** ${scrapedData.uniqueValue}\n\n`
     }
     
-    // ============ FAQ & BLOG TOPICS ============
-    if (scrapedData.faqTopics?.length > 0) {
-      report += "### FAQ Topics Found\n\n"
-      scrapedData.faqTopics.slice(0, 5).forEach((q: string) => report += `• ${q}\n`)
-      report += "\n"
-    }
+    // ═══════════════════════════════════════════════════════════
+    // DIGITAL PRESENCE SCORECARD
+    // ═══════════════════════════════════════════════════════════
+    report += `---\n\n`
+    report += `# 📊 Your Digital Presence Scorecard\n\n`
     
-    if (scrapedData.blogTopics?.length > 0) {
-      report += "### Blog Topics\n\n"
-      scrapedData.blogTopics.slice(0, 5).forEach((t: string) => report += `• ${t}\n`)
-      report += "\n"
-    }
-    
-    // ============ COMPREHENSIVE WEBSITE ANALYSIS ============
-    report += "---\n\n"
-    report += `## 📊 Website & Digital Presence Analysis\n\n`
-    
-    // Overall Grade
-    const grade = analysis.grade || 'Not Rated'
-    const gradeEmoji = grade === 'A' ? '🟢' : grade === 'B' ? '🟡' : grade === 'C' ? '🟠' : '🔴'
-    report += `**Overall Grade: ${gradeEmoji} ${grade}**\n`
+    // Overall Grade - Big visual
+    const grade = analysis.grade || 'B'
+    const gradeColor = grade === 'A' ? '🟢' : grade === 'B' ? '🟡' : grade === 'C' ? '🟠' : '🔴'
+    report += `## ${gradeColor} Overall Grade: **${grade}**\n\n`
     if (analysis.gradeExplain) {
-      report += `${analysis.gradeExplain}\n\n`
+      report += `*${analysis.gradeExplain}*\n\n`
     }
     
-    // Pages Found
+    // Pages Analyzed badge
     if (analysis.pagesFound?.length > 0) {
-      report += `*Analyzed ${analysis.pagesFound.length} pages: ${analysis.pagesFound.slice(0, 5).join(', ')}${analysis.pagesFound.length > 5 ? '...' : ''}*\n\n`
+      report += `📄 *Analyzed ${analysis.pagesFound.length} pages of your website*\n\n`
     }
     
-    // ============ LOCAL SEO ============
+    // ═══════════════════════════════════════════════════════════
+    // SCORECARD GRID - 4 Key Areas
+    // ═══════════════════════════════════════════════════════════
+    report += `---\n\n`
+    
+    // 1. LOCAL SEO SCORE
     const seo = analysis.localSeo || {}
-    report += `### 🔍 Local SEO\n\n`
+    const seoScore = [seo.napConsistent, seo.hasLocalKeywords, seo.hasServiceAreaPages, seo.hasGoogleBusiness].filter(Boolean).length
+    const seoGrade = seoScore >= 3 ? '🟢 Strong' : seoScore >= 2 ? '🟡 Fair' : '🔴 Needs Work'
     
-    if (seo.napConsistent !== undefined) {
-      report += seo.napConsistent 
-        ? `✅ **NAP Consistent** — Name, address, phone clearly displayed\n`
-        : `❌ **NAP Missing** — Add name, address, phone to every page footer\n`
-    }
-    if (seo.hasLocalKeywords !== undefined) {
-      report += seo.hasLocalKeywords
-        ? `✅ **Local Keywords** — City names in content\n`
-        : `❌ **Missing Local Keywords** — Add city names to page titles\n`
-    }
-    if (seo.hasServiceAreaPages !== undefined) {
-      report += seo.hasServiceAreaPages
-        ? `✅ **Service Area Pages** — Pages for areas served\n`
-        : `❌ **No Area Pages** — Create pages for each city you serve\n`
-    }
+    report += `### 🔍 Local SEO — ${seoGrade}\n\n`
+    report += `| Check | Status |\n|-------|--------|\n`
+    report += `| Name/Address/Phone visible | ${seo.napConsistent ? '✅' : '❌'} |\n`
+    report += `| City names in content | ${seo.hasLocalKeywords ? '✅' : '❌'} |\n`
+    report += `| Service area pages | ${seo.hasServiceAreaPages ? '✅' : '❌'} |\n`
+    report += `| Google Business linked | ${seo.hasGoogleBusiness ? '✅' : '❌'} |\n\n`
     
-    if (seo.issues?.length > 0) {
-      report += `\n**Issues:** ${seo.issues.join(' • ')}\n`
-    }
     if (seo.fixes?.length > 0) {
-      report += `**Fixes:** ${seo.fixes.join(' • ')}\n`
+      report += `💡 **Quick Win:** ${seo.fixes[0]}\n\n`
     }
-    report += "\n"
     
-    // ============ CONVERSION ============
+    // 2. CONVERSION SCORE
     const conv = analysis.conversion || {}
-    report += `### 💰 Conversion\n\n`
+    const convScore = [conv.bookingType === 'Instant' || conv.bookingType === 'Form', conv.hasPricing, conv.hasClickablePhone].filter(Boolean).length
+    const convGrade = convScore >= 3 ? '🟢 Strong' : convScore >= 2 ? '🟡 Fair' : '🔴 Needs Work'
     
-    if (conv.bookingType) {
-      const bookingEmoji = conv.bookingType === 'Instant' ? '✅' : conv.bookingType === 'Form' ? '🟡' : '❌'
-      report += `${bookingEmoji} **Booking:** ${conv.bookingType}`
-      if (conv.bookingFriction) report += ` (${conv.bookingFriction} friction)`
-      report += "\n"
-    }
-    if (conv.hasPricing !== undefined) {
-      report += conv.hasPricing ? `✅ **Pricing Visible**\n` : `❌ **No Pricing**\n`
-    }
-    if (conv.hasClickablePhone !== undefined) {
-      report += conv.hasClickablePhone ? `✅ **Clickable Phone**\n` : `❌ **Phone Not Clickable**\n`
-    }
-    if (conv.hasLiveChat !== undefined) {
-      report += conv.hasLiveChat ? `✅ **Live Chat**\n` : `⚪ **No Live Chat**\n`
-    }
+    report += `### 💰 Conversion — ${convGrade}\n\n`
+    report += `| Check | Status |\n|-------|--------|\n`
+    report += `| Online booking | ${conv.bookingType === 'Instant' ? '✅ Instant' : conv.bookingType === 'Form' ? '🟡 Form' : '❌ Phone only'} |\n`
+    report += `| Pricing visible | ${conv.hasPricing ? '✅' : '❌'} |\n`
+    report += `| Tap-to-call phone | ${conv.hasClickablePhone ? '✅' : '❌'} |\n`
+    report += `| Live chat | ${conv.hasLiveChat ? '✅' : '⚪ Not found'} |\n\n`
     
-    if (conv.issues?.length > 0) {
-      report += `\n**Issues:** ${conv.issues.join(' • ')}\n`
-    }
     if (conv.fixes?.length > 0) {
-      report += `**Fixes:** ${conv.fixes.join(' • ')}\n`
+      report += `💡 **Quick Win:** ${conv.fixes[0]}\n\n`
     }
-    report += "\n"
     
-    // ============ CONTENT ============
+    // 3. CONTENT SCORE
     const content = analysis.content || {}
-    report += `### 📝 Content\n\n`
+    const contentScore = [content.hasBlog, content.hasFaq, content.hasTestimonials].filter(Boolean).length
+    const contentGrade = contentScore >= 3 ? '🟢 Strong' : contentScore >= 2 ? '🟡 Fair' : '🔴 Needs Work'
     
-    if (content.hasBlog !== undefined) {
-      report += content.hasBlog
-        ? `✅ **Blog:** ${content.blogFrequency || 'Active'}\n`
-        : `❌ **No Blog** — Missing organic traffic\n`
-    }
-    if (content.hasFaq !== undefined) {
-      report += content.hasFaq ? `✅ **FAQ Section**\n` : `❌ **No FAQ**\n`
-    }
-    if (content.hasTestimonials !== undefined) {
-      report += content.hasTestimonials ? `✅ **Testimonials**\n` : `❌ **No Testimonials**\n`
-    }
-    if (content.hasVideo !== undefined) {
-      report += content.hasVideo ? `✅ **Video Content**\n` : `⚪ **No Video**\n`
-    }
+    report += `### 📝 Content — ${contentGrade}\n\n`
+    report += `| Check | Status |\n|-------|--------|\n`
+    report += `| Blog for SEO | ${content.hasBlog ? `✅ ${content.blogFrequency || 'Active'}` : '❌ Missing'} |\n`
+    report += `| FAQ section | ${content.hasFaq ? '✅' : '❌ Missing'} |\n`
+    report += `| Customer testimonials | ${content.hasTestimonials ? '✅' : '❌ Missing'} |\n`
+    report += `| Video content | ${content.hasVideo ? '✅' : '⚪ Not found'} |\n\n`
     
-    if (content.issues?.length > 0) {
-      report += `\n**Issues:** ${content.issues.join(' • ')}\n`
-    }
     if (content.fixes?.length > 0) {
-      report += `**Fixes:** ${content.fixes.join(' • ')}\n`
+      report += `💡 **Quick Win:** ${content.fixes[0]}\n\n`
     }
-    report += "\n"
     
-    // ============ TRUST ============
+    // 4. TRUST SCORE
     const trust = analysis.trust || {}
-    report += `### 🛡️ Trust Signals\n\n`
+    const trustScore = [trust.hasReviews, trust.hasCredentialBadges, trust.hasInsuranceMention].filter(Boolean).length
+    const trustGrade = trustScore >= 3 ? '🟢 Strong' : trustScore >= 2 ? '🟡 Fair' : '🔴 Needs Work'
     
-    if (trust.hasReviews !== undefined) {
-      if (trust.hasReviews) {
-        report += `✅ **Reviews:** ${trust.reviewScore || ''} (${trust.reviewCount || 'displayed'})\n`
-      } else {
-        report += `❌ **No Reviews Visible**\n`
-      }
-    }
-    if (trust.hasCredentialBadges !== undefined) {
-      report += trust.hasCredentialBadges ? `✅ **Credentials Displayed**\n` : `❌ **Credentials Hidden**\n`
-    }
-    if (trust.hasInsuranceMention !== undefined) {
-      report += trust.hasInsuranceMention ? `✅ **Insurance Mentioned**\n` : `⚠️ **Insurance Not Mentioned**\n`
-    }
+    report += `### 🛡️ Trust Signals — ${trustGrade}\n\n`
+    report += `| Check | Status |\n|-------|--------|\n`
+    report += `| Reviews displayed | ${trust.hasReviews ? `✅ ${trust.reviewScore || ''} (${trust.reviewCount || 'visible'})` : '❌ Not shown'} |\n`
+    report += `| Credentials/badges | ${trust.hasCredentialBadges ? '✅' : '❌ Hidden'} |\n`
+    report += `| Insurance mentioned | ${trust.hasInsuranceMention ? '✅' : '⚠️ Not mentioned'} |\n\n`
     
-    if (trust.issues?.length > 0) {
-      report += `\n**Issues:** ${trust.issues.join(' • ')}\n`
-    }
     if (trust.fixes?.length > 0) {
-      report += `**Fixes:** ${trust.fixes.join(' • ')}\n`
+      report += `💡 **Quick Win:** ${trust.fixes[0]}\n\n`
     }
-    report += "\n"
     
-    // ============ PRIORITY ACTIONS ============
+    // ═══════════════════════════════════════════════════════════
+    // TOP 3 ACTIONS - The Money Moves
+    // ═══════════════════════════════════════════════════════════
     const actions = analysis.priorityActions || []
     if (actions.length > 0) {
-      report += `### 🚀 Top Actions\n\n`
+      report += `---\n\n`
+      report += `## 🚀 Your Top 3 Actions\n\n`
+      report += `*Do these first — highest impact for your business:*\n\n`
       
       actions.slice(0, 3).forEach((a: any, i: number) => {
-        const impactEmoji = a.impact === 'High' ? '🔴' : '🟡'
-        const effortEmoji = a.effort === 'Easy' ? '✅' : a.effort === 'Medium' ? '🟡' : '🔴'
-        report += `**${i + 1}. ${a.action}**\n`
-        report += `   ${impactEmoji} ${a.impact} Impact | ${effortEmoji} ${a.effort}\n`
-        if (a.why) report += `   *${a.why}*\n`
-        report += "\n"
+        const num = i === 0 ? '1️⃣' : i === 1 ? '2️⃣' : '3️⃣'
+        const impactBar = a.impact === 'High' ? '🔴🔴🔴' : '🟡🟡'
+        const effortBar = a.effort === 'Easy' ? '✅' : a.effort === 'Medium' ? '🟡🟡' : '🔴🔴🔴'
+        
+        report += `### ${num} ${a.action}\n\n`
+        report += `**Impact:** ${impactBar}  |  **Effort:** ${effortBar}\n\n`
+        if (a.why) report += `*${a.why}*\n\n`
       })
     }
     
