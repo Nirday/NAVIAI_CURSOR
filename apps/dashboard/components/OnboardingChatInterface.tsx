@@ -265,7 +265,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         const name = typeof s === 'string' ? s : s.name
         const desc = s.description ? `\n    *${s.description}*` : ''
         const idealFor = s.idealFor ? `\n    👥 Best for: ${s.idealFor}` : ''
-        const price = s.priceRange ? ` — ${s.priceRange}` : ''
+        // Only show price if it's a real value, not "Not mentioned" or empty
+        const hasPrice = s.priceRange && s.priceRange !== 'Not mentioned' && s.priceRange !== 'Not specified'
+        const price = hasPrice ? ` — ${s.priceRange}` : ''
         report += `• **${name}**${price}${desc}${idealFor}\n`
       })
     } else {

@@ -80,108 +80,61 @@ async function attemptBrowserFetch(url: string): Promise<string | null> {
 }
 
 /**
- * Attempt 2: Jina Reader API - SMART MULTI-PAGE CRAWL
- * 1. First scrapes homepage
- * 2. Extracts all internal links from navigation
- * 3. Scrapes the most relevant pages (about, services, products, team, etc.)
+ * Attempt 2: Jina Reader API - AGGRESSIVE MULTI-PAGE CRAWL
+ * Always tries common business pages - no fancy link detection
  */
 async function attemptJinaFetch(url: string): Promise<string | null> {
   try {
-    console.log('[Scraper] Attempt 2: Jina Reader (SMART MULTI-PAGE CRAWL)...')
+    console.log('[Scraper] Attempt 2: Jina Reader (AGGRESSIVE MULTI-PAGE)...')
     
     const urlObj = new URL(url)
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`
     
-    // Step 1: Fetch homepage first to discover navigation links
-    console.log('[Scraper] Step 1: Fetching homepage to discover pages...')
-    const homepageResponse = await fetch(`https://r.jina.ai/${url}`, {
-      headers: { 'Accept': 'text/plain' },
-      signal: AbortSignal.timeout(15000)
-    })
-    
-    if (!homepageResponse.ok) {
-      console.log('[Scraper] Homepage fetch failed')
-      return null
-    }
-    
-    const homepageContent = await homepageResponse.text()
-    if (!homepageContent || homepageContent.length < 200) {
-      return null
-    }
-    
-    // Step 2: Extract internal links from homepage content
-    // Look for markdown links like [About Us](/about-us) or URLs
-    const linkPatterns = [
-      /\[([^\]]+)\]\(([^)]+)\)/g,  // Markdown links
-      /href="([^"]+)"/g,           // HTML href
+    // ALWAYS try these common paths - covers most business types
+    const pagesToTry = [
+      url,                              // Homepage
+      `${baseUrl}/about-us`,            // About
+      `${baseUrl}/about`,
+      `${baseUrl}/services`,            // Services
+      `${baseUrl}/our-services`,
+      `${baseUrl}/fleet`,               // Fleet/Vehicles (limo, car rental)
+      `${baseUrl}/fleet-standard`,
+      `${baseUrl}/vehicles`,
+      `${baseUrl}/pricing`,             // Pricing
+      `${baseUrl}/rates`,
+      `${baseUrl}/menu`,                // Menu (restaurants)
+      `${baseUrl}/our-menu`,
+      `${baseUrl}/team`,                // Team
+      `${baseUrl}/our-team`,
+      `${baseUrl}/staff`,
+      `${baseUrl}/doctors`,             // Medical
+      `${baseUrl}/providers`,
+      `${baseUrl}/attorneys`,           // Legal
+      `${baseUrl}/practice-areas`,
+      `${baseUrl}/treatments`,          // Medical/Spa
+      `${baseUrl}/gallery`,             // Portfolio
+      `${baseUrl}/portfolio`,
+      `${baseUrl}/contact`,             // Contact
     ]
     
-    const discoveredPaths = new Set<string>()
-    discoveredPaths.add(url) // Always include homepage
+    console.log(`[Scraper] Trying ${pagesToTry.length} potential pages...`)
     
-    for (const pattern of linkPatterns) {
-      let match
-      while ((match = pattern.exec(homepageContent)) !== null) {
-        const linkUrl = match[2] || match[1]
-        if (linkUrl && !linkUrl.startsWith('http') && !linkUrl.startsWith('#') && !linkUrl.startsWith('mailto:') && !linkUrl.startsWith('tel:')) {
-          // Internal link - clean it up
-          const cleanPath = linkUrl.split('?')[0].split('#')[0]
-          if (cleanPath && cleanPath.length > 1 && cleanPath.length < 50) {
-            discoveredPaths.add(`${baseUrl}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`)
-          }
-        }
-      }
-    }
-    
-    // Step 3: Filter for relevant business pages using keywords
-    const relevantKeywords = [
-      'about', 'service', 'product', 'pricing', 'price', 'rate', 'cost',
-      'team', 'staff', 'doctor', 'provider', 'attorney', 'lawyer',
-      'fleet', 'vehicle', 'car', 'menu', 'food', 'dish',
-      'treatment', 'procedure', 'solution', 'offering', 'specialty',
-      'portfolio', 'work', 'project', 'case', 'gallery',
-      'location', 'contact', 'hour', 'faq', 'testimonial', 'review'
-    ]
-    
-    const relevantPages = Array.from(discoveredPaths).filter(pageUrl => {
-      const path = pageUrl.toLowerCase()
-      return relevantKeywords.some(keyword => path.includes(keyword)) || pageUrl === url
-    }).slice(0, 8) // Max 8 pages to avoid timeout
-    
-    // If no relevant pages found, try common fallbacks
-    if (relevantPages.length <= 1) {
-      console.log('[Scraper] No nav links found, trying common paths...')
-      const fallbackPaths = [
-        '/about', '/about-us', '/services', '/our-services',
-        '/pricing', '/rates', '/menu', '/products', '/team', '/contact'
-      ]
-      for (const path of fallbackPaths) {
-        relevantPages.push(`${baseUrl}${path}`)
-      }
-    }
-    
-    console.log(`[Scraper] Step 2: Found ${relevantPages.length} relevant pages to scrape`)
-    
-    // Step 4: Fetch all relevant pages in parallel
-    let combinedContent = `\n\n========== PAGE: /homepage ==========\n${homepageContent.substring(0, 12000)}`
-    let successCount = 1
-    
-    const otherPages = relevantPages.filter(p => p !== url).slice(0, 7)
-    
-    const fetchPromises = otherPages.map(async (pageUrl) => {
+    // Fetch ALL pages in parallel (Jina handles 404s gracefully)
+    const fetchPromises = pagesToTry.map(async (pageUrl) => {
       try {
         const jinaUrl = `https://r.jina.ai/${pageUrl}`
         const response = await fetch(jinaUrl, {
           headers: { 'Accept': 'text/plain' },
-          signal: AbortSignal.timeout(10000)
+          signal: AbortSignal.timeout(12000)
         })
         
         if (response.ok) {
           const text = await response.text()
-          if (text && text.length > 300) {
-            const pageName = pageUrl.replace(baseUrl, '') || '/page'
-            console.log(`[Scraper] ✓ Got ${pageName} (${text.length} chars)`)
-            return { url: pageUrl, content: text }
+          // Only accept if it has real content (not 404 pages)
+          if (text && text.length > 500 && !text.includes('404') && !text.includes('Page Not Found')) {
+            const pageName = pageUrl.replace(baseUrl, '') || '/homepage'
+            console.log(`[Scraper] ✓ Found: ${pageName} (${text.length} chars)`)
+            return { url: pageUrl, content: text, path: pageName }
           }
         }
         return null
@@ -191,17 +144,27 @@ async function attemptJinaFetch(url: string): Promise<string | null> {
     })
     
     const results = await Promise.all(fetchPromises)
+    const successfulPages = results.filter(r => r !== null)
     
-    for (const result of results) {
-      if (result) {
-        successCount++
-        const pageName = result.url.replace(baseUrl, '') || '/page'
-        combinedContent += `\n\n========== PAGE: ${pageName} ==========\n${result.content.substring(0, 8000)}`
+    if (successfulPages.length === 0) {
+      console.log('[Scraper] No pages found')
+      return null
+    }
+    
+    // Combine all successful pages
+    let combinedContent = ''
+    for (const page of successfulPages) {
+      if (page) {
+        // Give more space to fleet/menu/services pages (they have the detailed info)
+        const isDetailPage = page.path.includes('fleet') || page.path.includes('menu') || 
+                            page.path.includes('service') || page.path.includes('vehicle')
+        const maxChars = isDetailPage ? 15000 : 8000
+        combinedContent += `\n\n========== PAGE: ${page.path} ==========\n${page.content.substring(0, maxChars)}`
       }
     }
     
-    console.log(`[Scraper] ✓ SUCCESS: ${successCount} pages scraped, ${combinedContent.length} total chars`)
-    return combinedContent.substring(0, 50000)
+    console.log(`[Scraper] ✓ SUCCESS: ${successfulPages.length} pages found, ${combinedContent.length} total chars`)
+    return combinedContent.substring(0, 60000) // More room for detailed content
     
   } catch (error) {
     console.log(`[Scraper] Jina error:`, error)
@@ -289,12 +252,24 @@ Return JSON with TWO separate sections: "profile" (business facts) and "analysis
 }
 
 CRITICAL INSTRUCTIONS:
-- The content includes MULTIPLE PAGES from the website (homepage, about, services, fleet, etc.)
-- Extract EVERY specific vehicle model, equipment piece, and service mentioned across ALL pages
-- Look for exact names like "Mercedes-S580", "Tesla Model Y", "56 Pax Motorcoach", "16 PAX Hummer Limo"
-- Extract exact passenger capacities (32 Pax, 6 passengers, etc.)
-- Look for years in business (e.g., "25 years experience", "Est. 1998")
-- Make the analysis UNDERSTANDABLE to a non-technical business owner.`
+- The content includes MULTIPLE PAGES from the website (look for "========== PAGE:" markers)
+- SEARCH ALL PAGES for fleet/vehicle/equipment details - especially pages marked /fleet or /fleet-standard
+
+FOR ASSETS/FLEET - Extract EXACT model names you find:
+- "Mercedes-S580" not just "Mercedes"
+- "32 Pax Party Bus" not just "Party Bus"  
+- "Tesla Model Y" not just "Tesla"
+- "16 PAX Hummer Limo" not just "Hummer"
+- Include the EXACT passenger capacity (32 Pax, 6 passengers, etc.)
+
+FOR EXPERIENCE - Look for phrases like:
+- "over 25 years" → yearsInBusiness: "25+ years"
+- "Est. 1998" → yearsInBusiness: "Since 1998"
+- "serving since 2005" → yearsInBusiness: "Since 2005"
+
+FOR SERVICES - Don't say "Not mentioned" for price, just omit priceRange if not found
+
+Make the analysis UNDERSTANDABLE to a non-technical business owner.`
 
   try {
     console.log('[AI] Starting extraction, content length:', content.length)
