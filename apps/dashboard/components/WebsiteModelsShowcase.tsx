@@ -7,6 +7,26 @@ interface WebsiteModelsShowcaseProps {
   onSelectModel: (modelId: string) => void
 }
 
+interface WebsiteModel {
+  id: string
+  name: string
+  tagline: string
+  icon: string
+  gradient: string
+  heroStyle: string
+  description: string
+  bestFor: string
+  pros: string[]
+  cons: string[]
+  solves: string[]
+  previewElements: {
+    headline: string
+    subheadline: string
+    cta: string
+    features: string[]
+  }
+}
+
 // Industry-specific design configurations
 const getIndustryConfig = (industry: string) => {
   const industryLower = industry?.toLowerCase() || ''
