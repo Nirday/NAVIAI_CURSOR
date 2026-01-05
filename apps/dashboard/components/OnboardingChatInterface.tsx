@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import BusinessProfileCard from './BusinessProfileCard'
+import WebsiteModelsShowcase from './WebsiteModelsShowcase'
 
 interface OnboardingChatInterfaceProps {
   userId: string
@@ -86,6 +87,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   })
   const [isComplete, setIsComplete] = useState(false)
   const [showProfileCard, setShowProfileCard] = useState(false)
+  const [showModelsShowcase, setShowModelsShowcase] = useState(false)
   const [profileCardData, setProfileCardData] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -2240,18 +2242,38 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   // Handler for profile card actions
   const handleProfileContinue = () => {
     setShowProfileCard(false)
-    // Transition to website models
+    setShowModelsShowcase(true)
     setOnboardingState(prev => ({
       ...prev,
       phase: 'website_models'
     }))
-    const modelsMsg: Message = {
+  }
+  
+  // Handler for model selection
+  const handleModelSelect = (modelId: string) => {
+    setShowModelsShowcase(false)
+    setOnboardingState(prev => ({
+      ...prev,
+      selectedModel: modelId as any,
+      phase: 'complete'
+    }))
+    
+    const modelNames: { [key: string]: string } = {
+      'brand_authority': 'Brand Authority',
+      'direct_response': 'Direct Response',
+      'education_first': 'Education First',
+      'hybrid_commerce': 'Hybrid Commerce',
+      'community_pillar': 'Community Pillar'
+    }
+    
+    const confirmMsg: Message = {
       id: `assistant_${Date.now()}`,
       role: 'assistant',
-      content: generateWebsiteModelsShowcase(profileCardData, onboardingState.data),
+      content: `Excellent choice! 🎉 You've selected the **${modelNames[modelId] || modelId}** model.\n\nI'm now ready to build your website. Here's what happens next:\n\n1. **Design Phase** — I'll create your custom homepage design\n2. **Content** — I'll write your website copy based on your profile\n3. **Review** — You'll preview and request any changes\n4. **Launch** — Your site goes live!\n\nHead to the **Website** tab in the sidebar to start building, or type "build my website" to begin here.`,
       timestamp: new Date()
     }
-    setMessages(prev => [...prev, modelsMsg])
+    setMessages(prev => [...prev, confirmMsg])
+    setIsComplete(true)
   }
   
   const handleProfileEdit = () => {
@@ -2273,6 +2295,18 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           data={profileCardData}
           onContinue={handleProfileContinue}
           onEdit={handleProfileEdit}
+        />
+      </div>
+    )
+  }
+  
+  // If showing website models showcase, render it full screen
+  if (showModelsShowcase && profileCardData) {
+    return (
+      <div className={`onboarding-chat h-full bg-gradient-to-br from-gray-50 to-indigo-50 overflow-auto ${className}`}>
+        <WebsiteModelsShowcase 
+          businessData={profileCardData}
+          onSelectModel={handleModelSelect}
         />
       </div>
     )
