@@ -28,18 +28,87 @@ interface WebsiteModel {
 }
 
 // Industry-specific design configurations
-const getIndustryConfig = (industry: string) => {
+const getIndustryConfig = (industry: string, businessData?: any) => {
   const industryLower = industry?.toLowerCase() || ''
+  const businessName = businessData?.businessName?.toLowerCase() || ''
+  const services = (businessData?.services || []).map((s: any) => 
+    (typeof s === 'string' ? s : s.name || '').toLowerCase()
+  ).join(' ')
+  const description = businessData?.description?.toLowerCase() || ''
+  const allText = `${industryLower} ${businessName} ${services} ${description}`
   
-  if (industryLower.includes('limo') || industryLower.includes('transport') || industryLower.includes('car')) {
+  // CHAUFFEUR / LIMO / EXECUTIVE TRANSPORT (luxury, events, corporate)
+  if (allText.includes('limo') || allText.includes('chauffeur') || allText.includes('executive') || 
+      allText.includes('wedding') || allText.includes('prom') || allText.includes('black car') ||
+      allText.includes('town car') || allText.includes('party bus') || allText.includes('charter')) {
     return {
-      type: 'transportation',
-      heroImage: 'luxury car at night, city lights',
+      type: 'chauffeur',
+      subtype: allText.includes('party bus') || allText.includes('charter') ? 'party_bus' : 
+               allText.includes('wedding') ? 'wedding_limo' :
+               allText.includes('corporate') || allText.includes('executive') ? 'executive_transport' : 'luxury_limo',
+      heroImage: 'Professional chauffeur opening door of black Mercedes S-Class at night, city lights reflecting',
+      imageAlt: 'Luxury chauffeur service',
       colors: { primary: 'slate-900', accent: 'amber-500', bg: 'black' },
-      vibes: ['Luxury', 'Reliability', 'Elegance'],
+      vibes: ['White-Glove Service', 'Punctuality', 'Discretion', 'Luxury'],
       ctaStyle: 'gold-bordered',
-      sections: ['Fleet Gallery', 'Service Areas Map', 'Booking Widget', 'Testimonials'],
-      typography: 'serif elegant'
+      ctaText: 'Reserve Your Ride',
+      sections: ['Fleet Gallery', 'Service Areas', 'Corporate Accounts', 'Special Occasions'],
+      typography: 'serif elegant',
+      heroElements: ['Professional chauffeur', 'Luxury vehicle exterior at night', 'Red carpet/VIP entrance'],
+      trustBadges: ['Licensed & Insured', '24/7 Dispatch', 'Background-Checked Chauffeurs']
+    }
+  }
+  
+  // CAR RENTAL (self-drive, budget/economy)
+  if (allText.includes('rental') || allText.includes('rent a car') || allText.includes('self-drive')) {
+    return {
+      type: 'car_rental',
+      heroImage: 'Row of clean rental cars in a bright lot, customer receiving keys',
+      imageAlt: 'Car rental fleet',
+      colors: { primary: 'blue-600', accent: 'green-500', bg: 'white' },
+      vibes: ['Convenience', 'Value', 'Freedom'],
+      ctaStyle: 'bold',
+      ctaText: 'Get a Quote',
+      sections: ['Vehicle Selection', 'Pricing', 'Locations', 'FAQ'],
+      typography: 'clean modern',
+      heroElements: ['Car keys handoff', 'Fleet lineup', 'Happy customer driving'],
+      trustBadges: ['No Hidden Fees', 'Free Cancellation', '24/7 Roadside']
+    }
+  }
+  
+  // CAR DEALERSHIP (sales)
+  if (allText.includes('dealership') || allText.includes('car sales') || allText.includes('auto sales') ||
+      allText.includes('buy a car') || allText.includes('pre-owned')) {
+    return {
+      type: 'car_dealership',
+      heroImage: 'Shiny new car in showroom with dramatic lighting',
+      imageAlt: 'Auto dealership showroom',
+      colors: { primary: 'red-700', accent: 'gray-800', bg: 'white' },
+      vibes: ['Selection', 'Deals', 'Financing'],
+      ctaStyle: 'bold',
+      ctaText: 'Browse Inventory',
+      sections: ['New Inventory', 'Pre-Owned', 'Financing', 'Trade-In'],
+      typography: 'bold modern',
+      heroElements: ['Showroom floor', 'Featured vehicle', 'Sales team'],
+      trustBadges: ['Certified Pre-Owned', 'Easy Financing', 'Trade-In Welcome']
+    }
+  }
+  
+  // CORPORATE SHUTTLE / EMPLOYEE TRANSPORT
+  if (allText.includes('shuttle') || allText.includes('employee transport') || allText.includes('commuter') ||
+      allText.includes('campus') || allText.includes('inter-office')) {
+    return {
+      type: 'corporate_shuttle',
+      heroImage: 'Modern executive coach bus outside tech campus, employees boarding',
+      imageAlt: 'Corporate shuttle service',
+      colors: { primary: 'indigo-700', accent: 'cyan-500', bg: 'slate-50' },
+      vibes: ['Efficiency', 'Productivity', 'Sustainability'],
+      ctaStyle: 'modern',
+      ctaText: 'Request Proposal',
+      sections: ['Fleet Options', 'Route Planning', 'Corporate Programs', 'Sustainability'],
+      typography: 'clean corporate',
+      heroElements: ['Executive coach exterior', 'Employees with laptops on bus', 'Tech campus'],
+      trustBadges: ['WiFi Equipped', 'Track & Trace', 'Carbon Offset']
     }
   }
   if (industryLower.includes('chiro') || industryLower.includes('health') || industryLower.includes('medical') || industryLower.includes('wellness')) {
@@ -116,7 +185,7 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
   const reviewScore = businessData?.websiteAnalysis?.trust?.reviewScore || '4.9'
   
   // Get industry-specific config
-  const industryConfig = getIndustryConfig(industry)
+  const industryConfig = getIndustryConfig(industry, businessData)
   
   // Identify their specific gaps/problems
   const problems = []
@@ -433,21 +502,50 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       
                       {/* Brand Authority - Cinematic Luxury */}
                       {model.id === 'brand_authority' && (
-                        <div className="p-8 md:p-12 flex flex-col items-center justify-center min-h-[320px] text-center">
+                        <div className="p-8 md:p-12 flex flex-col items-center justify-center min-h-[320px] text-center relative">
+                          {/* Image placeholder indicator */}
+                          <div className="absolute top-4 right-4 bg-black/40 backdrop-blur px-3 py-1.5 rounded-lg text-xs text-white/60 flex items-center gap-2">
+                            <span>📷</span>
+                            <span>{industryConfig.heroImage || 'Hero video/image here'}</span>
+                          </div>
+                          
                           <p className="text-amber-400 uppercase tracking-[0.3em] text-xs mb-4">{city} • Since {businessData?.history?.foundedYear || years.replace(/[^0-9]/g, '').slice(-4) || '1999'}</p>
                           <h1 className="text-4xl md:text-5xl font-serif mb-4 tracking-tight">
-                            {industryConfig.type === 'transportation' ? 'Excellence in Motion' : 
+                            {industryConfig.type === 'chauffeur' ? (
+                              industryConfig.subtype === 'party_bus' ? 'Unforgettable Group Experiences' :
+                              industryConfig.subtype === 'wedding_limo' ? 'Your Perfect Day, Perfected' :
+                              industryConfig.subtype === 'executive_transport' ? 'Executive Travel, Elevated' :
+                              'Excellence in Motion'
+                            ) : 
                              industryConfig.type === 'healthcare' ? 'The Art of Wellness' :
                              industryConfig.type === 'restaurant' ? 'A Culinary Experience' :
+                             industryConfig.type === 'car_rental' ? 'Freedom Awaits' :
+                             industryConfig.type === 'corporate_shuttle' ? 'Commuting, Reimagined' :
                              'Where Excellence Meets Expertise'}
                           </h1>
                           <p className="text-white/60 text-lg max-w-xl mb-8">
-                            {industryConfig.type === 'transportation' 
-                              ? `Serving ${city}'s most distinguished clientele with an exceptional fleet of ${fleet[0]?.name || fleet[0] || 'luxury vehicles'}.`
+                            {industryConfig.type === 'chauffeur' ? (
+                              industryConfig.subtype === 'party_bus' 
+                                ? `${fleet.length || 'Multiple'} party buses & charter vehicles for Bay Area celebrations, wine tours, and corporate events.`
+                                : industryConfig.subtype === 'executive_transport'
+                                ? `White-glove chauffeur service for ${city}'s executives. ${fleet[0]?.name || fleet[0] || 'Mercedes S-Class'}, ${fleet[1]?.name || fleet[1] || 'BMW 7-Series'} & more.`
+                                : `Professional chauffeur service with ${fleet[0]?.name || fleet[0] || 'luxury sedans'}, SUVs, and executive coaches. Serving ${city} for ${years || 'over a decade'}.`
+                            ) : industryConfig.type === 'corporate_shuttle' 
+                              ? `WiFi-equipped executive coaches for employee commutes. Reduce parking costs, boost productivity.`
                               : `Trusted by ${city} for ${years || 'years'}.`}
                           </p>
+                          
+                          {/* Visual elements for chauffeur */}
+                          {industryConfig.type === 'chauffeur' && (
+                            <div className="flex items-center gap-6 mb-6 text-white/40 text-xs">
+                              <span className="flex items-center gap-1">🚗 {fleet.length || '10'}+ Vehicles</span>
+                              <span className="flex items-center gap-1">👔 Professional Chauffeurs</span>
+                              <span className="flex items-center gap-1">🕐 24/7 Service</span>
+                            </div>
+                          )}
+                          
                           <button className="border-2 border-amber-400 text-amber-400 px-8 py-3 hover:bg-amber-400 hover:text-slate-900 transition-all tracking-wider text-sm">
-                            REQUEST CONCIERGE SERVICE
+                            {industryConfig.ctaText || 'REQUEST CONCIERGE SERVICE'}
                           </button>
                           {credentials.length > 0 && (
                             <div className="mt-8 flex items-center gap-4 text-white/40 text-xs">
@@ -462,45 +560,112 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       
                       {/* Direct Response - Conversion Focused */}
                       {model.id === 'direct_response' && (
-                        <div className="p-6 md:p-10 grid md:grid-cols-2 gap-8 items-center">
+                        <div className="p-6 md:p-10 grid md:grid-cols-2 gap-8 items-center relative">
+                          {/* Image placeholder */}
+                          <div className="absolute top-4 right-4 bg-black/40 backdrop-blur px-3 py-1.5 rounded-lg text-xs text-white/60 flex items-center gap-2">
+                            <span>📷</span>
+                            <span>{industryConfig.type === 'chauffeur' ? 'Fleet vehicle with "Book Now" overlay' : 'Service action shot'}</span>
+                          </div>
+                          
                           <div>
                             <div className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full inline-block mb-4">
-                              🔥 BOOKING FAST — {Math.floor(Math.random() * 3) + 2} slots left today
+                              {industryConfig.type === 'chauffeur' 
+                                ? '🚗 PEAK SEASON — Reserve your ride now'
+                                : `🔥 BOOKING FAST — ${Math.floor(Math.random() * 3) + 2} slots left today`}
                             </div>
                             <h1 className="text-3xl md:text-4xl font-bold mb-4">
-                              {services[0] || 'Need Service'}?<br/>
-                              <span className="text-yellow-300">Book in 60 Seconds.</span>
+                              {industryConfig.type === 'chauffeur' ? (
+                                <>
+                                  {industryConfig.subtype === 'party_bus' ? 'Party Bus for Your Event?' :
+                                   industryConfig.subtype === 'executive_transport' ? 'Airport Transfer?' :
+                                   'Need a Ride?'}<br/>
+                                  <span className="text-yellow-300">Get an Instant Quote.</span>
+                                </>
+                              ) : (
+                                <>
+                                  {services[0] || 'Need Service'}?<br/>
+                                  <span className="text-yellow-300">Book in 60 Seconds.</span>
+                                </>
+                              )}
                             </h1>
                             <p className="text-white/80 mb-6">
-                              {industryConfig.type === 'transportation' 
-                                ? '✓ Instant confirmation • ✓ Best rate guarantee • ✓ 24/7 support'
+                              {industryConfig.type === 'chauffeur' 
+                                ? '✓ Instant confirmation • ✓ All-inclusive pricing • ✓ Meet & greet included'
                                 : '✓ Same-day availability • ✓ Verified reviews • ✓ Instant confirmation'}
                             </p>
+                            
+                            {/* Chauffeur-specific trust signals */}
+                            {industryConfig.type === 'chauffeur' && (
+                              <div className="flex flex-wrap gap-3 mb-6">
+                                {industryConfig.trustBadges?.map((badge: string, i: number) => (
+                                  <span key={i} className="bg-white/10 text-white/80 text-xs px-3 py-1.5 rounded-full">
+                                    ✓ {badge}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            
                             <div className="flex flex-col sm:flex-row gap-3">
                               <button className="bg-yellow-400 text-yellow-900 px-6 py-4 rounded-xl font-bold text-lg shadow-lg">
-                                Check Availability →
+                                {industryConfig.type === 'chauffeur' ? 'Get Instant Quote →' : 'Check Availability →'}
                               </button>
                               <button className="border-2 border-white/50 text-white px-6 py-4 rounded-xl">
-                                📞 Call Now
+                                📞 {phone || 'Call Now'}
                               </button>
                             </div>
                           </div>
+                          
+                          {/* Booking Widget */}
                           <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/20">
                             <div className="text-center mb-4">
                               <p className="text-white/60 text-sm">⭐⭐⭐⭐⭐ {reviewScore}/5 ({Math.floor(Math.random() * 200) + 50}+ reviews)</p>
                             </div>
                             <div className="space-y-3">
-                              <div className="bg-white/10 rounded-lg p-3">
-                                <label className="text-xs text-white/60">Select Service</label>
-                                <p className="text-white">{services[0] || 'Service'} ▼</p>
-                              </div>
-                              <div className="bg-white/10 rounded-lg p-3">
-                                <label className="text-xs text-white/60">Date & Time</label>
-                                <p className="text-white">Pick a date ▼</p>
-                              </div>
-                              <button className="w-full bg-green-500 text-white py-4 rounded-xl font-bold">
-                                Book Now — It&apos;s Free to Reserve
-                              </button>
+                              {industryConfig.type === 'chauffeur' ? (
+                                <>
+                                  <div className="bg-white/10 rounded-lg p-3">
+                                    <label className="text-xs text-white/60">Service Type</label>
+                                    <p className="text-white">{services[0] || 'Airport Transfer'} ▼</p>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white/10 rounded-lg p-3">
+                                      <label className="text-xs text-white/60">Pickup</label>
+                                      <p className="text-white text-sm">SFO Airport</p>
+                                    </div>
+                                    <div className="bg-white/10 rounded-lg p-3">
+                                      <label className="text-xs text-white/60">Dropoff</label>
+                                      <p className="text-white text-sm">{city}</p>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white/10 rounded-lg p-3">
+                                      <label className="text-xs text-white/60">Date</label>
+                                      <p className="text-white text-sm">Select ▼</p>
+                                    </div>
+                                    <div className="bg-white/10 rounded-lg p-3">
+                                      <label className="text-xs text-white/60">Passengers</label>
+                                      <p className="text-white text-sm">1-4 ▼</p>
+                                    </div>
+                                  </div>
+                                  <button className="w-full bg-green-500 text-white py-4 rounded-xl font-bold">
+                                    Get Price — No Card Required
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="bg-white/10 rounded-lg p-3">
+                                    <label className="text-xs text-white/60">Select Service</label>
+                                    <p className="text-white">{services[0] || 'Service'} ▼</p>
+                                  </div>
+                                  <div className="bg-white/10 rounded-lg p-3">
+                                    <label className="text-xs text-white/60">Date & Time</label>
+                                    <p className="text-white">Pick a date ▼</p>
+                                  </div>
+                                  <button className="w-full bg-green-500 text-white py-4 rounded-xl font-bold">
+                                    Book Now — It&apos;s Free to Reserve
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
