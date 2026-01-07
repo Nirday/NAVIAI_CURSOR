@@ -665,15 +665,22 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       
                       {/* Brand Authority - Cinematic Luxury */}
                       {model.id === 'brand_authority' && (
-                        <div className="p-8 md:p-12 flex flex-col items-center justify-center min-h-[320px] text-center relative">
-                          {/* Image placeholder indicator */}
-                          <div className="absolute top-4 right-4 bg-black/40 backdrop-blur px-3 py-1.5 rounded-lg text-xs text-white/60 flex items-center gap-2">
-                            <span>📷</span>
-                            <span>{industryConfig.heroImage || 'Hero video/image here'}</span>
+                        <div className="relative min-h-[320px]">
+                          {/* Hero Image Placeholder - Full Background */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <div className="text-center text-white/40">
+                                <div className="text-6xl mb-4">📷</div>
+                                <p className="text-sm font-medium">{industryConfig.heroImage || 'Hero Image'}</p>
+                                <p className="text-xs mt-2 opacity-60">1920x1080px • Alt: {industryConfig.imageAlt || 'Professional service image'}</p>
+                              </div>
+                            </div>
                           </div>
                           
-                          <p className="text-amber-400 uppercase tracking-[0.3em] text-xs mb-4">{city} • Since {businessData?.history?.foundedYear || years.replace(/[^0-9]/g, '').slice(-4) || '1999'}</p>
-                          <h1 className="text-4xl md:text-5xl font-serif mb-4 tracking-tight">
+                          {/* Content Overlay */}
+                          <div className="relative z-10 p-8 md:p-12 flex flex-col items-center justify-center min-h-[320px] text-center">
+                            <p className="text-amber-400 uppercase tracking-[0.3em] text-xs mb-4">{city} • Since {businessData?.history?.foundedYear || years.replace(/[^0-9]/g, '').slice(-4) || '1999'}</p>
+                            <h1 className="text-4xl md:text-5xl font-serif mb-4 tracking-tight">
                             {industryConfig.type === 'chauffeur' ? (
                               industryConfig.subtype === 'party_bus' ? 'Unforgettable Group Experiences' :
                               industryConfig.subtype === 'wedding_limo' ? 'Your Perfect Day, Perfected' :
@@ -718,16 +725,22 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                               ))}
                             </div>
                           )}
+                          </div>
                         </div>
                       )}
                       
                       {/* Direct Response - Conversion Focused */}
                       {model.id === 'direct_response' && (
                         <div className="p-6 md:p-10 grid md:grid-cols-2 gap-8 items-center relative">
-                          {/* Image placeholder */}
-                          <div className="absolute top-4 right-4 bg-black/40 backdrop-blur px-3 py-1.5 rounded-lg text-xs text-white/60 flex items-center gap-2">
-                            <span>📷</span>
-                            <span>{industryConfig.type === 'chauffeur' ? 'Fleet vehicle with "Book Now" overlay' : 'Service action shot'}</span>
+                          {/* Left Side - Image Placeholder */}
+                          <div className="relative h-64 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600">
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                              <div className="text-center text-white/60">
+                                <div className="text-5xl mb-2">📷</div>
+                                <p className="text-sm font-medium">{industryConfig.type === 'chauffeur' ? 'Fleet Vehicle' : 'Service Action'}</p>
+                                <p className="text-xs mt-1 opacity-60">1200x800px</p>
+                              </div>
+                            </div>
                           </div>
                           
                           <div>
@@ -838,6 +851,17 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       {model.id === 'education_first' && (
                         <div className="p-8 md:p-12">
                           <div className="max-w-3xl">
+                            {/* Hero Image Placeholder */}
+                            <div className="relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-100 to-teal-100 mb-6">
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="text-center text-emerald-600/60">
+                                  <div className="text-5xl mb-2">📷</div>
+                                  <p className="text-sm font-medium">Warm, Approachable Expert</p>
+                                  <p className="text-xs mt-1 opacity-60">1200x600px • Alt: Friendly expert explaining service</p>
+                                </div>
+                              </div>
+                            </div>
+                            
                             <p className="text-emerald-600 font-medium mb-3">Your Trusted {industry} Resource</p>
                             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
                               Understanding {services[0] || 'Your Options'}:<br/>
@@ -858,7 +882,13 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                             <div className="grid grid-cols-3 gap-4">
                               {services.slice(0, 3).map((svc: string, i: number) => (
                                 <div key={i} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                  <div className="text-2xl mb-2">📖</div>
+                                  {/* Article Image Placeholder */}
+                                  <div className="relative h-24 rounded mb-3 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                    <div className="text-center text-gray-400 text-xs">
+                                      <span className="text-2xl">📖</span>
+                                      <p className="text-xs mt-1">600x400px</p>
+                                    </div>
+                                  </div>
                                   <p className="text-sm font-medium text-gray-700">{svc}</p>
                                   <p className="text-xs text-emerald-600">Read guide →</p>
                                 </div>
@@ -891,12 +921,24 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                               <h2 className="text-2xl font-bold text-gray-800 mb-4">Featured Items</h2>
                               <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-fuchsia-50 rounded-lg p-3 text-center">
-                                  <div className="text-3xl mb-2">🎁</div>
+                                  {/* Product Image Placeholder */}
+                                  <div className="relative h-24 rounded mb-2 bg-gradient-to-br from-fuchsia-100 to-pink-100 flex items-center justify-center">
+                                    <div className="text-center text-fuchsia-400 text-xs">
+                                      <span className="text-2xl">🎁</span>
+                                      <p className="text-xs mt-1">400x400px</p>
+                                    </div>
+                                  </div>
                                   <p className="text-sm font-medium">Gift Cards</p>
                                   <p className="text-xs text-fuchsia-600">From $50</p>
                                 </div>
                                 <div className="bg-fuchsia-50 rounded-lg p-3 text-center">
-                                  <div className="text-3xl mb-2">📦</div>
+                                  {/* Product Image Placeholder */}
+                                  <div className="relative h-24 rounded mb-2 bg-gradient-to-br from-fuchsia-100 to-pink-100 flex items-center justify-center">
+                                    <div className="text-center text-fuchsia-400 text-xs">
+                                      <span className="text-2xl">📦</span>
+                                      <p className="text-xs mt-1">400x400px</p>
+                                    </div>
+                                  </div>
                                   <p className="text-sm font-medium">Packages</p>
                                   <p className="text-xs text-fuchsia-600">Save 20%</p>
                                 </div>
@@ -909,6 +951,20 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       {/* Community Pillar - Local Trust */}
                       {model.id === 'community_pillar' && (
                         <div className="p-8 md:p-12 text-center">
+                          {/* Customer Photo Collage Placeholder */}
+                          <div className="grid grid-cols-3 gap-2 mb-6 max-w-2xl mx-auto">
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
+                              <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100">
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="text-center text-orange-400/60 text-xs">
+                                    <span className="text-xl">👥</span>
+                                    <p className="text-xs mt-1">400x400px</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
                           <div className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded-full inline-block mb-4">
                             🏆 Voted #{1} {industry} in {city}
                           </div>
@@ -944,12 +1000,26 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       )}
                     </div>
                     
-                    {/* Below Fold Preview */}
+                    {/* Below Fold Preview - Additional Sections with Images */}
                     <div className="p-6 bg-gray-50 border-t">
-                      <div className="flex items-center gap-6 text-sm text-gray-500">
-                        <span className="font-medium text-gray-700">Below the fold:</span>
-                        {model.previewElements.features.map((feature, i) => (
-                          <span key={i} className="bg-white px-3 py-1 rounded-full border border-gray-200">{feature}</span>
+                      <div className="mb-4">
+                        <span className="font-medium text-gray-700 text-sm">Below the fold:</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {model.images?.map((img: any, i: number) => (
+                          <div key={i} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <div className="relative h-24 rounded mb-2 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                              <div className="text-center text-gray-400 text-xs">
+                                <span className="text-2xl">📷</span>
+                                <p className="text-xs mt-1">{img.label}</p>
+                              </div>
+                            </div>
+                            <p className="text-xs font-medium text-gray-700">{img.alt}</p>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{img.description}</p>
+                          </div>
+                        ))}
+                        {!model.images && model.previewElements.features.map((feature, i) => (
+                          <span key={i} className="bg-white px-3 py-1 rounded-full border border-gray-200 text-sm text-gray-600">{feature}</span>
                         ))}
                       </div>
                     </div>
