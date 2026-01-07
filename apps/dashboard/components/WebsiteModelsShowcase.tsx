@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface WebsiteModelsShowcaseProps {
   businessData: any
@@ -183,6 +183,8 @@ const getIndustryConfig = (industry: string, businessData?: any) => {
 export default function WebsiteModelsShowcase({ businessData, onSelectModel }: WebsiteModelsShowcaseProps) {
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [expandedModel, setExpandedModel] = useState<string | null>(null)
+  const [modelImages, setModelImages] = useState<{ [key: string]: { hero?: string, product?: string, article?: string, customer?: string[] } }>({})
+  const [loadingImages, setLoadingImages] = useState<{ [key: string]: boolean }>({})
   
   const businessName = businessData?.businessName || 'Your Business'
   const city = businessData?.contact?.city || businessData?.location?.city || 'your city'
@@ -206,6 +208,74 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
   if (!hasBlog) problems.push('no-seo')
   if (!hasReviews) problems.push('no-reviews')
   if (businessData?.websiteAnalysis?.conversion?.bookingFriction === 'High') problems.push('high-friction')
+
+  // Fetch images when model is expanded
+  useEffect(() => {
+    if (!expandedModel) return
+
+    const fetchImages = async () => {
+      // Skip if already loaded
+      if (modelImages[expandedModel]) return
+
+      setLoadingImages(prev => ({ ...prev, [expandedModel]: true }))
+
+      try {
+        const industryType = industryConfig.type || 'service'
+        const servicesParam = services.join(',')
+
+        // Fetch hero image
+        const heroRes = await fetch(
+          `/api/images/search?industryType=${industryType}&modelId=${expandedModel}&businessName=${encodeURIComponent(businessName)}&services=${encodeURIComponent(servicesParam)}&type=hero&count=1`
+        )
+        const heroData = await heroRes.json()
+
+        // Fetch additional images based on model
+        let productImg = null
+        let articleImg = null
+        let customerImgs: string[] = []
+
+        if (expandedModel === 'hybrid_commerce') {
+          const productRes = await fetch(
+            `/api/images/search?industryType=${industryType}&modelId=${expandedModel}&type=product&count=1`
+          )
+          const productData = await productRes.json()
+          productImg = productData.images?.[0]?.url
+        }
+
+        if (expandedModel === 'education_first') {
+          const articleRes = await fetch(
+            `/api/images/search?industryType=${industryType}&modelId=${expandedModel}&type=article&count=1`
+          )
+          const articleData = await articleRes.json()
+          articleImg = articleData.images?.[0]?.url
+        }
+
+        if (expandedModel === 'community_pillar') {
+          const customerRes = await fetch(
+            `/api/images/search?industryType=${industryType}&modelId=${expandedModel}&type=customer&count=6`
+          )
+          const customerData = await customerRes.json()
+          customerImgs = customerData.images?.map((img: any) => img.url) || []
+        }
+
+        setModelImages(prev => ({
+          ...prev,
+          [expandedModel]: {
+            hero: heroData.images?.[0]?.url,
+            product: productImg,
+            article: articleImg,
+            customer: customerImgs
+          }
+        }))
+      } catch (error) {
+        console.error('Error fetching images:', error)
+      } finally {
+        setLoadingImages(prev => ({ ...prev, [expandedModel]: false }))
+      }
+    }
+
+    fetchImages()
+  }, [expandedModel, industryConfig.type, businessName, services, modelImages])
   
   const models: WebsiteModel[] = [
     {
@@ -666,15 +736,37 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       {/* Brand Authority - Cinematic Luxury */}
                       {model.id === 'brand_authority' && (
                         <div className="relative min-h-[320px]">
-                          {/* Hero Image Placeholder - Full Background */}
+                          {/* Hero Image - Full Background */}
                           <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                              <div className="text-center text-white/40">
-                                <div className="text-6xl mb-4">📷</div>
-                                <p className="text-sm font-medium">{industryConfig.heroImage || 'Hero Image'}</p>
-                                <p className="text-xs mt-2 opacity-60">1920x1080px • Alt: {industryConfig.imageAlt || 'Professional service image'}</p>
+                            {modelImages[model.id]?.hero ? (
+                              <img
+                                src={modelImages[model.id].hero}
+                                alt={industryConfig.imageAlt || 'Professional service image'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback to placeholder on error
+                                  const target = e.target as HTMLImageElement
+                                  target.style.display = 'none'
+                                  target.parentElement?.classList.add('bg-gradient-to-br', 'from-slate-800', 'via-slate-900', 'to-black')
+                                }}
+                              />
+                            ) : loadingImages[model.id] ? (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                <div className="text-center text-white/40">
+                                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white/30 mx-auto mb-4"></div>
+                                  <p className="text-sm">Loading image...</p>
+                                </div>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                <div className="text-center text-white/40">
+                                  <div className="text-6xl mb-4">📷</div>
+                                  <p className="text-sm font-medium">{industryConfig.heroImage || 'Hero Image'}</p>
+                                  <p className="text-xs mt-2 opacity-60">1920x1080px • Alt: {industryConfig.imageAlt || 'Professional service image'}</p>
+                                </div>
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/40"></div>
                           </div>
                           
                           {/* Content Overlay */}
@@ -732,15 +824,31 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       {/* Direct Response - Conversion Focused */}
                       {model.id === 'direct_response' && (
                         <div className="p-6 md:p-10 grid md:grid-cols-2 gap-8 items-center relative">
-                          {/* Left Side - Image Placeholder */}
+                          {/* Left Side - Image */}
                           <div className="relative h-64 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600">
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                              <div className="text-center text-white/60">
-                                <div className="text-5xl mb-2">📷</div>
-                                <p className="text-sm font-medium">{industryConfig.type === 'chauffeur' ? 'Fleet Vehicle' : 'Service Action'}</p>
-                                <p className="text-xs mt-1 opacity-60">1200x800px</p>
+                            {modelImages[model.id]?.hero ? (
+                              <img
+                                src={modelImages[model.id].hero}
+                                alt={industryConfig.type === 'chauffeur' ? 'Fleet Vehicle' : 'Service Action'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.style.display = 'none'
+                                }}
+                              />
+                            ) : loadingImages[model.id] ? (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/30"></div>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                <div className="text-center text-white/60">
+                                  <div className="text-5xl mb-2">📷</div>
+                                  <p className="text-sm font-medium">{industryConfig.type === 'chauffeur' ? 'Fleet Vehicle' : 'Service Action'}</p>
+                                  <p className="text-xs mt-1 opacity-60">1200x800px</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                           
                           <div>
@@ -851,15 +959,31 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       {model.id === 'education_first' && (
                         <div className="p-8 md:p-12">
                           <div className="max-w-3xl">
-                            {/* Hero Image Placeholder */}
+                            {/* Hero Image */}
                             <div className="relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-100 to-teal-100 mb-6">
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="text-center text-emerald-600/60">
-                                  <div className="text-5xl mb-2">📷</div>
-                                  <p className="text-sm font-medium">Warm, Approachable Expert</p>
-                                  <p className="text-xs mt-1 opacity-60">1200x600px • Alt: Friendly expert explaining service</p>
+                              {modelImages[model.id]?.hero ? (
+                                <img
+                                  src={modelImages[model.id].hero}
+                                  alt="Friendly expert explaining service"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement
+                                    target.style.display = 'none'
+                                  }}
+                                />
+                              ) : loadingImages[model.id] ? (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600/30"></div>
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="text-center text-emerald-600/60">
+                                    <div className="text-5xl mb-2">📷</div>
+                                    <p className="text-sm font-medium">Warm, Approachable Expert</p>
+                                    <p className="text-xs mt-1 opacity-60">1200x600px • Alt: Friendly expert explaining service</p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             
                             <p className="text-emerald-600 font-medium mb-3">Your Trusted {industry} Resource</p>
@@ -882,12 +1006,26 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                             <div className="grid grid-cols-3 gap-4">
                               {services.slice(0, 3).map((svc: string, i: number) => (
                                 <div key={i} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                  {/* Article Image Placeholder */}
-                                  <div className="relative h-24 rounded mb-3 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                                    <div className="text-center text-gray-400 text-xs">
-                                      <span className="text-2xl">📖</span>
-                                      <p className="text-xs mt-1">600x400px</p>
-                                    </div>
+                                  {/* Article Image */}
+                                  <div className="relative h-24 rounded mb-3 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                                    {modelImages[model.id]?.article ? (
+                                      <img
+                                        src={modelImages[model.id].article}
+                                        alt={`${svc} guide`}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement
+                                          target.style.display = 'none'
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="text-center text-gray-400 text-xs">
+                                          <span className="text-2xl">📖</span>
+                                          <p className="text-xs mt-1">600x400px</p>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                   <p className="text-sm font-medium text-gray-700">{svc}</p>
                                   <p className="text-xs text-emerald-600">Read guide →</p>
@@ -921,23 +1059,51 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                               <h2 className="text-2xl font-bold text-gray-800 mb-4">Featured Items</h2>
                               <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-fuchsia-50 rounded-lg p-3 text-center">
-                                  {/* Product Image Placeholder */}
-                                  <div className="relative h-24 rounded mb-2 bg-gradient-to-br from-fuchsia-100 to-pink-100 flex items-center justify-center">
-                                    <div className="text-center text-fuchsia-400 text-xs">
-                                      <span className="text-2xl">🎁</span>
-                                      <p className="text-xs mt-1">400x400px</p>
-                                    </div>
+                                  {/* Product Image */}
+                                  <div className="relative h-24 rounded mb-2 bg-gradient-to-br from-fuchsia-100 to-pink-100 overflow-hidden">
+                                    {modelImages[model.id]?.product ? (
+                                      <img
+                                        src={modelImages[model.id].product}
+                                        alt="Gift card product"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement
+                                          target.style.display = 'none'
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="text-center text-fuchsia-400 text-xs">
+                                          <span className="text-2xl">🎁</span>
+                                          <p className="text-xs mt-1">400x400px</p>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                   <p className="text-sm font-medium">Gift Cards</p>
                                   <p className="text-xs text-fuchsia-600">From $50</p>
                                 </div>
                                 <div className="bg-fuchsia-50 rounded-lg p-3 text-center">
-                                  {/* Product Image Placeholder */}
-                                  <div className="relative h-24 rounded mb-2 bg-gradient-to-br from-fuchsia-100 to-pink-100 flex items-center justify-center">
-                                    <div className="text-center text-fuchsia-400 text-xs">
-                                      <span className="text-2xl">📦</span>
-                                      <p className="text-xs mt-1">400x400px</p>
-                                    </div>
+                                  {/* Product Image */}
+                                  <div className="relative h-24 rounded mb-2 bg-gradient-to-br from-fuchsia-100 to-pink-100 overflow-hidden">
+                                    {modelImages[model.id]?.product ? (
+                                      <img
+                                        src={modelImages[model.id].product}
+                                        alt="Package product"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement
+                                          target.style.display = 'none'
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="text-center text-fuchsia-400 text-xs">
+                                          <span className="text-2xl">📦</span>
+                                          <p className="text-xs mt-1">400x400px</p>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                   <p className="text-sm font-medium">Packages</p>
                                   <p className="text-xs text-fuchsia-600">Save 20%</p>
@@ -951,18 +1117,38 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                       {/* Community Pillar - Local Trust */}
                       {model.id === 'community_pillar' && (
                         <div className="p-8 md:p-12 text-center">
-                          {/* Customer Photo Collage Placeholder */}
+                          {/* Customer Photo Collage */}
                           <div className="grid grid-cols-3 gap-2 mb-6 max-w-2xl mx-auto">
-                            {[1, 2, 3, 4, 5, 6].map((i) => (
-                              <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="text-center text-orange-400/60 text-xs">
-                                    <span className="text-xl">👥</span>
-                                    <p className="text-xs mt-1">400x400px</p>
-                                  </div>
+                            {[1, 2, 3, 4, 5, 6].map((i) => {
+                              const customerImgs = modelImages[model.id]?.customer || []
+                              const imgUrl = customerImgs[i - 1]
+                              return (
+                                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100">
+                                  {imgUrl ? (
+                                    <img
+                                      src={imgUrl}
+                                      alt={`Happy customer ${i}`}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement
+                                        target.style.display = 'none'
+                                      }}
+                                    />
+                                  ) : loadingImages[model.id] ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-orange-100/50">
+                                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-400/30"></div>
+                                    </div>
+                                  ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="text-center text-orange-400/60 text-xs">
+                                        <span className="text-xl">👥</span>
+                                        <p className="text-xs mt-1">400x400px</p>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                           
                           <div className="bg-orange-500 text-white text-sm font-bold px-4 py-2 rounded-full inline-block mb-4">
