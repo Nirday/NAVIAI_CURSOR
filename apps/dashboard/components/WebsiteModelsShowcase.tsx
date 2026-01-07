@@ -25,6 +25,19 @@ interface WebsiteModel {
     cta: string
     features: string[]
   }
+  images?: {
+    label: string
+    alt: string
+    description: string
+  }[]
+  seoPlan?: {
+    title: string
+    description: string
+    og: string
+    twitter: string
+    schema: string[]
+    localActions: string[]
+  }
 }
 
 // Industry-specific design configurations
@@ -225,6 +238,35 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
         subheadline: `Where expertise meets exceptional service`,
         cta: 'Request Concierge Appointment',
         features: ['Philosophy Section', 'Credentials Showcase', 'Cinematic Hero Video', 'Minimal Design']
+      },
+      images: [
+        {
+          label: 'Hero',
+          alt: industryConfig.imageAlt || 'Premium hero image',
+          description: industryConfig.heroImage || 'Cinematic hero shot with subject in action'
+        },
+        {
+          label: 'Proof',
+          alt: 'Credentials and client logos',
+          description: 'Badges/logos for trust (e.g., corporate clients, licenses)'
+        }
+      ],
+      seoPlan: {
+        title: `${services[0] || industry} in ${city} | ${businessName}`,
+        description: `Premium ${industry.toLowerCase()} in ${city}. ${years || 'Over 10 years'} of expertise. Book a concierge appointment today.`,
+        og: `${businessName} — ${industry} in ${city}`,
+        twitter: `${businessName}: premium ${industry.toLowerCase()} in ${city}`,
+        schema: [
+          'LocalBusiness (name, address, phone, geo, openingHours)',
+          'Service schema for top services with city keywords',
+          'Review/Rating schema if ratings available'
+        ],
+        localActions: [
+          'H1: Premium {Service} in {City}',
+          'Meta description: include city + primary service + CTA',
+          'Include NAP + map link above the fold',
+          'Internal links: Services, Fleet/Work, Contact/Book'
+        ]
       }
     },
     {
@@ -257,6 +299,37 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
         subheadline: `Instant online booking • Available 24/7`,
         cta: 'Check Availability Now',
         features: ['Instant Booking Widget', 'Trust Badges', 'AI Chat Bot', 'Urgency Indicators']
+      },
+      images: [
+        {
+          label: 'Hero',
+          alt: industryConfig.type === 'chauffeur' ? 'Chauffeur opening vehicle door' : 'Team delivering service',
+          description: industryConfig.type === 'chauffeur'
+            ? 'Black car with chauffeur at curbside for airport or corporate pickup'
+            : 'Service hero shot showing the core offer'
+        },
+        {
+          label: 'Proof',
+          alt: '5-star reviews screenshot',
+          description: 'Screenshot of Google rating/reviews for trust'
+        }
+      ],
+      seoPlan: {
+        title: `Book ${services[0] || industry} in ${city} Today | ${businessName}`,
+        description: `Instant booking for ${services[0] || industry.toLowerCase()} in ${city}. ${years || 'Trusted locally'}. 24/7 scheduling.`,
+        og: `${businessName} — Book Now in ${city}`,
+        twitter: `Book ${services[0] || industry} fast in ${city} with ${businessName}`,
+        schema: [
+          'LocalBusiness with geo + phone',
+          'Service schema for main service + city',
+          'FAQ schema for booking, pricing, arrival time'
+        ],
+        localActions: [
+          'H1: Book {Service} in {City} Now',
+          'Meta: include “instant booking”, city, phone',
+          'Above-fold CTA with phone + online booking',
+          'Embed review stars near CTA for trust'
+        ]
       }
     },
     {
@@ -289,6 +362,36 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
         subheadline: `Your guide to making informed decisions`,
         cta: 'Take the Free Assessment',
         features: ['Knowledge Hub', 'FAQ Section', 'Blog Articles', 'Lead Magnets']
+      },
+      images: [
+        {
+          label: 'Hero',
+          alt: 'Friendly expert explaining service',
+          description: 'Warm, approachable image that matches educational tone'
+        },
+        {
+          label: 'Content',
+          alt: 'Blog/article preview',
+          description: 'Cards for guides and FAQs to earn SEO clicks'
+        }
+      ],
+      seoPlan: {
+        title: `${industry} Guides in ${city} | ${businessName}`,
+        description: `Deep-dive guides on ${services.slice(0, 2).join(', ') || industry} for ${city}. Learn, compare, and book with confidence.`,
+        og: `${businessName} — Learn about ${industry} in ${city}`,
+        twitter: `Guides and FAQs for ${industry} in ${city} by ${businessName}`,
+        schema: [
+          'LocalBusiness',
+          'Service schema per service with city keyword',
+          'FAQ schema (top 5 questions)',
+          'Article schema for pillar posts'
+        ],
+        localActions: [
+          'H1: Learn {Service} in {City}',
+          'Internal links: pillar → service pages → booking',
+          'FAQ block with JSON-LD',
+          'Add city keywords in H2s and meta'
+        ]
       }
     },
     {
@@ -321,6 +424,36 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
         subheadline: `Everything you need in one place`,
         cta: 'Browse & Book',
         features: ['Service Booking', 'Product Shop', 'Gift Cards', 'Subscriptions']
+      },
+      images: [
+        {
+          label: 'Hero',
+          alt: 'Service hero + product grid',
+          description: 'Split hero showing service action and product highlights'
+        },
+        {
+          label: 'Shop',
+          alt: 'Featured products with prices',
+          description: 'Product cards (gift cards, bundles) with clear pricing'
+        }
+      ],
+      seoPlan: {
+        title: `${services[0] || industry} & Products in ${city} | ${businessName}`,
+        description: `Book ${services[0] || industry.toLowerCase()} and shop products in ${city}. Subscriptions, bundles, gift cards available.`,
+        og: `${businessName} — Services + Shop in ${city}`,
+        twitter: `Book services and shop products in ${city} with ${businessName}`,
+        schema: [
+          'LocalBusiness',
+          'Service schema + Offer for booking',
+          'Product schema (gift cards, bundles)',
+          'FAQ schema for shipping/booking'
+        ],
+        localActions: [
+          'H1: Book & Shop in {City}',
+          'Meta: mention products + services + city',
+          'Internal links between services ↔ products',
+          'Include pickup/shipping policies with FAQ schema'
+        ]
       }
     },
     {
@@ -353,6 +486,36 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
         subheadline: `Trusted by families since ${businessData?.history?.foundedYear || '2000'}`,
         cta: 'Join Our Community',
         features: ['Customer Stories', 'Events Calendar', 'Instagram Feed', 'Referral Program']
+      },
+      images: [
+        {
+          label: 'Hero',
+          alt: 'Happy local customers/community',
+          description: 'Collage of local customers/patients/families as social proof'
+        },
+        {
+          label: 'Events',
+          alt: 'Community event photo',
+          description: 'Workshops or local events to drive referrals'
+        }
+      ],
+      seoPlan: {
+        title: `${city} ${industry} Trusted by Locals | ${businessName}`,
+        description: `Local favorite ${industry.toLowerCase()} in ${city}. ${reviewScore}★ rated. Join the community, see events, and book today.`,
+        og: `${businessName} — ${industry} trusted in ${city}`,
+        twitter: `Top-rated ${industry} in ${city}. ${businessName} (${reviewScore}★). Join our community.`,
+        schema: [
+          'LocalBusiness with aggregateRating',
+          'Event schema for upcoming events',
+          'FAQ schema for process/policies',
+          'Service schema with city keywords'
+        ],
+        localActions: [
+          'H1: {City}’s Favorite {Service/Industry}',
+          'Show rating near CTA with review schema',
+          'Event/Workshop calendar with schema',
+          'Local landmarks/areas served in copy'
+        ]
       }
     }
   ]
@@ -798,6 +961,27 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                   <p className="text-gray-700 leading-relaxed">{model.description}</p>
                   <p className="text-sm text-gray-500 mt-2"><strong>Best For:</strong> {model.bestFor}</p>
                 </div>
+
+                {/* Images / Media Plan */}
+                {model.images && (
+                  <div className="mb-6">
+                    <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <span>🖼️</span> Image & Media Plan (with alt text for SEO)
+                    </h4>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {model.images.map((img, i) => (
+                        <div key={i} className="border border-gray-200 rounded-xl p-3 bg-white">
+                          <div className="text-xs font-semibold text-gray-500 mb-1">{img.label}</div>
+                          <div className="bg-gray-100 rounded-lg h-24 flex items-center justify-center text-gray-400 text-sm mb-2">
+                            {img.alt}
+                          </div>
+                          <p className="text-sm text-gray-700">{img.description}</p>
+                          <p className="text-xs text-gray-500 mt-1">Alt: {img.alt}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Pros & Cons Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -845,6 +1029,39 @@ export default function WebsiteModelsShowcase({ businessData, onSelectModel }: W
                     ))}
                   </ul>
                 </div>
+
+                {/* SEO Blueprint */}
+                {model.seoPlan && (
+                  <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+                    <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                      <span>🧭</span> SEO Blueprint (Hyper-Local)
+                    </h4>
+                    <div className="text-sm text-gray-700">
+                      <div><strong>Title:</strong> {model.seoPlan.title}</div>
+                      <div><strong>Meta Description:</strong> {model.seoPlan.description}</div>
+                      <div className="mt-2 text-gray-600"><strong>Open Graph:</strong> {model.seoPlan.og}</div>
+                      <div className="text-gray-600"><strong>Twitter:</strong> {model.seoPlan.twitter}</div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold text-gray-500 mb-1">Schema to add:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {model.seoPlan.schema.map((s, i) => (
+                          <span key={i} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-lg border border-gray-200">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold text-gray-500 mb-1">Local SEO actions:</div>
+                      <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                        {model.seoPlan.localActions.map((a, i) => (
+                          <li key={i}>{a}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Select Button */}
                 <button
