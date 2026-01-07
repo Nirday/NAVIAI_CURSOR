@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import BusinessProfileCard from './BusinessProfileCard'
 import WebsiteModelsShowcase from './WebsiteModelsShowcase'
+import WebsiteDraftPreview from './WebsiteDraftPreview'
 
 interface OnboardingChatInterfaceProps {
   userId: string
@@ -88,7 +89,10 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [isComplete, setIsComplete] = useState(false)
   const [showProfileCard, setShowProfileCard] = useState(false)
   const [showModelsShowcase, setShowModelsShowcase] = useState(false)
+  const [showDraftPreview, setShowDraftPreview] = useState(false)
   const [profileCardData, setProfileCardData] = useState<any>(null)
+  const [draftData, setDraftData] = useState<any>(null)
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Initialize with website check message
@@ -2250,13 +2254,9 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   }
   
   // Handler for model selection
-  const handleModelSelect = (modelId: string) => {
+  const handleModelSelect = async (modelId: string) => {
     setShowModelsShowcase(false)
-    setOnboardingState(prev => ({
-      ...prev,
-      selectedModel: modelId as any,
-      phase: 'complete'
-    }))
+    setIsGeneratingDraft(true)
     
     const modelNames: { [key: string]: string } = {
       'brand_authority': 'Brand Authority',
@@ -2266,14 +2266,54 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       'community_pillar': 'Community Pillar'
     }
     
-    const confirmMsg: Message = {
-      id: `assistant_${Date.now()}`,
-      role: 'assistant',
-      content: `Excellent choice! 🎉 You've selected the **${modelNames[modelId] || modelId}** model.\n\nI'm now ready to build your website. Here's what happens next:\n\n1. **Design Phase** — I'll create your custom homepage design\n2. **Content** — I'll write your website copy based on your profile\n3. **Review** — You'll preview and request any changes\n4. **Launch** — Your site goes live!\n\nHead to the **Website** tab in the sidebar to start building, or type "build my website" to begin here.`,
-      timestamp: new Date()
+    try {
+      // Call the draft API
+      const response = await fetch('/api/website/draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessProfile: profileCardData?.businessProfile || profileCardData,
+          websiteAnalysis: profileCardData?.websiteAnalysis,
+          modelId: modelId
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate draft')
+      }
+
+      const draft = await response.json()
+      setDraftData(draft)
+      setShowDraftPreview(true)
+      
+      setOnboardingState(prev => ({
+        ...prev,
+        selectedModel: modelId as any,
+        phase: 'complete'
+      }))
+      
+      const confirmMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: `Excellent choice! 🎉 You've selected the **${modelNames[modelId] || modelId}** model.\n\nI've generated your website draft with:\n\n✅ SEO-optimized page structure\n✅ Image placeholders with alt text\n✅ Hyperlocal content for your city\n✅ Schema markup ready\n\nReview the preview below and approve to start building!`,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, confirmMsg])
+      setIsComplete(true)
+    } catch (error) {
+      console.error('Error generating draft:', error)
+      const errorMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: `I encountered an error generating your draft. Let's try again, or you can head to the **Website** tab to start building manually.`,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMsg])
+    } finally {
+      setIsGeneratingDraft(false)
     }
-    setMessages(prev => [...prev, confirmMsg])
-    setIsComplete(true)
   }
   
   const handleProfileEdit = () => {
@@ -2285,6 +2325,16 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       timestamp: new Date()
     }
     setMessages(prev => [...prev, editMsg])
+  }
+
+  const handleDraftApprove = () => {
+    setShowDraftPreview(false)
+    router.push('/dashboard/website')
+  }
+
+  const handleDraftEdit = () => {
+    setShowDraftPreview(false)
+    setShowModelsShowcase(true)
   }
   
   // If showing profile card, render it full screen
@@ -2308,6 +2358,33 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
           businessData={profileCardData}
           onSelectModel={handleModelSelect}
         />
+      </div>
+    )
+  }
+
+  // If showing draft preview, render it full screen
+  if (showDraftPreview && draftData) {
+    return (
+      <div className={`onboarding-chat h-full bg-gradient-to-br from-blue-50 to-indigo-50 overflow-auto ${className}`}>
+        <WebsiteDraftPreview 
+          draft={draftData}
+          businessName={profileCardData?.businessName || profileCardData?.businessProfile?.businessName || 'Your Business'}
+          onApprove={handleDraftApprove}
+          onEdit={handleDraftEdit}
+        />
+      </div>
+    )
+  }
+
+  // If generating draft, show loading
+  if (isGeneratingDraft) {
+    return (
+      <div className={`onboarding-chat h-full bg-gradient-to-br from-blue-50 to-indigo-50 overflow-auto ${className} flex items-center justify-center`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Generating Your Website Draft</h2>
+          <p className="text-gray-600">Creating SEO-optimized structure with image placeholders...</p>
+        </div>
       </div>
     )
   }
