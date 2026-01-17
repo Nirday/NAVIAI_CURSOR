@@ -1206,6 +1206,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
 
         // Move to manual onboarding
         setOnboardingState(prev => ({
+          ...prev,
           phase: 'discovery',
           subStep: 'business_type',
           archetype: null,
