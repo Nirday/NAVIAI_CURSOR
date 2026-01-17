@@ -13,9 +13,18 @@ import { dispatchActionCommand } from '../../content-engine/src/action_queue'
 import { getWebsiteByUserId } from '../../website-builder/src/data'
 import { getProfile } from '../../chat-core/src/profile'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization to avoid build errors when API key is not set
+let openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openai = new OpenAI({ apiKey })
+  }
+  return openai
+}
 
 /**
  * Determines if an issue can be auto-fixed
@@ -288,7 +297,7 @@ Generate a JSON object with standardized NAP data:
       throw new Error(`Unsupported issue type for AI fix: ${issue.title}`)
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4',
       messages: [
         {

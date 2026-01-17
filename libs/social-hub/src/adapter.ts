@@ -7,9 +7,18 @@ import OpenAI from 'openai'
 import { BusinessProfile } from '../../chat-core/src/types'
 import { SocialPlatform } from './types'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization to avoid build errors when API key is not set
+let openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openai = new OpenAI({ apiKey })
+  }
+  return openai
+}
 
 /**
  * Platform-specific character limits
@@ -62,7 +71,7 @@ ${platformGuidelines}
 **Output:**
 Return only the adapted content text, nothing else. Do not include any JSON wrapper or metadata.`
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4-turbo-preview',
     messages: [
       {
