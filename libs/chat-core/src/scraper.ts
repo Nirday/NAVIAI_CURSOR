@@ -23,10 +23,18 @@ export class AIError extends Error {
   }
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization to avoid build errors when API key is not set
+let openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openai = new OpenAI({ apiKey })
+  }
+  return openai
+}
 
 /**
  * Checks robots.txt to see if scraping is allowed
@@ -468,7 +476,7 @@ Return ONLY a JSON object with this exact structure:
 Multi-page website content:
 ${content}`
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
         {
