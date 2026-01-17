@@ -146,6 +146,7 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [suggestedServices, setSuggestedServices] = useState<string[]>([])
+  const [websiteRetryCount, setWebsiteRetryCount] = useState(0)
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
     phase: 'website_check',
     subStep: 'has_website',
@@ -1118,6 +1119,23 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         module_config: moduleConfig // CRITICAL: Store for Website Builder, Blog Engine, Social Scheduler
       }))
 
+      // Check if this was a retry attempt
+      const wasRetry = websiteRetryCount > 0
+      
+      // Reset retry count on successful scrape
+      setWebsiteRetryCount(0)
+
+      // If this was a retry, show success message
+      if (wasRetry) {
+        const successMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "Jackpot! Scanned successfully.",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, successMsg])
+      }
+
       // PART 3: Render the Human-Readable Report (Task 17.1 - Deep Markdown Dossier)
       // Display the markdown_report as a formatted chat message
       const reportContent = profileReport || `✅ **Deep Analysis Complete!**\n\nI've analyzed your website and generated a comprehensive business profile.`
@@ -1149,26 +1167,54 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
       }
     } catch (error: any) {
       console.error('Website analysis failed:', error)
-      const errorMsg: Message = {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content:
-          `Analysis failed: ${error?.message || 'unable to reach the website.'} ` +
-          "Do you want to try a different URL, or enter your business details manually?",
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMsg])
+      
+      // Check retry count
+      const currentRetryCount = websiteRetryCount
+      
+      if (currentRetryCount === 0) {
+        // First failure: Give user a chance to retry
+        setWebsiteRetryCount(1)
+        const errorMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content:
+            `I couldn't reach that. Try again? (Or type 'skip' to start fresh)`,
+          timestamp: new Date(),
+          actions: [
+            { label: 'Skip & Enter Manually', value: 'skip_website' }
+          ]
+        }
+        setMessages(prev => [...prev, errorMsg])
 
-      // Move into a choice state instead of silently switching to manual mode
-      setOnboardingState(prev => ({
-        phase: 'website_check',
-        subStep: 'scrape_failed_choice',
-        archetype: null,
-        data: {},
-        needsVerification: null,
-        fromWebsite: false,
-        lastWebsiteUrl: normalizedUrl
-      }))
+        // Stay in website_input state to allow retry
+        setOnboardingState(prev => ({
+          ...prev,
+          phase: 'website_check',
+          subStep: 'website_input',
+          lastWebsiteUrl: normalizedUrl
+        }))
+      } else {
+        // Second failure or user explicitly skipped: Move to manual onboarding
+        setWebsiteRetryCount(0) // Reset for future use
+        const errorMsg: Message = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: "No worries! It happens. Let's just build your profile manually. What is your business name?",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, errorMsg])
+
+        // Move to manual onboarding
+        setOnboardingState(prev => ({
+          phase: 'discovery',
+          subStep: 'business_type',
+          archetype: null,
+          data: {},
+          needsVerification: null,
+          fromWebsite: false,
+          lastWebsiteUrl: normalizedUrl
+        }))
+      }
     }
   }
 
@@ -1190,6 +1236,30 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         ? { ...msg, actionClicked: option.value }
         : msg
     ))
+
+    // CASE: User clicked "Skip & Enter Manually" (Website Retry)
+    if (option.value === 'skip_website') {
+      setWebsiteRetryCount(0) // Reset counter
+      const noWebsiteMsg: Message = {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: "No worries! It happens. Let's just build your profile manually. What is your business name?",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, noWebsiteMsg])
+
+      setOnboardingState({
+        phase: 'discovery',
+        subStep: 'business_type',
+        archetype: null,
+        data: {},
+        needsVerification: null,
+        fromWebsite: false,
+        lastWebsiteUrl: onboardingState.lastWebsiteUrl
+      })
+      setIsLoading(false)
+      return
+    }
 
     // CASE A: User clicked "Looks Perfect" (Profile Confirmed)
     if (option.value === 'confirm_profile') {
@@ -2717,7 +2787,65 @@ export default function OnboardingChatInterface({ userId, className = '' }: Onbo
         }
       }
 
-      // Website check: user responding after a failed scrape
+      // Website check: user responding in retry state (website_input)
+      if (phase === 'website_check' && subStep === 'website_input') {
+        const lower = lowerMessage
+        
+        // Check if user wants to skip
+        if (
+          lower.includes('skip') ||
+          lower.includes('manual') ||
+          lower.includes('manually') ||
+          lower.includes('no website')
+        ) {
+          // User wants to skip - move to manual onboarding
+          setWebsiteRetryCount(0) // Reset counter
+          const noWebsiteMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "No worries! It happens. Let's just build your profile manually. What is your business name?",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, noWebsiteMsg])
+
+          setOnboardingState({
+            phase: 'discovery',
+            subStep: 'business_type',
+            archetype: null,
+            data: {},
+            needsVerification: null,
+            fromWebsite: false,
+            lastWebsiteUrl
+          })
+          setIsLoading(false)
+          return
+        }
+        
+        // Check if user provided a URL (retry attempt)
+        const urlMatch = userMessage.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/i)
+        const isUrl = !!urlMatch || userMessage.includes('http') || userMessage.includes('www.')
+        
+        if (isUrl) {
+          // User provided a new URL - try scraping again
+          const url = urlMatch ? urlMatch[0] : userMessage.trim()
+          await scrapeWebsiteAndApply(url)
+          setIsLoading(false)
+          return
+        } else {
+          // Ambiguous input - prompt for URL or skip
+          const clarifyMsg: Message = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: "Please paste the website URL you'd like me to try, or type 'skip' to enter your details manually.",
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, clarifyMsg])
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // Website check: user responding after a failed scrape (legacy state - kept for backward compatibility)
       if (phase === 'website_check' && subStep === 'scrape_failed_choice') {
         // If they clearly want manual mode
         if (
